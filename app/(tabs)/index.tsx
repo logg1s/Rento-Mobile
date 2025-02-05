@@ -3,8 +3,8 @@ import React from "react";
 
 const TabHome = () => {
   return (
-    <View>
-      <Text style={{ fontFamily: "Poppins_400Regular" }}>TabHome</Text>
+    <View className="bg-secondary-100">
+      <Text className="font-bold text-secondary-100">TabHome</Text>
     </View>
   );
 };
