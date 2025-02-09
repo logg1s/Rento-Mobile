@@ -45,7 +45,7 @@ const InputField = ({
                 placeholder={placeholder}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                className="flex-1 text-secondary-800 placeholder:pt-5 font-pmedium justify-center text-lg"
+                className="flex-1 text-secondary-800 pt-5 font-pmedium justify-center text-lg "
                 onChangeText={onChangeText}
                 secureTextEntry={secureTextEntry}
               />
