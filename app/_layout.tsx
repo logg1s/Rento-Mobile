@@ -1,4 +1,3 @@
-import { View, Text } from "react-native";
 import React, { useEffect } from "react";
 import { SplashScreen, Stack } from "expo-router";
 import "../global.css";
@@ -43,6 +42,7 @@ const Layout = () => {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="+not-found" />
       </Stack>
