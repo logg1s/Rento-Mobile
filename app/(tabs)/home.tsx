@@ -72,42 +72,43 @@ const TabHome = () => {
           />
         </View>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="h-60 px-5">
-          <Swiper
-            loop={true}
-            autoplay={true}
-            // dot={<View className="w-[32px] h-[4px] mx-1 bg-[#E2E8F0]" />}
-            // activeDot={<View className="w-[32px] h-[4px] mx-1 bg-[#0286FF]" />}
-          >
-            <Image
-              source={require("@/assets/images/picsum_1.jpg")}
-              className="w-full h-56"
-              resizeMode="contain"
-            />
-            <Image
-              source={require("@/assets/images/picsum_1.jpg")}
-              className="w-full h-56"
-              resizeMode="contain"
-            />
-          </Swiper>
-        </View>
-        <View className="px-5 gap-2 mb-10">
-          <View className="flex-row items-center">
-            <Text className="font-psemibold text-lg flex-1">Gợi ý</Text>
-            <TouchableOpacity>
-              <Text className="font-psemibold text-md text-primary-500">
-                Xem tất cả
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <ServiceCard data={data[0]} />
-        </View>
-        <FlatList
-          data={data}
-          contentContainerClassName="px-5 gap-5 pb-5"
-          renderItem={({ item }) => <ServiceCard data={item} />}
-          ListHeaderComponent={() => (
+      <FlatList
+        data={data}
+        contentContainerClassName="px-5 gap-5 pb-5"
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => <ServiceCard data={item} />}
+        ListHeaderComponent={() => (
+          <>
+            <View className="h-60">
+              <Swiper
+                loop={true}
+                autoplay={true}
+                // dot={<View className="w-[32px] h-[4px] mx-1 bg-[#E2E8F0]" />}
+                // activeDot={<View className="w-[32px] h-[4px] mx-1 bg-[#0286FF]" />}
+              >
+                <Image
+                  source={require("@/assets/images/picsum_1.jpg")}
+                  className="w-full h-56"
+                  resizeMode="contain"
+                />
+                <Image
+                  source={require("@/assets/images/picsum_1.jpg")}
+                  className="w-full h-56"
+                  resizeMode="contain"
+                />
+              </Swiper>
+            </View>
+            <View className="gap-2 mb-10">
+              <View className="flex-row items-center">
+                <Text className="font-psemibold text-lg flex-1">Gợi ý</Text>
+                <TouchableOpacity>
+                  <Text className="font-psemibold text-md text-primary-500">
+                    Xem tất cả
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <ServiceCard data={data[0]} />
+            </View>
             <View className="flex-row items-center -mb-3">
               <Text className="font-psemibold text-lg flex-1">
                 Dịch vụ phổ biến
@@ -118,9 +119,9 @@ const TabHome = () => {
                 </Text>
               </TouchableOpacity>
             </View>
-          )}
-        />
-      </ScrollView>
+          </>
+        )}
+      />
     </SafeAreaView>
   );
 };

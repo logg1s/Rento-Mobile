@@ -3,6 +3,7 @@ import React from "react";
 import { ServiceCardProp } from "@/types/type";
 import Fontisto from "@expo/vector-icons/Fontisto";
 import { FontAwesome } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 const ServiceCard = ({
   data: {
@@ -18,7 +19,10 @@ const ServiceCard = ({
   containerStyles,
 }: ServiceCardProp & { containerStyles?: string }) => {
   // TODO: write logic press service card
-  const onPressServiceCard = () => {};
+  const id = 123;
+  const onPressServiceCard = () => {
+    router.push(`/job/${id}`);
+  };
 
   // TODO: write logic press favorite
   const onPressFavorite = () => {};
@@ -27,7 +31,7 @@ const ServiceCard = ({
   const onLongPressServiceCard = () => {};
   return (
     <TouchableOpacity
-      className={`rounded-xl p-3 gap-5 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
+      className={`rounded-xl p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
       onPress={onPressServiceCard}
       onLongPress={onLongPressServiceCard}
     >
