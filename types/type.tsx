@@ -10,3 +10,11 @@ export type ServiceCardProp = {
     isLike: boolean;
   };
 };
+
+export type CardPriceProp = {
+  data: {
+    discount?: number;
+    name: string;
+    price: number;
+  };
+};
