@@ -39,13 +39,13 @@ const InputField = ({
           <View
             className={`w-full bg-general-300 ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center h-16`}
           >
-            <View className="flex-1 flex-row items-center gap-1">
+            <View className="flex-1 flex-row items-center gap-2">
               {iconLeft}
               <TextInput
                 placeholder={placeholder}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
-                className="flex-1 text-secondary-800 pt-5 font-pmedium justify-center text-lg "
+                className="flex-1 text-secondary-800 pt-2 font-pmedium justify-center text-lg "
                 onChangeText={onChangeText}
                 secureTextEntry={secureTextEntry}
               />

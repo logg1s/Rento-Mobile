@@ -3,8 +3,9 @@ import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomButton from "@/components/CustomButton";
 import AntDesign from "@expo/vector-icons/AntDesign";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 const WelcomeScreen = () => {
+  return <Redirect href={"/(tabs)/home"} />;
   return (
     <SafeAreaView className="flex-1">
       <ImageBackground
