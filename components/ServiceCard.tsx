@@ -1,4 +1,10 @@
-import { View, Text, Image, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  GestureResponderEvent,
+} from "react-native";
 import React from "react";
 import { ServiceCardProp } from "@/types/type";
 import Fontisto from "@expo/vector-icons/Fontisto";
@@ -17,7 +23,11 @@ const ServiceCard = ({
     isLike,
   },
   containerStyles,
-}: ServiceCardProp & { containerStyles?: string }) => {
+  onPressFavorite,
+}: ServiceCardProp & {
+  containerStyles?: string;
+  onPressFavorite: () => void;
+}) => {
   // TODO: write logic press service card
   const id = 123;
   const onPressServiceCard = () => {
@@ -25,7 +35,6 @@ const ServiceCard = ({
   };
 
   // TODO: write logic press favorite
-  const onPressFavorite = () => {};
 
   // TODO: write long press service card
   const onLongPressServiceCard = () => {};
@@ -48,7 +57,7 @@ const ServiceCard = ({
             </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={onPressFavorite}>
+        <TouchableOpacity onPress={() => onPressFavorite()}>
           <FontAwesome
             name={isLike ? "heart" : "heart-o"}
             size={24}

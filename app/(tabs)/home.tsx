@@ -1,43 +1,23 @@
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  FlatList,
-} from "react-native";
-import React from "react";
+import { View, Text, Image, TouchableOpacity, FlatList } from "react-native";
+import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import InputField from "@/components/InputField";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Swiper from "react-native-swiper";
 import ServiceCard from "@/components/ServiceCard";
+import { home_data } from "@/lib/dummy";
 
 const TabHome = () => {
-  const data = [
-    {
-      name: "Lê Hoàng Cường",
-      service: "Sửa điện",
-      rating: 4.2,
-      priceRange: "250k - 600k / giờ",
-      description:
-        "Thợ điện được cấp phép với hơn 8 năm kinh nghiệm, chuyên xử lý mọi vấn đề về điện trong gia đình và doanh nghiệp.",
-      imageUrl: "https://picsum.photos/200",
-      commentCount: 20,
-      isLike: false,
-    },
-    {
-      name: "Nguyen Thi A",
-      service: "Dọn dẹp",
-      rating: 4.6,
-      priceRange: "250k - 600k / giờ",
-      description: "Chuyên dọn dẹp với giá cả hợp lí",
-      imageUrl: "https://picsum.photos/200",
-      commentCount: 100,
-      isLike: true,
-    },
-  ];
+  const [data, setData] = useState(home_data);
+  const onPressFavorite = (id: number) => {
+    setData((prev) => {
+      return prev.map((item) =>
+        item.id === id ? { ...item, isLike: !item.isLike } : item,
+      );
+    });
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <View className="px-5">
@@ -49,7 +29,7 @@ const TabHome = () => {
               }}
               className="w-10 h-10 rounded-full"
             />
-            <View className="">
+            <View>
               <Text className="font-pregular text-sm text-secondary-800">
                 Good Morning
               </Text>
@@ -76,13 +56,18 @@ const TabHome = () => {
         data={data}
         contentContainerClassName="px-5 gap-5 pb-5"
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <ServiceCard data={item} />}
+        renderItem={({ item }) => (
+          <ServiceCard
+            data={item}
+            onPressFavorite={() => onPressFavorite(item.id)}
+          />
+        )}
         ListHeaderComponent={() => (
           <>
             <View className="h-60">
               <Swiper
-                loop={true}
-                autoplay={true}
+                autoplay
+                loop
                 // dot={<View className="w-[32px] h-[4px] mx-1 bg-[#E2E8F0]" />}
                 // activeDot={<View className="w-[32px] h-[4px] mx-1 bg-[#0286FF]" />}
               >
@@ -107,7 +92,10 @@ const TabHome = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <ServiceCard data={data[0]} />
+              <ServiceCard
+                data={data[0]}
+                onPressFavorite={() => onPressFavorite(data[0].id)}
+              />
             </View>
             <View className="flex-row items-center -mb-3">
               <Text className="font-psemibold text-lg flex-1">

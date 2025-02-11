@@ -1,29 +1,13 @@
-import {
-  View,
-  Text,
-  Image,
-  FlatList,
-  ScrollView,
-  PlatformColor,
-  findNodeHandle,
-  UIManager,
-  Dimensions,
-} from "react-native";
-import React, {
-  ReactNode,
-  ReactNodeArray,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { View, Text, Image, ScrollView, Dimensions } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
 import CustomButton from "@/components/CustomButton";
 import { Octicons } from "@expo/vector-icons";
+import { benefit_data, service_data } from "@/lib/dummy";
 
 const DetailJob = () => {
-  const [activeSwiperIndex, setActiveSwiperIndex] = useState(0);
   const [selectedPricing, setSelectedPricing] = useState(-1);
   const priceRef = useRef<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -38,7 +22,7 @@ const DetailJob = () => {
 
       priceRef.current[selectedPricing].measureLayout(
         scrollViewRef.current!,
-        (x: number, y: number) => {
+        (x: number) => {
           scrollViewRef.current?.scrollTo({
             x: x - width / 10,
             animated: true,
@@ -47,80 +31,37 @@ const DetailJob = () => {
       );
     }
   }, [selectedPricing]);
-  const service_data = [
-    {
-      id: 1,
-      name: "Pro cao cấp",
-      price: 50000,
-      discount: 15,
-      id_benefit: [2, 3, 5],
-    },
-    {
-      id: 2,
-      name: "Tiết kiệm 12333333333",
-      price: 15000,
-      id_benefit: [2, 3, 4],
-    },
-    {
-      id: 5,
-      name: "Pro v",
-      price: 500000000,
-      discount: 15,
-      id_benefit: [2, 3, 5],
-    },
-    {
-      id: 6,
-      name: "Tiết kiệm mamaamamm max max",
-      price: 15000,
-      id_benefit: [2, 3, 4],
-    },
-  ];
-  const benefit_data = [
-    { id: 1, name: "Pro cao cấp" },
-    { id: 2, name: "Được sửa chữa toàn diện" },
-    { id: 3, name: "Tư vấn hiệu quả" },
-    { id: 4, name: "Hỗ trợ 24/7" },
-    { id: 5, name: "Bảo hành 12 tháng" },
-    { id: 6, name: "Pro cao cấp" },
-    { id: 7, name: "Được sửa chữa toàn diện" },
-    { id: 8, name: "Tư vấn hiệu quả" },
-    { id: 9, name: "Hỗ trợ 24/7" },
-    { id: 10, name: "Bảo hành 12 tháng" },
-  ];
 
   return (
     <>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View className="gap-0">
-          <View>
-            <Swiper
-              showsPagination={false}
-              className="h-60"
-              index={activeSwiperIndex}
-              onIndexChanged={(index) => setActiveSwiperIndex(index)}
-            >
-              <Image
-                source={require("@/assets/images/picsum_1.jpg")}
-                className="h-full"
-              />
-              <Image
-                source={require("@/assets/images/picsum_1.jpg")}
-                className="h-full"
-              />
-              <Image
-                source={require("@/assets/images/picsum_1.jpg")}
-                className="h-full"
-              />
-            </Swiper>
-            <View className="rounded-2xl pt-[3px] w-auto px-3 h-[25px] bg-neutral-900 justify-center items-center absolute bottom-5 right-5">
-              <Text
-                className="font-pmedium text-white text-center"
-                numberOfLines={1}
-              >
-                {activeSwiperIndex + 1}/3
-              </Text>
-            </View>
-          </View>
+        <View>
+          <Swiper
+            className="h-60 w-full"
+            renderPagination={(index, total) => (
+              <View className="rounded-2xl pt-[3px] w-auto px-3 h-[25px] bg-neutral-900 justify-center items-center absolute bottom-5 right-5">
+                <Text
+                  className="font-pmedium text-white text-center"
+                  numberOfLines={1}
+                >
+                  {index + 1}/{total}
+                </Text>
+              </View>
+            )}
+          >
+            <Image
+              source={require("@/assets/images/picsum_1.jpg")}
+              className="h-full w-full"
+            />
+            <Image
+              source={require("@/assets/images/picsum_1.jpg")}
+              className="h-full w-full"
+            />
+            <Image
+              source={require("@/assets/images/picsum_1.jpg")}
+              className="h-full w-full"
+            />
+          </Swiper>
           <View className="p-5 bg-white border-b-2 border-gray-300">
             <View className="flex-row gap-3 flex-1 items-center">
               <Image
@@ -189,13 +130,11 @@ const DetailJob = () => {
             </View>
           </View>
         </View>
+        <View className="bg-white border-b-2 border-gray-300">
+          <Text className="font-psemibold text-xl ">Gợi ý cho bạn</Text>
+        </View>
         <View className="bg-white">
-          <View>
-            <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
-          </View>
-          <View>
-            <Text className="font-psemibold text-xl">Đã xem gần đây</Text>
-          </View>
+          <Text className="font-psemibold text-xl">Đã xem gần đây</Text>
         </View>
       </ScrollView>
       {selectedPricing !== -1 && (
