@@ -5,15 +5,26 @@ import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
 import CustomButton from "@/components/CustomButton";
 import { Octicons } from "@expo/vector-icons";
-import { benefit_data, service_data } from "@/lib/dummy";
+import { benefit_data, home_data, service_data } from "@/lib/dummy";
+import SmallerServiceCard from "@/components/SmallerServiceCard";
 
 const DetailJob = () => {
+  const [data, setData] = useState(home_data);
   const [selectedPricing, setSelectedPricing] = useState(-1);
   const priceRef = useRef<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const { id } = useLocalSearchParams();
+
   const onPressCardPrice = (index: number) => {
     setSelectedPricing((prev) => (prev === index ? -1 : index));
+  };
+
+  const onPressFavorite = (id: number) => {
+    setData((prev) => {
+      return prev.map((item) =>
+        item.id === id ? { ...item, isLike: !item.isLike } : item,
+      );
+    });
   };
 
   useEffect(() => {
@@ -85,28 +96,25 @@ const DetailJob = () => {
               here to hep you grow your business ...
             </Text>
           </View>
-          <View className="bg-white p-5 gap-7 border-b-2 border-gray-300">
-            <Text className="font-psemibold text-xl">
-              Lựa chọn gói dịch vụ:{" "}
-            </Text>
+          <View className="bg-white p-5 gap-5 border-b-2 border-gray-300">
+            <Text className="font-psemibold text-xl">Lựa chọn gói dịch vụ</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               ref={scrollViewRef}
+              contentContainerClassName="gap-5"
             >
-              <View className="flex-row gap-7">
-                {service_data.map((item, index) => (
-                  <CardPrice
-                    key={index + item.name}
-                    data={item}
-                    isActive={index === selectedPricing}
-                    onPress={() => onPressCardPrice(index)}
-                    ref={(el) => (priceRef.current[index] = el)}
-                  />
-                ))}
-              </View>
+              {service_data.map((item, index) => (
+                <CardPrice
+                  key={index + item.name}
+                  data={item}
+                  isActive={index === selectedPricing}
+                  onPress={() => onPressCardPrice(index)}
+                  ref={(el) => (priceRef.current[index] = el)}
+                />
+              ))}
             </ScrollView>
-            <View className="gap-5">
+            <View className="gap-3">
               {benefit_data.map((benefit) => (
                 <View
                   className="flex-row items-center justify-between"
@@ -130,8 +138,20 @@ const DetailJob = () => {
             </View>
           </View>
         </View>
-        <View className="bg-white border-b-2 border-gray-300">
-          <Text className="font-psemibold text-xl ">Gợi ý cho bạn</Text>
+        <View className="bg-white border-b-2 border-gray-300 p-5">
+          <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-5 py-5"
+          >
+            {data.map((item) => (
+              <SmallerServiceCard
+                data={item}
+                onPressFavorite={() => onPressFavorite(item.id)}
+              />
+            ))}
+          </ScrollView>
         </View>
         <View className="bg-white">
           <Text className="font-psemibold text-xl">Đã xem gần đây</Text>
@@ -140,8 +160,8 @@ const DetailJob = () => {
       {selectedPricing !== -1 && (
         <View className="flex-row items-center justify-between border-t border-gray-300 px-5 py-2 bg-white">
           <View className="flex-row w-2/4 ">
-            <Text className="font-pmedium text-2xl">Giá: </Text>
-            <Text className="font-psemibold text-3xl text-primary-500">
+            <Text className="font-pmedium text-2xl ">Giá: </Text>
+            <Text className="font-psemibold text-3xl text-[#ee4d2d]">
               {service_data[selectedPricing].price}
             </Text>
           </View>

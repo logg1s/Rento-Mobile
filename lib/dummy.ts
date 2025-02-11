@@ -24,6 +24,17 @@ export const home_data: ServiceCardProp["data"][] = [
     commentCount: 100,
     isLike: true,
   },
+  {
+    id: 3,
+    name: "Nguyen Thi A",
+    service: "Dọn dẹp",
+    rating: 4.6,
+    priceRange: "250k - 600k / giờ",
+    description: "Chuyên dọn dẹp với giá cả hợp lí",
+    imageUrl: "https://picsum.photos/200",
+    commentCount: 100,
+    isLike: true,
+  },
 ];
 
 export const service_data = [

@@ -7,6 +7,7 @@ import { router } from "expo-router";
 
 const SmallerServiceCard = ({
   data: {
+    id,
     name,
     service,
     rating,
@@ -17,58 +18,53 @@ const SmallerServiceCard = ({
     isLike,
   },
   containerStyles,
-}: ServiceCardProp & { containerStyles?: string }) => {
+  onPressFavorite,
+}: ServiceCardProp & {
+  containerStyles?: string;
+  onPressFavorite: () => void;
+}) => {
   // TODO: write logic press service card
-  const id = 123;
   const onPressServiceCard = () => {
     router.push(`/job/${id}`);
   };
 
   // TODO: write logic press favorite
-  const onPressFavorite = () => {};
 
   // TODO: write long press service card
   const onLongPressServiceCard = () => {};
   return (
     <TouchableOpacity
-      className={`rounded-xl p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
+      className={`w-48 rounded-xl gap-3 border border-general-100 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
       onPress={onPressServiceCard}
       onLongPress={onLongPressServiceCard}
     >
-      <View className="flex-row items-center">
-        <View className="flex-row gap-3 flex-1 items-center">
-          <Image
-            source={{ uri: imageUrl }}
-            className="w-10 h-10 rounded-full"
-          />
-          <View>
-            <Text className="font-pbold">{name}</Text>
-            <Text className="font-pmedium text-sm text-secondary-800">
-              {service}
-            </Text>
+      <Image
+        source={{ uri: imageUrl }}
+        className="w-full h-40"
+        resizeMode="cover"
+      />
+      <View className="px-3 gap-3">
+        <View className="flex-row items-center">
+          <View className="flex-row gap-1 flex-1 items-center">
+            <Fontisto name="star" size={12} color="black" className="pb-1" />
+            <View className="flex-row gap-2 items-center">
+              <Text className="font-pbold text-lg">{rating}</Text>
+              <Text className="font-pregular text-sm">({commentCount})</Text>
+            </View>
           </View>
+          <TouchableOpacity onPress={onPressFavorite}>
+            <FontAwesome
+              name={isLike ? "heart" : "heart-o"}
+              size={24}
+              color={isLike ? "#c40000" : "gray"}
+              className="mb-2"
+            />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={onPressFavorite}>
-          <FontAwesome
-            name={isLike ? "heart" : "heart-o"}
-            size={24}
-            color={isLike ? "#c40000" : "gray"}
-            className="mb-2"
-          />
-        </TouchableOpacity>
-      </View>
-      <View>
-        <Text className="text-justify font-pmedium">{description}</Text>
-      </View>
-      <View className="flex-row items-center">
-        <View className="flex-row gap-1 flex-1 items-center">
-          <Fontisto name="star" size={12} color="black" className="mb-1" />
-          <View className="flex-row gap-2 items-center">
-            <Text className="font-pbold text-lg">{rating}</Text>
-            <Text className="font-pregular text-sm">({commentCount})</Text>
-          </View>
-        </View>
-        <Text className="font-pregular">
+        <Text className=" font-pmedium -mt-2" numberOfLines={3}>
+          {description}
+        </Text>
+        <Text className="font-pregular text-right">
           Từ <Text className="font-pbold">{priceRange}</Text>
         </Text>
       </View>
