@@ -5,8 +5,17 @@ import {
   FlatList,
   ScrollView,
   PlatformColor,
+  findNodeHandle,
+  UIManager,
+  Dimensions,
 } from "react-native";
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  ReactNode,
+  ReactNodeArray,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocalSearchParams } from "expo-router";
 import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
@@ -16,6 +25,28 @@ import { Octicons } from "@expo/vector-icons";
 const DetailJob = () => {
   const [activeSwiperIndex, setActiveSwiperIndex] = useState(0);
   const [selectedPricing, setSelectedPricing] = useState(-1);
+  const priceRef = useRef<any[]>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const { id } = useLocalSearchParams();
+  const onPressCardPrice = (index: number) => {
+    setSelectedPricing((prev) => (prev === index ? -1 : index));
+  };
+
+  useEffect(() => {
+    if (selectedPricing !== -1 && priceRef.current[selectedPricing]) {
+      const { width } = Dimensions.get("window");
+
+      priceRef.current[selectedPricing].measureLayout(
+        scrollViewRef.current!,
+        (x: number, y: number) => {
+          scrollViewRef.current?.scrollTo({
+            x: x - width / 10,
+            animated: true,
+          });
+        },
+      );
+    }
+  }, [selectedPricing]);
   const service_data = [
     {
       id: 1,
@@ -24,11 +55,16 @@ const DetailJob = () => {
       discount: 15,
       id_benefit: [2, 3, 5],
     },
-    { id: 2, name: "Tiết kiệm", price: 15000, id_benefit: [2, 3, 4] },
+    {
+      id: 2,
+      name: "Tiết kiệm 12333333333",
+      price: 15000,
+      id_benefit: [2, 3, 4],
+    },
     {
       id: 5,
-      name: "Pro vip vip vip max ca ocap",
-      price: 5000000000000000,
+      name: "Pro v",
+      price: 500000000,
       discount: 15,
       id_benefit: [2, 3, 5],
     },
@@ -52,18 +88,9 @@ const DetailJob = () => {
     { id: 10, name: "Bảo hành 12 tháng" },
   ];
 
-  const { id } = useLocalSearchParams();
-  const onPressCardPrice = (index: number) => {
-    if (selectedPricing === index) {
-      setSelectedPricing(-1);
-    } else {
-      setSelectedPricing(index);
-    }
-  };
   return (
     <>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {" "}
         <View className="gap-0">
           <View>
             <Swiper
@@ -124,7 +151,7 @@ const DetailJob = () => {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              className=""
+              ref={scrollViewRef}
             >
               <View className="flex-row gap-7">
                 {service_data.map((item, index) => (
@@ -133,6 +160,7 @@ const DetailJob = () => {
                     data={item}
                     isActive={index === selectedPricing}
                     onPress={() => onPressCardPrice(index)}
+                    ref={(el) => (priceRef.current[index] = el)}
                   />
                 ))}
               </View>
