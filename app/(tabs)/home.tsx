@@ -1,4 +1,11 @@
-import { View, Text, Image, TouchableOpacity, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  FlatList,
+  RefreshControl,
+} from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -10,6 +17,13 @@ import { home_data } from "@/lib/dummy";
 
 const TabHome = () => {
   const [data, setData] = useState(home_data);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 2000);
+  };
+
   const onPressFavorite = (id: number) => {
     setData((prev) => {
       return prev.map((item) =>
@@ -56,6 +70,9 @@ const TabHome = () => {
         data={data}
         contentContainerClassName="px-5 gap-5 pb-5"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
         renderItem={({ item }) => (
           <ServiceCard
             data={item}

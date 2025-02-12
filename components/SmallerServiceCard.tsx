@@ -28,8 +28,6 @@ const SmallerServiceCard = ({
     router.push(`/job/${id}`);
   };
 
-  // TODO: write logic press favorite
-
   // TODO: write long press service card
   const onLongPressServiceCard = () => {};
   return (

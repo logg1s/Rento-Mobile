@@ -1,22 +1,59 @@
-import { View, Text, Image, ScrollView, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  Dimensions,
+  RefreshControl,
+  TouchableOpacity,
+} from "react-native";
 import React, { useEffect, useRef, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
 import CustomButton from "@/components/CustomButton";
-import { Octicons } from "@expo/vector-icons";
+import { FontAwesome, Octicons } from "@expo/vector-icons";
 import { benefit_data, home_data, service_data } from "@/lib/dummy";
 import SmallerServiceCard from "@/components/SmallerServiceCard";
+import { setStatusBarNetworkActivityIndicatorVisible } from "expo-status-bar";
 
 const DetailJob = () => {
+  const { id } = useLocalSearchParams();
+  const navigation = useNavigation();
   const [data, setData] = useState(home_data);
   const [selectedPricing, setSelectedPricing] = useState(-1);
   const priceRef = useRef<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
-  const { id } = useLocalSearchParams();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
+  const service = data.find((item) => item.id.toString() === id);
+  const isLike = service?.isLike;
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle:
+        `${service?.service} - ${service?.name}` || "Thông tin dịch vụ",
+      headerRight: () => (
+        <TouchableOpacity onPress={() => onPressFavorite(service?.id)}>
+          <FontAwesome
+            name={isLike ? "heart" : "heart-o"}
+            size={24}
+            color={isLike ? "#c40000" : "gray"}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [id, service]);
 
   const onPressCardPrice = (index: number) => {
-    setSelectedPricing((prev) => (prev === index ? -1 : index));
+    if (index !== undefined) {
+      setSelectedPricing((prev) => (prev === index ? -1 : index));
+    }
   };
 
   const onPressFavorite = (id: number) => {
@@ -45,8 +82,14 @@ const DetailJob = () => {
 
   return (
     <>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="gap-2"
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View className="gap-1">
           <Swiper
             className="h-60 w-full"
             renderPagination={(index, total) => (
@@ -73,30 +116,29 @@ const DetailJob = () => {
               className="h-full w-full"
             />
           </Swiper>
-          <View className="p-5 bg-white border-b-2 border-gray-300">
+          <View className="p-5 bg-white ">
             <View className="flex-row gap-3 flex-1 items-center">
               <Image
-                source={{ uri: "https://picsum.photos/200" }}
+                source={{ uri: service?.imageUrl }}
                 className="w-10 h-10 rounded-full"
               />
               <View>
-                <Text className="font-pbold">abc</Text>
+                <Text className="font-pbold">{service?.name}</Text>
                 <Text className="font-pmedium text-sm text-secondary-800">
                   123
                 </Text>
               </View>
             </View>
           </View>
-          <View className="p-5 bg-white border-b-2 border-gray-300">
+          <View className="p-5 bg-white ">
             <Text className="font-pbold text-2xl text-justify">
-              Design social media posts
+              {service?.name}
             </Text>
             <Text className="font-pregular text-justify">
-              Hi, i'm tanvir. I'm a professoinal social media post designer. I'm
-              here to hep you grow your business ...
+              {service?.description}
             </Text>
           </View>
-          <View className="bg-white p-5 gap-5 border-b-2 border-gray-300">
+          <View className="bg-white p-5 gap-5 ">
             <Text className="font-psemibold text-xl">Lựa chọn gói dịch vụ</Text>
             <ScrollView
               horizontal
@@ -138,7 +180,7 @@ const DetailJob = () => {
             </View>
           </View>
         </View>
-        <View className="bg-white border-b-2 border-gray-300 p-5">
+        <View className="bg-white  p-5">
           <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
           <ScrollView
             horizontal
@@ -147,14 +189,28 @@ const DetailJob = () => {
           >
             {data.map((item) => (
               <SmallerServiceCard
+                key={item.id}
                 data={item}
                 onPressFavorite={() => onPressFavorite(item.id)}
               />
             ))}
           </ScrollView>
         </View>
-        <View className="bg-white">
+        <View className="bg-white p-5">
           <Text className="font-psemibold text-xl">Đã xem gần đây</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-5 py-5"
+          >
+            {data.map((item) => (
+              <SmallerServiceCard
+                key={item.id}
+                data={item}
+                onPressFavorite={() => onPressFavorite(item.id)}
+              />
+            ))}
+          </ScrollView>
         </View>
       </ScrollView>
       {selectedPricing !== -1 && (

@@ -38,7 +38,7 @@ const CardPrice = forwardRef<
         {name}
       </Text>
       <Text
-        className={`font-psemibold text-3xl text-center ${isActive && "text-[#ee4d2d]"}`}
+        className={`font-psemibold text-3xl text-center "}`}
         numberOfLines={1}
       >
         {price}

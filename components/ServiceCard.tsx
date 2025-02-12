@@ -13,6 +13,7 @@ import { router } from "expo-router";
 
 const ServiceCard = ({
   data: {
+    id,
     name,
     service,
     rating,
@@ -29,7 +30,6 @@ const ServiceCard = ({
   onPressFavorite: () => void;
 }) => {
   // TODO: write logic press service card
-  const id = 123;
   const onPressServiceCard = () => {
     router.push(`/job/${id}`);
   };

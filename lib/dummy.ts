@@ -11,7 +11,7 @@ export const home_data: ServiceCardProp["data"][] = [
       "Thợ điện được cấp phép với hơn 8 năm kinh nghiệm, chuyên xử lý mọi vấn đề về điện trong gia đình và doanh nghiệp.",
     imageUrl: "https://picsum.photos/200",
     commentCount: 20,
-    isLike: false,
+    isLike: true,
   },
   {
     id: 2,
@@ -22,7 +22,7 @@ export const home_data: ServiceCardProp["data"][] = [
     description: "Chuyên dọn dẹp với giá cả hợp lí",
     imageUrl: "https://picsum.photos/200",
     commentCount: 100,
-    isLike: true,
+    isLike: false,
   },
   {
     id: 3,
@@ -33,7 +33,7 @@ export const home_data: ServiceCardProp["data"][] = [
     description: "Chuyên dọn dẹp với giá cả hợp lí",
     imageUrl: "https://picsum.photos/200",
     commentCount: 100,
-    isLike: true,
+    isLike: false,
   },
 ];
 
