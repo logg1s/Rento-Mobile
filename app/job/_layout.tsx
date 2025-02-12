@@ -7,6 +7,7 @@ const JobLayout = () => {
   return (
     <Stack>
       <Stack.Screen name="[id]" getId={({ params }) => params?.id} />
+      <Stack.Screen name="order" />
     </Stack>
   );
 };

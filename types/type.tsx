@@ -12,6 +12,16 @@ export type ServiceCardProp = {
   };
 };
 
+export type CommentCardProp = {
+  data: {
+    id: number;
+    name: string;
+    rating: number;
+    comment: string;
+    imageUrl: string;
+  };
+};
+
 export type CardPriceProp = {
   data: {
     discount?: number;

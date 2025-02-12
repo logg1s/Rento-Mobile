@@ -37,7 +37,7 @@ export const home_data: ServiceCardProp["data"][] = [
   },
 ];
 
-export const service_data = [
+export const price_data = [
   {
     id: 1,
     name: "Pro cao cấp",
@@ -77,4 +77,19 @@ export const benefit_data = [
   { id: 8, name: "Tư vấn hiệu quả" },
   { id: 9, name: "Hỗ trợ 24/7" },
   { id: 10, name: "Bảo hành 12 tháng" },
+];
+
+export const comment_data = [
+  {
+    id: 1,
+    comment: "Good service !!! Good 1222222222222222222222222",
+    userId: home_data[0].id,
+    rating: 4.6,
+  },
+  {
+    id: 2,
+    comment: "Good service !!! Good 1222222222222222222222222",
+    userId: home_data[1].id,
+    rating: 4.8,
+  },
 ];

@@ -41,7 +41,7 @@ const SmallerServiceCard = ({
         className="w-full h-40"
         resizeMode="cover"
       />
-      <View className="px-3 gap-3">
+      <View className="px-3 gap-3 justify-between flex-1">
         <View className="flex-row items-center">
           <View className="flex-row gap-1 flex-1 items-center">
             <Fontisto name="star" size={12} color="black" className="pb-1" />

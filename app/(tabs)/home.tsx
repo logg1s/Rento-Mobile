@@ -102,7 +102,7 @@ const TabHome = () => {
             </View>
             <View className="gap-2 mb-10">
               <View className="flex-row items-center">
-                <Text className="font-psemibold text-lg flex-1">Gợi ý</Text>
+                <Text className="font-psemibold text-xl flex-1">Gợi ý</Text>
                 <TouchableOpacity>
                   <Text className="font-psemibold text-md text-primary-500">
                     Xem tất cả
@@ -115,7 +115,7 @@ const TabHome = () => {
               />
             </View>
             <View className="flex-row items-center -mb-3">
-              <Text className="font-psemibold text-lg flex-1">
+              <Text className="font-psemibold text-xl flex-1">
                 Dịch vụ phổ biến
               </Text>
               <TouchableOpacity>

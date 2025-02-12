@@ -67,7 +67,7 @@ const ServiceCard = ({
         </TouchableOpacity>
       </View>
       <View>
-        <Text className="text-justify font-pmedium">{description}</Text>
+        <Text className="font-pmedium">{description}</Text>
       </View>
       <View className="flex-row items-center">
         <View className="flex-row gap-1 flex-1 items-center">

@@ -8,14 +8,21 @@ import {
   TouchableOpacity,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import {
+  router,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
 import CustomButton from "@/components/CustomButton";
-import { FontAwesome, Octicons } from "@expo/vector-icons";
-import { benefit_data, home_data, service_data } from "@/lib/dummy";
+import { FontAwesome, Fontisto, Octicons } from "@expo/vector-icons";
+import { benefit_data, comment_data, home_data, price_data } from "@/lib/dummy";
 import SmallerServiceCard from "@/components/SmallerServiceCard";
 import { setStatusBarNetworkActivityIndicatorVisible } from "expo-status-bar";
+import RatingStar from "@/components/RatingStar";
+import CommentCard from "@/components/CommentCard";
 
 const DetailJob = () => {
   const { id } = useLocalSearchParams();
@@ -25,6 +32,12 @@ const DetailJob = () => {
   const priceRef = useRef<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const onPressOrder = () => {
+    router.push({
+      pathname: "/job/order",
+      params: { id, selectedPricing: selectedPricing },
+    });
+  };
 
   const onRefresh = () => {
     setIsRefreshing(true);
@@ -84,7 +97,7 @@ const DetailJob = () => {
     <>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-2"
+        contentContainerClassName="gap-5"
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
@@ -131,12 +144,8 @@ const DetailJob = () => {
             </View>
           </View>
           <View className="p-5 bg-white ">
-            <Text className="font-pbold text-2xl text-justify">
-              {service?.name}
-            </Text>
-            <Text className="font-pregular text-justify">
-              {service?.description}
-            </Text>
+            <Text className="font-pbold text-2xl ">{service?.name}</Text>
+            <Text className="font-pregular ">{service?.description}</Text>
           </View>
           <View className="bg-white p-5 gap-5 ">
             <Text className="font-psemibold text-xl">Lựa chọn gói dịch vụ</Text>
@@ -146,7 +155,7 @@ const DetailJob = () => {
               ref={scrollViewRef}
               contentContainerClassName="gap-5"
             >
-              {service_data.map((item, index) => (
+              {price_data.map((item, index) => (
                 <CardPrice
                   key={index + item.name}
                   data={item}
@@ -164,7 +173,7 @@ const DetailJob = () => {
                 >
                   <Text className="font-pregular text-xl">{benefit.name}</Text>
                   {selectedPricing !== -1 &&
-                    (service_data[selectedPricing].id_benefit.includes(
+                    (price_data[selectedPricing].id_benefit.includes(
                       benefit.id,
                     ) ? (
                       <Octicons
@@ -180,7 +189,42 @@ const DetailJob = () => {
             </View>
           </View>
         </View>
-        <View className="bg-white  p-5">
+        <View className="bg-white p-5">
+          <View className="flex-row justify-between items-center">
+            <View>
+              <RatingStar rating={service?.rating} />
+              <Text className="font-pregular">
+                {service?.commentCount} đánh giá
+              </Text>
+            </View>
+            <TouchableOpacity>
+              <Text className="font-psemibold text-primary-500">
+                Xem tất cả
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            contentContainerClassName="gap-5 py-5"
+            showsHorizontalScrollIndicator={false}
+          >
+            {comment_data.map((item) => (
+              <CommentCard
+                key={item.id}
+                data={{
+                  ...item,
+                  ...home_data.map((h) =>
+                    h.id === item.userId
+                      ? { name: h.name, imageUrl: h.imageUrl }
+                      : {},
+                  )[0],
+                }}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        <View className="bg-white p-5">
           <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
           <ScrollView
             horizontal
@@ -218,10 +262,14 @@ const DetailJob = () => {
           <View className="flex-row w-2/4 ">
             <Text className="font-pmedium text-2xl ">Giá: </Text>
             <Text className="font-psemibold text-3xl text-[#ee4d2d]">
-              {service_data[selectedPricing].price}
+              {price_data[selectedPricing].price}
             </Text>
           </View>
-          <CustomButton title="Đặt lịch ngay" containerStyles="bg-black-500 " />
+          <CustomButton
+            title="Đặt lịch ngay"
+            containerStyles="bg-black-500"
+            onPress={onPressOrder}
+          />
         </View>
       )}
     </>
