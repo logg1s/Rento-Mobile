@@ -1,4 +1,23 @@
-import { ServiceCardProp } from "@/types/type";
+import type { ServiceCardProp } from "@/types/type";
+
+export type TimeSlot = {
+  id: number;
+  time: string;
+  isAvailable: boolean;
+};
+
+export type DateSlot = {
+  date: string;
+  isAvailable: boolean;
+  timeSlots: TimeSlot[];
+};
+
+export type Service = ServiceCardProp["data"] & {
+  category: string;
+  pricePerHour: number;
+  experience: number; // in years
+  location: string;
+};
 
 export const home_data: ServiceCardProp["data"][] = [
   {
@@ -92,4 +111,125 @@ export const comment_data = [
     userId: home_data[1].id,
     rating: 4.8,
   },
+];
+
+export const dateSlots: DateSlot[] = Array.from({ length: 30 }, (_, i) => {
+  const date = new Date();
+  date.setDate(date.getDate() + i);
+  return {
+    date: date.toISOString().split("T")[0],
+    isAvailable: Math.random() > 0.2, // 80% chance of being available
+    timeSlots: Array.from({ length: 12 }, (_, j) => ({
+      id: i * 100 + j,
+      time: `${String(8 + j).padStart(2, "0")}:00`,
+      isAvailable: Math.random() > 0.3, // 70% chance of being available
+    })),
+  };
+});
+
+export const services: Service[] = [
+  {
+    id: 1,
+    name: "Lê Hoàng Cường",
+    service: "Sửa điện",
+    category: "Điện",
+    rating: 4.2,
+    priceRange: "250k - 600k / giờ",
+    pricePerHour: 250000,
+    description:
+      "Thợ điện được cấp phép với hơn 8 năm kinh nghiệm, chuyên xử lý mọi vấn đề về điện trong gia đình và doanh nghiệp.",
+    imageUrl: "https://picsum.photos/200",
+    commentCount: 20,
+    isLike: true,
+    experience: 8,
+    location: "Hà Nội",
+  },
+  {
+    id: 2,
+    name: "Nguyễn Thị Anh",
+    service: "Dọn dẹp nhà cửa",
+    category: "Dọn dẹp",
+    rating: 4.6,
+    priceRange: "200k - 400k / giờ",
+    pricePerHour: 200000,
+    description:
+      "Chuyên dọn dẹp nhà cửa với giá cả hợp lý, sạch sẽ và nhanh chóng.",
+    imageUrl: "https://picsum.photos/201",
+    commentCount: 35,
+    isLike: false,
+    experience: 5,
+    location: "Hồ Chí Minh",
+  },
+  {
+    id: 3,
+    name: "Trần Văn Bình",
+    service: "Sửa ống nước",
+    category: "Nước",
+    rating: 4.4,
+    priceRange: "300k - 700k / giờ",
+    pricePerHour: 300000,
+    description:
+      "Thợ sửa ống nước chuyên nghiệp với 10 năm kinh nghiệm, xử lý mọi vấn đề về hệ thống nước.",
+    imageUrl: "https://picsum.photos/202",
+    commentCount: 28,
+    isLike: true,
+    experience: 10,
+    location: "Đà Nẵng",
+  },
+  {
+    id: 4,
+    name: "Phạm Thị Hương",
+    service: "Sửa chữa đồ gia dụng",
+    category: "Sửa chữa",
+    rating: 4.3,
+    priceRange: "250k - 550k / giờ",
+    pricePerHour: 250000,
+    description:
+      "Chuyên sửa chữa các loại đồ gia dụng như tủ lạnh, máy giặt, điều hòa với 7 năm kinh nghiệm.",
+    imageUrl: "https://picsum.photos/203",
+    commentCount: 15,
+    isLike: false,
+    experience: 7,
+    location: "Hải Phòng",
+  },
+  {
+    id: 5,
+    name: "Ngô Đình Long",
+    service: "Lắp đặt điện",
+    category: "Điện",
+    rating: 4.7,
+    priceRange: "350k - 800k / giờ",
+    pricePerHour: 350000,
+    description:
+      "Chuyên lắp đặt hệ thống điện cho nhà ở và văn phòng, đảm bảo an toàn và hiệu quả.",
+    imageUrl: "https://picsum.photos/204",
+    commentCount: 42,
+    isLike: true,
+    experience: 12,
+    location: "Hà Nội",
+  },
+];
+
+export const categories = [
+  { id: "all", name: "Tất cả", image: "https://picsum.photos/seed/all/200" },
+  { id: "Điện", name: "Điện", image: "https://picsum.photos/seed/Điện/200" },
+  { id: "Nước", name: "Nước", image: "https://picsum.photos/seed/Nước/200" },
+  {
+    id: "Dọn dẹp",
+    name: "Dọn dẹp",
+    image: "https://picsum.photos/seed/Dọn dẹp/200",
+  },
+  {
+    id: "Sửa chữa",
+    name: "Sửa chữa",
+    image: "https://picsum.photos/seed/Sửa chữa/200",
+  },
+];
+
+export const locations = [
+  "Tất cả",
+  "Hà Nội",
+  "Hồ Chí Minh",
+  "Đà Nẵng",
+  "Hải Phòng",
 ];

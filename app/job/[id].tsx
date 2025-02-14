@@ -32,6 +32,7 @@ const DetailJob = () => {
   const priceRef = useRef<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  //TODO: replace to real data, fix same router
   const onPressOrder = () => {
     router.push({
       pathname: "/job/order",
