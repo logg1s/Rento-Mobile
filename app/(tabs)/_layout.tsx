@@ -41,6 +41,16 @@ const TabLayout = () => {
         }}
       />
       <Tabs.Screen
+        name="notifications"
+        options={{
+          headerShown: false,
+          tabBarLabel: "Thông báo",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           tabBarLabel: "Cá nhân",

@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { SplashScreen, Stack } from "expo-router";
+
 import "../global.css";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -14,6 +15,7 @@ import {
   Poppins_900Black,
   useFonts,
 } from "@expo-google-fonts/poppins";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,14 +42,14 @@ const Layout = () => {
     return null;
   }
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
-    </>
+    </GestureHandlerRootView>
   );
 };
 

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   View,
   Text,
@@ -6,9 +8,8 @@ import {
   FlatList,
   RefreshControl,
 } from "react-native";
-import React, { useState } from "react";
+import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import InputField from "@/components/InputField";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Swiper from "react-native-swiper";
@@ -50,14 +51,7 @@ const TabHome = () => {
               <Text className="font-psemibold text-lg">Andre Ainley</Text>
             </View>
           </View>
-          <TouchableOpacity className="border-2 border-gray-300 justify-center items-center rounded-full w-10 h-10">
-            <MaterialCommunityIcons
-              name="bell-outline"
-              size={20}
-              color="black"
-              className="p-0"
-            />
-          </TouchableOpacity>
+          {/* Notification button removed */}
         </View>
         <View className="mb-5">
           <InputField
