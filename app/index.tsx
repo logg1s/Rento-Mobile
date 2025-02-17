@@ -1,11 +1,28 @@
-import { View, Text, Image, ImageBackground } from "react-native";
-import React from "react";
+import { View, ImageBackground } from "react-native";
+import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomButton from "@/components/CustomButton";
-import AntDesign from "@expo/vector-icons/AntDesign";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
+import useAuthStore from "@/stores/authStore";
+import { useStore } from "zustand";
 const WelcomeScreen = () => {
-  return <Redirect href={"/(tabs)/home"} />;
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.replace("/home");
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    const init = async () => {
+      await initializeAuth();
+      setIsLoading(false);
+    };
+    init();
+  }, []);
+
   return (
     <SafeAreaView className="flex-1">
       <ImageBackground
@@ -13,12 +30,20 @@ const WelcomeScreen = () => {
         resizeMode="cover"
         className="w-full h-full items-center justify-center"
       >
-        <CustomButton
-          title="Khám phá ngay"
-          iconRight={<AntDesign name="arrowright" size={24} color="white" />}
-          containerStyles={`w-1/2 absolute bottom-24 mb-5`}
-          onPress={() => router.push("/signup")}
-        />
+        {!isLoading && (
+          <View className={`gap-5 w-1/2 absolute bottom-24 mb-5`}>
+            <CustomButton
+              title="Đăng nhập"
+              textStyles="text-white"
+              onPress={() => router.push("/login")}
+            />
+            <CustomButton
+              title="Đăng ký"
+              outline
+              onPress={() => router.push("/signup")}
+            />
+          </View>
+        )}
       </ImageBackground>
     </SafeAreaView>
   );

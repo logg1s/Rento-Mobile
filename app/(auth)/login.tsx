@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
@@ -6,14 +6,23 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import CustomButton from "@/components/CustomButton";
 import Oauth from "@/components/Oauth";
 import { Link, router } from "expo-router";
+import useAuthStore from "@/stores/authStore";
 const Login = () => {
   const [isHidingPw, setIsHidingPw] = useState(false);
   const [formLogin, setFormLogin] = useState({
     email: "",
     password: "",
   });
+  const login = useAuthStore((state) => state.login);
   // TODO: write logic login
-  const handleLogin = () => {};
+  const handleLogin = async () => {
+    const success = await login(formLogin.email, formLogin.password);
+    if (success) {
+      router.replace("/(tabs)/home");
+    } else {
+      Alert.alert("Lỗi", "Sai email hoặc mật khẩu");
+    }
+  };
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <ScrollView className="p-5">

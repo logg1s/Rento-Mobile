@@ -14,6 +14,7 @@ const CustomButton = ({
   onPress,
   iconLeft,
   iconRight,
+  outline = false,
   containerStyles,
   textStyles,
 }: {
@@ -22,15 +23,18 @@ const CustomButton = ({
   iconRight?: ReactNode;
   onPress?: (event: GestureResponderEvent) => void;
   containerStyles?: string;
+  outline?: boolean;
   textStyles?: string;
 }) => {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`justify-center items-center flex-row gap-2 rounded-xl p-3.5 bg-primary-500 ${containerStyles}`}
+      className={`justify-center items-center flex-row gap-2 rounded-xl p-3.5 ${outline ? "bg-white" : "bg-primary-500"} ${containerStyles}`}
     >
       {iconLeft}
-      <Text className={`font-pmedium text-xl text-white ${textStyles}`}>
+      <Text
+        className={`font-pmedium text-xl ${outline ? "text-black" : "text-white"} ${textStyles}`}
+      >
         {title}
       </Text>
       {iconRight}

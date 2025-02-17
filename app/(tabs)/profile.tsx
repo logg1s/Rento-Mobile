@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
+import useAuthStore from "@/stores/authStore";
 
 const ProfileScreen = () => {
   const [user, setUser] = useState({
@@ -41,9 +42,9 @@ const ProfileScreen = () => {
       setUser((prev) => ({ ...prev, avatar: result.assets[0].uri }));
     }
   };
-
-  const handleLogout = () => {
-    // Implement logout logic here
+  const logout = useAuthStore((state) => state.logout);
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 
