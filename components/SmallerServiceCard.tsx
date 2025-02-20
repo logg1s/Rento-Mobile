@@ -1,6 +1,6 @@
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import React from "react";
-import { ServiceCardProp } from "@/types/type";
+import { ServiceCardProp } from "@/types/prop";
 import Fontisto from "@expo/vector-icons/Fontisto";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";

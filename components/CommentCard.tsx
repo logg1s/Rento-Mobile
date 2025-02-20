@@ -1,6 +1,6 @@
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import React from "react";
-import { CommentCardProp } from "@/types/type";
+import { CommentCardProp } from "@/types/prop";
 import Fontisto from "@expo/vector-icons/Fontisto";
 
 const CommentCard = ({

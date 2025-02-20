@@ -1,4 +1,4 @@
-import type { ServiceCardProp } from "@/types/type";
+import type { ServiceCardProp } from "@/types/prop";
 
 export type TimeSlot = {
   id: number;

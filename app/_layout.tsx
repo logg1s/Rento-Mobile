@@ -16,10 +16,21 @@ import {
   useFonts,
 } from "@expo-google-fonts/poppins";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import useRentoData from "@/stores/dataStore";
+import useAuthStore from "@/stores/authStore";
+import { useState } from "react";
 
 SplashScreen.preventAutoHideAsync();
 
 const Layout = () => {
+  const initialize = useAuthStore((state) => state.initialize);
+  useEffect(() => {
+    const init = async () => {
+      await initialize();
+    };
+    init();
+  }, []);
+
   const [loaded, error] = useFonts({
     Poppins_100Thin,
     Poppins_200ExtraLight,

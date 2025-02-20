@@ -5,7 +5,7 @@ import {
   TouchableOpacityProps,
 } from "react-native";
 import React, { LegacyRef, forwardRef } from "react";
-import { CardPriceProp } from "@/types/type";
+import { CardPriceProp } from "@/types/prop";
 
 const CardPrice = forwardRef<
   TouchableOpacityProps,

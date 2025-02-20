@@ -1,0 +1,52 @@
+*Khách chưa đăng nhập:
+Xem thông tin dịch vụ
+Xem danh sách dịch vụ
+Đăng nhập
+Đăng ký tài khoản
+Tìm kiếm dịch vụ
+
+*Khách đã đăng nhập:
+Chat với nhà cung cấp
+Thanh toán dịch vụ
+Xem thông tin dịch vụ
+Cập nhật thông tin tài khoản
+Đánh giá nhận xét dịch vụ
+Gửi khiếu nại tới hệ thống
+Đặt dịch vụ
+Xem danh sách dịch vụ
+Huỷ đơn dịch vụ
+Tìm kiếm dịch vụ
+Theo dõi trạng thái đơn dịch vụ
+
+*Nhà cung cấp:
+Xem thông tin dịch vụ
+THeo dõi trạng thái đơn dịch vụ
+Xem danh sách dịch vụ
+TÌm kiếm dịch vụ
+Huỷ đơn dịch vụ
+Cập nhật thông tin tài khoản
+Gửi khiếu nại tới hệ thống
+Đăng nhập
+Cập nhật đơn dịch vụ
+Quản lý dịch vụ
+Quản lý đơn dịch vụ
+Quản lý đánh giá và nhận xét
+Cập nhật thông tin dịch vụ
+Cập nhật trạng thái đơn dịch vụ
+Cập nhật lịch làm việc
+Chat với khách hàng
+Xem thống kê
+
+*Quản trị hệ thống:
+Duyệt đăng ký nhà cung cấp
+Xử lý khiếu nại
+Xem thống kê hệ thống
+Cấu hình hệ thống
+Quản lý thanh toán
+Đăng nhập
+Gửi thông báo hệ thống
+Quản lý nhà cung cấp dịch vụ
+Quản lý đánh giá và nhận xét
+Quản lý đơn dịch vụ
+Quản lý dịch vụ
+Quản lý khách hàng

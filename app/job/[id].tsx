@@ -73,7 +73,7 @@ const DetailJob = () => {
   const onPressFavorite = (id: number) => {
     setData((prev) => {
       return prev.map((item) =>
-        item.id === id ? { ...item, isLike: !item.isLike } : item,
+        item.id === id ? { ...item, isLike: !item.isLike } : item
       );
     });
   };
@@ -89,7 +89,7 @@ const DetailJob = () => {
             x: x - width / 10,
             animated: true,
           });
-        },
+        }
       );
     }
   }, [selectedPricing]);
@@ -175,7 +175,7 @@ const DetailJob = () => {
                   <Text className="font-pregular text-xl">{benefit.name}</Text>
                   {selectedPricing !== -1 &&
                     (price_data[selectedPricing].id_benefit.includes(
-                      benefit.id,
+                      benefit.id
                     ) ? (
                       <Octicons
                         name="check-circle-fill"
@@ -217,7 +217,7 @@ const DetailJob = () => {
                   ...home_data.map((h) =>
                     h.id === item.userId
                       ? { name: h.name, imageUrl: h.imageUrl }
-                      : {},
+                      : {}
                   )[0],
                 }}
               />

@@ -49,7 +49,7 @@ const useFetch = <T>({
       };
 
       const response = await axios(config);
-      setResponseData(response.data);
+      setResponseData(response?.data);
     } catch (err) {
       if (err?.response?.status === 401 && !retrying) {
         setRetrying(true);

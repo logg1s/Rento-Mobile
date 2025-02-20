@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import useRentoData from "./dataStore";
 
 type AuthState = {
   token: string | null;
   isLoggedIn: boolean | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  initializeAuth: () => Promise<void>;
+  initialize: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
 };
 const key = "jwtToken";
@@ -37,6 +38,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
       if (newToken) {
         await AsyncStorage.setItem("jwtToken", newToken);
+        await useRentoData.getState().fetchData();
         set({ token: newToken, isLoggedIn: true });
         return true;
       }
@@ -52,27 +54,28 @@ const useAuthStore = create<AuthState>((set, get) => ({
     set({ token: null, isLoggedIn: false });
   },
 
-  initializeAuth: async () => {
-    const storedToken = await AsyncStorage.getItem(key);
-    if (storedToken) {
-      try {
-        await axios.get(`${hostAuth}/validate`, defaultHeader(storedToken));
-        set({ token: storedToken, isLoggedIn: true });
-      } catch (err) {
-        console.error("Error", err);
-      }
+  initialize: async () => {
+    const result = await get().refreshAccessToken();
+    if (result) {
+      await useRentoData.getState().fetchData();
     }
   },
   refreshAccessToken: async () => {
     try {
+      const storedToken = await AsyncStorage.getItem(key);
+      if (!storedToken) {
+        return false;
+      }
       const response = await axios.post(
         `${hostAuth}/refresh`,
         {},
-        defaultHeader(get().token),
+        defaultHeader(storedToken)
       );
       const newToken = response?.data?.access_token;
       if (newToken) {
-        set({ token: newToken });
+        console.log("newToken", newToken);
+        await AsyncStorage.setItem("jwtToken", newToken);
+        set({ token: newToken, isLoggedIn: true });
         return true;
       }
     } catch (error) {

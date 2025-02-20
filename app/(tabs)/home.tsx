@@ -8,30 +8,24 @@ import {
   FlatList,
   RefreshControl,
 } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Swiper from "react-native-swiper";
 import ServiceCard from "@/components/ServiceCard";
-import { home_data } from "@/lib/dummy";
+import useRentoData from "@/stores/dataStore";
 
 const TabHome = () => {
-  const [data, setData] = useState(home_data);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const data = useRentoData((state) => state.services);
 
   const onRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => setIsRefreshing(false), 2000);
   };
 
-  const onPressFavorite = (id: number) => {
-    setData((prev) => {
-      return prev.map((item) =>
-        item.id === id ? { ...item, isLike: !item.isLike } : item,
-      );
-    });
-  };
+  const onPressFavorite = (id: number) => {};
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
@@ -67,12 +61,14 @@ const TabHome = () => {
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
-        renderItem={({ item }) => (
-          <ServiceCard
-            data={item}
-            onPressFavorite={() => onPressFavorite(item.id)}
-          />
+        ListEmptyComponent={() => (
+          <View className="flex-1 items-center justify-center">
+            <Text className="font-psemibold text-lg">Không có dữ liệu</Text>
+          </View>
         )}
+        renderItem={({ item }) =>
+          item && <ServiceCard data={item} onPressFavorite={() => {}} />
+        }
         ListHeaderComponent={() => (
           <>
             <View className="h-60">
@@ -103,10 +99,12 @@ const TabHome = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <ServiceCard
-                data={data[0]}
-                onPressFavorite={() => onPressFavorite(data[0].id)}
-              />
+              {data[0] && (
+                <ServiceCard
+                  data={data[0]}
+                  onPressFavorite={() => onPressFavorite(data[0].id)}
+                />
+              )}
             </View>
             <View className="flex-row items-center -mb-3">
               <Text className="font-psemibold text-xl flex-1">
