@@ -8,7 +8,7 @@ import Oauth from "@/components/Oauth";
 import { Link, router } from "expo-router";
 import useAuthStore from "@/stores/authStore";
 const Login = () => {
-  const [isHidingPw, setIsHidingPw] = useState(false);
+  const [isHidingPw, setIsHidingPw] = useState(true);
   const [formLogin, setFormLogin] = useState({
     email: "",
     password: "",

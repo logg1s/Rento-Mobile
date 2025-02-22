@@ -25,7 +25,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
                                                      onPressFavorite,
                                                  }) => {
     const onPressServiceCard = () => {
-        router.push(`/job/${id}`);
+        router.push({
+            pathname: "/job/[id]",
+            params: {
+                id,
+                user_name: user?.name,
+                category_name: category?.category_name
+            }
+        });
     };
 
     return (

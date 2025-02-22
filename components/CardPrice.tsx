@@ -6,14 +6,16 @@ import {
 } from "react-native";
 import React, { LegacyRef, forwardRef } from "react";
 import { CardPriceProp } from "@/types/prop";
+import { PriceType } from "@/types/type";
+import { formatToVND } from "@/utils/utils";
 
 const CardPrice = forwardRef<
   TouchableOpacityProps,
-  CardPriceProp & {
+  PriceType & {
     isActive?: boolean;
     onPress?: () => void;
   }
->(({ data: { price, name, discount }, isActive = false, onPress }, ref) => (
+>(({ price_value, price_name, isActive = false, onPress }, ref) => (
   <TouchableOpacity
     className={`rounded-xl ${isActive ? "bg-primary-300 border-primary-500" : "bg-general-500 border-gray-300"} w-auto h-auto gap-3 border-2`}
     onPress={onPress}
@@ -26,22 +28,22 @@ const CardPrice = forwardRef<
         className={`font-pbold ${isActive ? "text-white" : "text-primary-500"} text-center`}
         numberOfLines={1}
       >
-        {discount ? `Giảm ${discount}%` : name}
+        {price_name}
       </Text>
     </View>
 
     <View className="px-5 gap-2">
-      <Text
+      {/* <Text
         className={`font-pmedium text-lg  ${isActive ? "text-primary-500" : "text-secondary-900"} text-center`}
         numberOfLines={1}
       >
-        {name}
-      </Text>
+        {price_name}
+      </Text> */}
       <Text
         className={`font-psemibold text-3xl text-center "}`}
         numberOfLines={1}
       >
-        {price}
+        {formatToVND(price_value)}
       </Text>
     </View>
   </TouchableOpacity>

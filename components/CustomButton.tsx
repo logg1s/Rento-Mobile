@@ -17,6 +17,7 @@ const CustomButton = ({
   outline = false,
   containerStyles,
   textStyles,
+  isDisabled = false,
 }: {
   title: string;
   iconLeft?: ReactNode;
@@ -25,10 +26,12 @@ const CustomButton = ({
   containerStyles?: string;
   outline?: boolean;
   textStyles?: string;
+  isDisabled?: boolean;
 }) => {
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={isDisabled ? () => {} : onPress}
+      activeOpacity={isDisabled ? 1 : 0.7}
       className={`justify-center items-center flex-row gap-2 rounded-xl p-3.5 ${outline ? "bg-white" : "bg-primary-500"} ${containerStyles}`}
     >
       {iconLeft}

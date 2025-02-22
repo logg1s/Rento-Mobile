@@ -10,6 +10,7 @@ type AuthState = {
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
+  setToken: (token: string) => Promise<void>;
 };
 const key = "jwtToken";
 
@@ -43,15 +44,20 @@ const useAuthStore = create<AuthState>((set, get) => ({
         return true;
       }
     } catch (error) {
-      console.error("Lỗi khi đăng nhập:", error);
+      console.log("Lỗi khi đăng nhập:", error?.response?.data);
     }
     return false;
   },
 
   logout: async () => {
-    await axios.post(`${hostAuth}/logout`, {}, defaultHeader(get().token));
-    await AsyncStorage.removeItem(key);
-    set({ token: null, isLoggedIn: false });
+    try {
+      await axios.post(`${hostAuth}/logout`, {}, defaultHeader(get().token));
+    } catch (err) {
+      console.log("err", err);
+    } finally {
+      await AsyncStorage.removeItem(key);
+      set({ token: null, isLoggedIn: false });
+    }
   },
 
   initialize: async () => {
@@ -59,6 +65,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
     if (result) {
       await useRentoData.getState().fetchData();
     }
+    // const tokenSaved = await AsyncStorage.getItem(key);
+    // if (tokenSaved) {
+    //   set({ token: tokenSaved, isLoggedIn: true });
+    // }
   },
   refreshAccessToken: async () => {
     try {
@@ -71,6 +81,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
         {},
         defaultHeader(storedToken)
       );
+
       const newToken = response?.data?.access_token;
       if (newToken) {
         console.log("newToken", newToken);
@@ -79,11 +90,13 @@ const useAuthStore = create<AuthState>((set, get) => ({
         return true;
       }
     } catch (error) {
-      console.error("Lỗi khi refresh token: ", error);
+      console.log("Lỗi khi refresh token: ", error?.response?.data);
     }
-    set({ token: null, isLoggedIn: false });
-    AsyncStorage.removeItem(key);
     return false;
+  },
+  setToken: async (token) => {
+    await AsyncStorage.setItem("jwtToken", token);
+    set({ token, isLoggedIn: true });
   },
 }));
 
