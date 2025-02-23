@@ -30,6 +30,11 @@ const InputField = ({
   containerStyles,
   rules,
   value,
+  onSubmitEditing,
+  returnKeyType,
+  editable,
+  onPressIn,
+  enableValidate = true,
 }: {
   nameField?: string;
   placeholder?: string;
@@ -44,6 +49,11 @@ const InputField = ({
     isValid: boolean;
     message: string;
   }[];
+  onSubmitEditing?: () => void;
+  returnKeyType?: "done" | "go" | "next" | "search" | "send";
+  editable?: boolean;
+  onPressIn?: () => void;
+  enableValidate?: boolean;
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const isValidAll = value?.trim()?.length
@@ -63,7 +73,8 @@ const InputField = ({
           <View
             className={`w-full bg-general-300  ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center ${multiline && isFocused ? "h-40" : "h-16"} ${containerStyles}`}
             style={
-              !isValidAll && {
+              !isValidAll &&
+              enableValidate && {
                 borderColor: "red",
                 borderWidth: isFocused ? 2 : 1,
               }
@@ -81,6 +92,10 @@ const InputField = ({
                 secureTextEntry={secureTextEntry}
                 multiline={multiline}
                 numberOfLines={multiline ? 4 : 1}
+                onSubmitEditing={onSubmitEditing}
+                returnKeyType={returnKeyType}
+                editable={editable}
+                onPressIn={onPressIn}
               />
             </View>
             {iconRight}

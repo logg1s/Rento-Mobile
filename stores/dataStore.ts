@@ -33,6 +33,12 @@ export const axiosFetch = async (
   method: Method = "get",
   data?: any
 ): Promise<AxiosResponse | undefined> => {
+  console.log(
+    "fetching",
+    rentoHost + url,
+    method,
+    data ? JSON.stringify(data) : ""
+  );
   try {
     const token = await AsyncStorage.getItem("jwtToken");
     return axios({
@@ -44,11 +50,11 @@ export const axiosFetch = async (
       data,
     });
   } catch (error) {
+    console.log("Lỗi fetch", url, error?.response?.data);
     const refreshResult = await useAuthStore.getState().refreshAccessToken();
     if (refreshResult) {
       return axiosFetch(url, method, data);
     }
-    console.log("Lỗi fetch", url, error?.response?.data);
   }
 };
 
@@ -139,7 +145,10 @@ const useRentoData = create<DataState>((set, get) => ({
       await get().fetchFavorites();
     } catch (error) {
       set({ services: previousServices });
-      console.log("Lỗi khi thay đổi trạng thái yêu thích:", error?.response?.data);
+      console.log(
+        "Lỗi khi thay đổi trạng thái yêu thích:",
+        error?.response?.data
+      );
     }
   },
 }));

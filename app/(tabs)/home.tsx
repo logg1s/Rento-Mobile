@@ -15,9 +15,11 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import Swiper from "react-native-swiper";
 import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
+import { router } from "expo-router";
 
 const TabHome = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [searchText, setSearchText] = useState("");
   const data = useRentoData((state) => state.services);
   const users = useRentoData((state) => state.users);
   const fetchData = useRentoData((state) => state.fetchData);
@@ -42,6 +44,21 @@ const TabHome = () => {
   const onPressFavorite = (serviceId?: number) => {
     if (serviceId) {
       updateFavorite(serviceId);
+    }
+  };
+
+  const handleSearchPress = () => {
+    if (searchText.trim()) {
+      // Chỉ chuyển searchText khi có nội dung
+      router.push({
+        pathname: "/(tabs)/search",
+        params: { fromHome: true, searchText: searchText.trim() },
+      });
+    } else {
+      router.push({
+        pathname: "/(tabs)/search",
+        params: { fromHome: true },
+      });
     }
   };
 
@@ -74,6 +91,12 @@ const TabHome = () => {
           <InputField
             placeholder="Tìm kiếm dịch vụ"
             iconLeft={<Ionicons name="search" size={20} color="gray" />}
+            value={searchText}
+            onChangeText={setSearchText}
+            onSubmitEditing={handleSearchPress} // Xử lý khi nhấn Enter
+            returnKeyType="search"
+            editable={true}
+            enableValidate={false}
           />
         </View>
       </View>

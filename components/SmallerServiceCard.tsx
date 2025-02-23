@@ -71,7 +71,10 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
           {service_description}
         </Text>
         <Text className="font-pregular text-right">
-          Từ <Text className="font-pbold">{convertedPrice(price)}</Text>
+          Từ{" "}
+          <Text className="font-pbold">
+            {convertedPrice(price, false, "lowest")}
+          </Text>
         </Text>
       </View>
     </TouchableOpacity>

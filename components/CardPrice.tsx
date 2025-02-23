@@ -40,7 +40,7 @@ const CardPrice = forwardRef<
         {price_name}
       </Text> */}
       <Text
-        className={`font-psemibold text-3xl text-center "}`}
+        className={`font-pmedium text-3xl text-center "}`}
         numberOfLines={1}
       >
         {formatToVND(price_value)}

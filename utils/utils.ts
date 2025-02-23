@@ -1,7 +1,11 @@
 import { PriceType } from "@/types/type";
 
-export const convertedPrice = (price?: PriceType[]) => {
-  if (!price?.length) return "0đ";
+export const convertedPrice = (
+  price?: PriceType[],
+  short = false,
+  single: "no" | "lowest" | "highest" = "no"
+) => {
+  if (!price?.length) return formatToVND(0);
   const minPrice = Math.min(...price.map((p) => p.price_value));
   const maxPrice = Math.max(...price.map((p) => p.price_value));
 
@@ -15,11 +19,15 @@ export const convertedPrice = (price?: PriceType[]) => {
     return value.toString();
   };
 
-  if (minPrice === maxPrice) {
-    return formatValue(minPrice);
+  const fnFormat = short ? formatValue : formatToVND;
+
+  const singlePrice = single === "highest" ? maxPrice : minPrice;
+
+  if (minPrice === maxPrice || single !== "no") {
+    return fnFormat(singlePrice);
   }
 
-  return `${formatValue(minPrice)} - ${formatValue(maxPrice)}`;
+  return `${fnFormat(minPrice)} - ${fnFormat(maxPrice)}`;
 };
 
 export const formatDateToVietnamese = (date: Date) => {

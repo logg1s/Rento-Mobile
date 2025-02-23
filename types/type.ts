@@ -30,12 +30,9 @@ export type CategoryType = {
 } & TimeStampType;
 
 export type PriceType = {
-  id: number;
-  price_name: string;
   price_value: number;
-  deleted_at: string | null;
-  benefit?: BenefitType[];
-} & TimeStampType;
+  price_name: string;
+};
 
 export type CommentType = {
   id: number;
@@ -62,6 +59,7 @@ export type ServiceType = {
   comment_count?: number;
   average_rate?: number;
   benefit?: BenefitType[];
+  comment_by_you?: CommentType;
 } & TimeStampType;
 
 export type NotificationType = {
@@ -79,6 +77,8 @@ export type RoleType = {
 
 export type BenefitType = {
   id: number;
+  service_id?: number;
+  price_id?: number[];
   benefit_name: string;
   deleted_at: string | null;
 } & TimeStampType;

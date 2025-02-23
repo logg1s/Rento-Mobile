@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   View,
   TextInput,
+  Alert,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
 import CustomButton from "@/components/CustomButton";
-import { FontAwesome, Octicons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons, Octicons } from "@expo/vector-icons";
 import { benefit_data, price_data } from "@/lib/dummy";
 import SmallerServiceCard from "@/components/SmallerServiceCard";
 import RatingStar from "@/components/RatingStar";
@@ -36,18 +37,17 @@ const DetailJob = () => {
   const services = useRentoData((state) => state.services);
   const favorites = useRentoData((state) => state.favorites);
   const [comment, setComment] = useState("");
-  const [rating, setRating] = useState(0);
-  const [selectedRating, setSelectedRating] = useState(0);
+  const [selectedRating, setSelectedRating] = useState<number>(0);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const fetchData = async () => {
-    const [serviceRes, benefitRes] = await Promise.all([
-      axiosFetch(`/services/${id}`),
-    ]);
+    const serviceRes = await axiosFetch(`/services/${id}`);
+
     const service = serviceRes?.data;
-    // const benefit = benefitRes?.data;
     service.is_liked =
       favorites?.some((item) => item.id === service.id) ?? false;
+    setComment(service?.comment_by_you?.comment_body ?? "");
+    setSelectedRating(service?.comment_by_you?.rate ?? 0);
     setData(service);
   };
 
@@ -118,12 +118,18 @@ const DetailJob = () => {
     }
   }, [selectedPricing]);
 
-  const submitComment = async () => {
-    if (comment && rating) {
-      await axiosFetch(`/comments/${id}`, "post", { comment, rating });
-      setComment("");
-      setRating(0);
-      fetchData(); // Cập nhật lại dữ liệu để hiển thị bình luận mới
+  const submitComment = async (type: "submit" | "update") => {
+    if (comment && selectedRating) {
+      const id = data?.comment_by_you?.id ?? data?.id;
+      await axiosFetch(`/comments/${id}`, type === "submit" ? "post" : "put", {
+        comment_body: comment,
+        rate: selectedRating,
+      });
+      Alert.alert("Cập nhật thành công !");
+      await fetchData();
+    } else {
+      Alert.alert("Lỗi", "Bình luận hoặc đánh giá không được để trống");
+      console.log("Error: Comment or rating is empty");
     }
   };
 
@@ -137,6 +143,18 @@ const DetailJob = () => {
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
+    }
+  };
+
+  const handleDeleteComment = async (id: number) => {
+    try {
+      const response = await axiosFetch(`/comments/${id}`, "delete");
+      if (response?.status === 200) {
+        Alert.alert("Xóa bình luận thành công");
+        await fetchData();
+      }
+    } catch (error) {
+      Alert.alert("Xóa bình luận thất bại");
     }
   };
 
@@ -177,22 +195,30 @@ const DetailJob = () => {
                 className="h-full w-full"
               />
             </Swiper>
-            <View className="p-5 bg-white ">
-              <View className="flex-row gap-3 flex-1 items-center">
-                <Image
-                  source={
-                    data?.user?.image_id
-                      ? { uri: data?.user?.image_id }
-                      : require("@/assets/images/avatar_placeholder_icon.png")
-                  }
-                  className="w-10 h-10 rounded-full"
-                />
+            <View className="p-5 bg-white flex-row justify-between items-center">
+              <View className="flex-row gap-3 flex-1 items-center flex-1">
+                <View className="rounded-full border border-gray p-2">
+                  <Image
+                    source={
+                      data?.user?.image_id
+                        ? { uri: data?.user?.image_id }
+                        : require("@/assets/images/avatar_placeholder_icon.png")
+                    }
+                    className="w-8 h-8"
+                  />
+                </View>
                 <View>
                   <Text className="font-pbold">{data?.user?.name}</Text>
                   <Text className="font-pmedium text-sm text-secondary-800">
-                    123
+                    {data?.category?.category_name}
                   </Text>
                 </View>
+              </View>
+              <View className="flex-row items-center">
+                <Ionicons name="location-outline" size={16} color="gray" />
+                <Text className="ml-1 font-pmedium text-sm">
+                  {data?.location?.location_name}
+                </Text>
               </View>
             </View>
             <View className="p-5 bg-white gap-5">
@@ -202,9 +228,15 @@ const DetailJob = () => {
               </Text>
             </View>
             <View className="bg-white p-5 gap-5 ">
-              <Text className="font-psemibold text-xl">
-                Lựa chọn gói dịch vụ
-              </Text>
+              {(data?.price ?? []).length > 0 ? (
+                <Text className="font-psemibold text-xl">
+                  Lựa chọn gói dịch vụ
+                </Text>
+              ) : (
+                <Text className="font-psemibold text-xl text-center">
+                  Không có gói dịch vụ nào khả dụng
+                </Text>
+              )}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -222,18 +254,22 @@ const DetailJob = () => {
                   />
                 ))}
               </ScrollView>
-              <View className="gap-3">
-                {benefit_data.map((benefit) => (
+              <View className="gap-3 mt-5">
+                <Text className="font-psemibold text-2xl">Lợi ích gói:</Text>
+                {data?.benefit?.map((benefit, index) => (
                   <View
                     className="flex-row items-center justify-between"
                     key={benefit.id}
                   >
-                    <Text className="font-pregular text-xl">
-                      {benefit.name}
+                    <Text
+                      className="font-pregular text-lg flex-1 ml-2"
+                      numberOfLines={1}
+                    >
+                      {index + 1}. {benefit.benefit_name}
                     </Text>
                     {selectedPricing !== -1 &&
-                      (price_data[selectedPricing].id_benefit.includes(
-                        benefit.id
+                      (benefit?.price_id?.includes(
+                        data?.price?.[selectedPricing]?.id
                       ) ? (
                         <Octicons
                           name="check-circle-fill"
@@ -253,6 +289,7 @@ const DetailJob = () => {
               <View>
                 <RatingStar
                   rating={data?.average_rate ?? 0}
+                  showRateNumber
                   maxStar={5}
                   isAverage={true}
                 />
@@ -278,17 +315,33 @@ const DetailJob = () => {
               ))}
             </ScrollView>
           </View>
+
           <View className="bg-white p-5">
+            {data?.comment_by_you !== null && (
+              <View>
+                <Text className="font-psemibold text-xl">
+                  Bình luận của bạn
+                </Text>
+                <CommentCard
+                  data={data?.comment_by_you!}
+                  user={data?.user}
+                  containerStyles="w-full my-5"
+                  enableOption
+                  handleDeleteComment={handleDeleteComment}
+                />
+              </View>
+            )}
             <Text className="font-psemibold text-xl">
-              Gửi đánh giá và bình luận
+              {data?.comment_by_you === null
+                ? "Gửi đánh giá và bình luận"
+                : "Chỉnh sửa bình luận"}
             </Text>
             <View className=" justify-center items-center mt-5">
               <RatingStar
-                rating={rating}
+                rating={selectedRating}
                 maxStar={5}
                 isAverage={false}
                 showRateNumber={false}
-                selectedRating={selectedRating}
                 setSelectedRating={(rating) => setSelectedRating(rating)}
                 size={38}
               />
@@ -298,15 +351,22 @@ const DetailJob = () => {
                 nameField="Bình luận"
                 placeholder="Nhập bình luận của bạn"
                 onChangeText={setComment}
+                value={comment}
+                rules={[
+                  {
+                    isValid: comment.length > 0,
+                    message: "Bình luận không được để trống",
+                  },
+                ]}
                 multiline
-                iconRight={
-                  <TouchableOpacity
-                    onPress={pickImage}
-                    style={{ marginLeft: 8 }}
-                  >
-                    <FontAwesome name="image" size={20} color="black" />
-                  </TouchableOpacity>
-                }
+                // iconRight={
+                //   <TouchableOpacity
+                //     onPress={pickImage}
+                //     style={{ marginLeft: 8 }}
+                //   >
+                //     <FontAwesome name="image" size={20} color="black" />
+                //   </TouchableOpacity>
+                // }
               />
             </View>
             {selectedImage && (
@@ -325,12 +385,17 @@ const DetailJob = () => {
             )}
             <View className="bg-white">
               <CustomButton
-                title="Gửi"
-                onPress={submitComment}
+                title={data?.comment_by_you === null ? "Gửi" : "Cập nhật"}
+                onPress={() =>
+                  submitComment(
+                    data?.comment_by_you === null ? "submit" : "update"
+                  )
+                }
                 containerStyles="w-1/3 self-center mt-5"
               />
             </View>
           </View>
+
           <View className="bg-white p-5">
             <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
             <ScrollView
