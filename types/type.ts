@@ -82,3 +82,13 @@ export type BenefitType = {
   benefit_name: string;
   deleted_at: string | null;
 } & TimeStampType;
+
+export type Order = {
+  id: number;
+  user: UserType;
+  service: ServiceType;
+  status: number;
+  deleted_at: string | null;
+  price_final_value: number;
+  location: string;
+} & TimeStampType;

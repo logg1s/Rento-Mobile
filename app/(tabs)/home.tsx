@@ -49,7 +49,6 @@ const TabHome = () => {
 
   const handleSearchPress = () => {
     if (searchText.trim()) {
-      // Chỉ chuyển searchText khi có nội dung
       router.push({
         pathname: "/(tabs)/search",
         params: { fromHome: true, searchText: searchText.trim() },
