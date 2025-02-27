@@ -75,8 +75,10 @@ const CommentCard = ({
           <View className="rounded-full border border-gray p-2 ">
             <Image
               source={
-                user?.image_id
-                  ? { uri: user?.image_id }
+                user?.image?.path
+                  ? {
+                      uri: process.env.EXPO_PUBLIC_API_HOST + user?.image?.path,
+                    }
                   : require("@/assets/images/avatar_placeholder_icon.png")
               }
               className="w-8 h-8"

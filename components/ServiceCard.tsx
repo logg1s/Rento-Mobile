@@ -44,8 +44,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         <View className={`rounded-full border-2 border-black p-5`}>
           <Image
             source={
-              user?.image_id
-                ? { uri: user?.image_id }
+              user?.image?.path
+                ? { uri: process.env.EXPO_PUBLIC_API_HOST + user?.image?.path }
                 : require("@/assets/images/avatar_placeholder_icon.png")
             }
             className="w-9 h-9"

@@ -9,9 +9,17 @@ export type UserType = {
   name: string;
   email: string;
   phone_number: string;
-  image_id: string;
+  image_id?: string;
+  image?: ImageType;
+  address?: string;
   deleted_at: string | null;
   role: RoleType[];
+} & TimeStampType;
+
+export type ImageType = {
+  id: number;
+  path?: string;
+  deleted_at: string | null;
 } & TimeStampType;
 
 export type LocationType = {
@@ -32,7 +40,12 @@ export type CategoryType = {
 export type PriceType = {
   price_value: number;
   price_name: string;
-};
+  service_id?: number;
+  service?: ServiceType;
+  id: number;
+  deleted_at: string | null;
+  benefit?: BenefitType[];
+} & TimeStampType;
 
 export type CommentType = {
   id: number;
@@ -92,3 +105,7 @@ export type Order = {
   price_final_value: number;
   location: string;
 } & TimeStampType;
+
+export type Rules = {
+  [key: string]: { isValid: boolean; message: string }[];
+};

@@ -1,180 +1,148 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { View, Text, ScrollView, Alert } from "react-native";
 import {
-  home_data,
-  price_data,
-  dateSlots,
-  type TimeSlot,
-  type DateSlot,
-} from "@/lib/dummy";
+  router,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
+import { home_data, price_data } from "@/lib/dummy";
 import { SafeAreaView } from "react-native-safe-area-context";
-import CustomButton from "@/components/CustomButton";
 import InputField from "@/components/InputField";
 import { Ionicons } from "@expo/vector-icons";
-import { Calendar, LocaleConfig } from "react-native-calendars";
+import OrderServiceDetails from "@/components/OrderServiceDetails";
+import CustomButton from "@/components/CustomButton";
+import { PriceType, Rules, ServiceType } from "@/types/type";
+import { axiosFetch } from "@/stores/dataStore";
 
 const OrderService = () => {
   // TODO: replace with database
-  const { selectedPricing, id } = useLocalSearchParams();
-  const [priceData, setPriceData] = useState(
-    price_data[Number.parseInt(selectedPricing as string)],
-  );
-  const [homeData, setHomeData] = useState(
-    home_data.find((item) => item.id.toString() === id),
-  );
-  const [selectedDate, setSelectedDate] = useState<DateSlot | null>(null);
-  const [selectedTime, setSelectedTime] = useState<TimeSlot | null>(null);
-  const [address, setAddress] = useState("");
-  const [note, setNote] = useState("");
+  const { id, price_id } = useLocalSearchParams();
+
+  const [formData, setFormData] = useState({
+    address: "",
+    phone_number: "",
+    note: "",
+  });
+
+  const [service, setService] = useState<ServiceType | null>(null);
+  const [price, setPrice] = useState<PriceType | null>(null);
+
+  const fetchData = async () => {
+    const [serviceRes, priceRes] = await Promise.all([
+      axiosFetch(`/services/${id}`),
+      axiosFetch(`/prices/${price_id}`),
+    ]);
+    setService(serviceRes?.data);
+    setPrice(priceRes?.data);
+  };
+  useEffect(() => {
+    fetchData();
+  }, [id, price_id]);
+
   const navigation = useNavigation();
-  const router = useRouter();
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: "Đặt lịch dịch vụ " + homeData?.service,
+      headerTitle: "Đặt dịch vụ " + service?.service_name,
     });
-  }, [homeData?.service, navigation]);
+  }, [service, navigation]);
 
-  const handleDateSelect = (date: string) => {
-    const selectedDateSlot = dateSlots.find((slot) => slot.date === date);
-    if (selectedDateSlot && selectedDateSlot.isAvailable) {
-      setSelectedDate(selectedDateSlot);
-      setSelectedTime(null);
-    } else {
-      Alert.alert(
-        "Thông báo",
-        "Ngày này không có sẵn. Vui lòng chọn ngày khác.",
-      );
-    }
+  const rules: Rules = {
+    phone_number: [
+      {
+        isValid: /([0-9]{10})\b/.test(formData.phone_number.trim()),
+        message: "Số điện thoại không hợp lệ",
+      },
+    ],
+    address: [
+      {
+        isValid: formData.address.trim().length > 0,
+        message: "Địa chỉ không được để trống",
+      },
+    ],
   };
 
-  const handleTimeSelect = (time: TimeSlot) => {
-    setSelectedTime(time);
-  };
+  const [isValid, setIsValid] = useState(false);
+  useEffect(() => {
+    const checkValid = Object.keys(rules).every((key) =>
+      rules[key].every((rule) => rule.isValid)
+    );
+    setIsValid(checkValid);
+  }, [formData, rules]);
 
-  const handleOrder = () => {
-    if (!selectedDate || !selectedTime || !address) {
-      Alert.alert("Thông báo", "Vui lòng điền đầy đủ thông tin đặt lịch");
+  const handleOrder = async () => {
+    if (!isValid) {
+      Alert.alert("Thông báo", "Vui lòng điền địa chỉ");
       return;
     }
 
-    Alert.alert(
-      "Đặt lịch thành công",
-      "Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi",
-      [
-        {
-          text: "OK",
-          onPress: () => router.push("/(tabs)/home"),
-        },
-      ],
-    );
-  };
+    try {
+      await axiosFetch("/orders", "post", {
+        service_id: id,
+        price_id: price_id,
+        price_final_value: price?.price_value,
+        address: formData.address,
+        phone_number: formData.phone_number,
+        message: formData.note,
+      });
 
-  const markedDates = dateSlots.reduce((acc, slot) => {
-    acc[slot.date] = {
-      marked: true,
-      dotColor: slot.isAvailable ? "green" : "red",
-    };
-    return acc;
-  }, {});
+      Alert.alert(
+        "Đặt dịch vụ thành công",
+        "Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi",
+        [
+          {
+            text: "OK",
+            onPress: () => router.push("/(tabs)/home"),
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Đặt dịch vụ thất bại", "Vui lòng thử lại sau");
+      console.log(error?.response?.data);
+    }
+  };
 
   return (
     <>
       <ScrollView contentContainerClassName="p-5">
         <View className="gap-5">
-          <Text className="font-pbold text-2xl">Chọn ngày và giờ</Text>
-
-          {/* Calendar for Date Selection */}
-          <Calendar
-            onDayPress={(day) => handleDateSelect(day.dateString)}
-            markedDates={{
-              ...markedDates,
-              [selectedDate?.date || ""]: {
-                selected: true,
-                selectedColor: "blue",
-              },
-            }}
-            theme={{
-              todayTextColor: "#0286FF",
-              selectedDayBackgroundColor: "#0286FF",
-              selectedDayTextColor: "#ffffff",
-            }}
-          />
-
-          {/* Time Selection */}
-          {selectedDate && (
-            <View>
-              <Text className="font-pbold text-xl mb-3">Chọn giờ</Text>
-              <View className="flex-row flex-wrap justify-between">
-                {selectedDate.timeSlots.map((time) => (
-                  <TouchableOpacity
-                    key={time.id}
-                    onPress={() => handleTimeSelect(time)}
-                    disabled={!time.isAvailable}
-                    className={`w-[30%] p-3 rounded-lg mb-3 ${
-                      selectedTime?.id === time.id
-                        ? "bg-primary-500"
-                        : time.isAvailable
-                          ? "bg-white border border-gray-300"
-                          : "bg-gray-200"
-                    }`}
-                  >
-                    <Text
-                      className={`font-pmedium text-center ${
-                        selectedTime?.id === time.id
-                          ? "text-white"
-                          : time.isAvailable
-                            ? "text-black"
-                            : "text-gray-500"
-                      }`}
-                    >
-                      {time.time}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
           <InputField
             nameField="Địa chỉ"
             placeholder="Nhập địa chỉ của bạn"
             iconLeft={<Ionicons name="location" size={20} color="gray" />}
-            onChangeText={setAddress}
+            onChangeText={(e) => setFormData({ ...formData, address: e })}
+            rules={rules.address}
+            value={formData.address}
+          />
+
+          <InputField
+            nameField="Số điện thoại"
+            placeholder="Nhập số điện thoại của bạn"
+            iconLeft={<Ionicons name="call" size={20} color="gray" />}
+            keyBoardType="phone-pad"
+            onChangeText={(e) => setFormData({ ...formData, phone_number: e })}
+            rules={rules.phone_number}
+            value={formData.phone_number}
           />
 
           <InputField
             nameField="Ghi chú (không bắt buộc)"
             placeholder="Nhập ghi chú cho người cung cấp dịch vụ"
             iconLeft={<Ionicons name="create" size={20} color="gray" />}
-            onChangeText={setNote}
+            onChangeText={(e) => setFormData({ ...formData, note: e })}
+            value={formData.note}
           />
 
-          <View className="mt-5">
-            <Text className="font-pbold text-xl mb-3">Thông tin đơn hàng</Text>
-            <View className="bg-white p-4 rounded-xl">
-              <Text className="font-pmedium">Dịch vụ: {homeData?.service}</Text>
-              <Text className="font-pmedium">Gói: {priceData.name}</Text>
-              <Text className="font-pmedium">
-                Giá: {priceData.price.toLocaleString("vi-VN")} VND
-              </Text>
-              {priceData.discount && (
-                <Text className="font-pmedium text-primary-500">
-                  Giảm giá: {priceData.discount}%
-                </Text>
-              )}
-            </View>
-          </View>
+          <OrderServiceDetails service={service} price={price} />
         </View>
       </ScrollView>
       <View className="p-5">
         <CustomButton
-          title="Đặt lịch"
+          title="Đặt dịch vụ"
           onPress={handleOrder}
-          containerStyles={`${!selectedDate || !selectedTime || !address ? "bg-gray-400" : ""}`}
-          disabled={!selectedDate || !selectedTime || !address}
+          containerStyles={`${isValid ? "bg-primary-500" : "bg-primary-400"}`}
         />
       </View>
     </>

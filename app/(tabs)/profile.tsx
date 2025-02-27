@@ -8,40 +8,84 @@ import {
   TouchableOpacity,
   Image,
   Switch,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import useAuthStore from "@/stores/authStore";
+import useRentoData from "@/stores/dataStore";
 
 const ProfileScreen = () => {
-  const [user, setUser] = useState({
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@example.com",
-    phone: "0123456789",
-    avatar: "https://picsum.photos/200",
-  });
+  const user = useRentoData((state) => state.user);
+  const uploadAvatar = useRentoData((state) => state.uploadAvatar);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleEditProfile = () => {
-    // Navigate to edit profile screen
     router.push("/profile/edit");
   };
 
-  const handleChangeAvatar = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  const handleChangePassword = () => {
+    router.push("/profile/change-password");
+  };
+
+  const handleImageUpload = async (result: ImagePicker.ImagePickerResult) => {
+    if (!result.canceled && result.assets[0].uri) {
+      const success = await uploadAvatar(result.assets[0].uri);
+      if (!success) {
+        Alert.alert("Lỗi", "Không thể cập nhật ảnh đại diện");
+      }
+    }
+  };
+
+  const handleCameraCapture = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert("Cần quyền truy cập", "Bạn cần cấp quyền truy cập camera");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
     });
-
-    if (!result.canceled) {
-      setUser((prev) => ({ ...prev, avatar: result.assets[0].uri }));
-    }
+    await handleImageUpload(result);
   };
+
+  const handleChangeAvatar = () => {
+    Alert.alert(
+      "Thay đổi ảnh đại diện",
+      "Chọn phương thức",
+      [
+        {
+          text: "Chụp ảnh",
+          onPress: handleCameraCapture,
+        },
+        {
+          text: "Chọn từ thư viện",
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 1,
+            });
+            await handleImageUpload(result);
+          },
+        },
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const logout = useAuthStore((state) => state.logout);
   const handleLogout = async () => {
     await logout();
@@ -67,15 +111,21 @@ const ProfileScreen = () => {
         <View className="items-center mt-6 mb-8">
           <TouchableOpacity onPress={handleChangeAvatar}>
             <Image
-              source={{ uri: user.avatar }}
+              source={
+                user?.image?.path
+                  ? {
+                      uri: process.env.EXPO_PUBLIC_API_HOST + user?.image?.path,
+                    }
+                  : require("@/assets/images/avatar_placeholder_icon.png")
+              }
               className="w-32 h-32 rounded-full"
             />
             <View className="absolute bottom-0 right-0 bg-primary-500 rounded-full p-2">
               <Ionicons name="camera" size={20} color="white" />
             </View>
           </TouchableOpacity>
-          <Text className="mt-4 text-2xl font-pbold">{user.name}</Text>
-          <Text className="text-gray-600">{user.email}</Text>
+          <Text className="mt-4 text-2xl font-pbold">{user?.name}</Text>
+          <Text className="text-gray-600">{user?.email}</Text>
         </View>
 
         <View className="bg-white rounded-lg shadow-sm mb-6">
@@ -85,9 +135,9 @@ const ProfileScreen = () => {
             icon="person-outline"
           />
           <ProfileSection
-            title="Cài đặt tài khoản"
-            onPress={() => router.push("/profile/account-settings")}
-            icon="settings-outline"
+            title="Đổi mật khẩu"
+            onPress={handleChangePassword}
+            icon="lock-closed-outline"
           />
           <View className="flex-row items-center justify-between py-4 border-b border-gray-200">
             <View className="flex-row items-center">
@@ -110,11 +160,6 @@ const ProfileScreen = () => {
 
         <View className="bg-white rounded-lg shadow-sm mb-6">
           <ProfileSection
-            title="Phương thức thanh toán"
-            onPress={() => router.push("/profile/payment-methods")}
-            icon="card-outline"
-          />
-          <ProfileSection
             title="Lịch sử đơn hàng"
             onPress={() => router.push("/profile/order-history")}
             icon="list-outline"
@@ -123,19 +168,6 @@ const ProfileScreen = () => {
             title="Dịch vụ đã lưu"
             onPress={() => router.push("/profile/saved-services")}
             icon="heart-outline"
-          />
-        </View>
-
-        <View className="bg-white rounded-lg shadow-sm mb-6">
-          <ProfileSection
-            title="Trợ giúp & Hỗ trợ"
-            onPress={() => router.push("/profile/help-support")}
-            icon="help-circle-outline"
-          />
-          <ProfileSection
-            title="Điều khoản và Chính sách"
-            onPress={() => router.push("/profile/terms-policy")}
-            icon="document-text-outline"
           />
         </View>
 

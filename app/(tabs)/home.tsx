@@ -21,7 +21,7 @@ const TabHome = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const data = useRentoData((state) => state.services);
-  const users = useRentoData((state) => state.users);
+  const user = useRentoData((state) => state.user);
   const fetchData = useRentoData((state) => state.fetchData);
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const fetchServices = useRentoData((state) => state.fetchServices);
@@ -69,9 +69,10 @@ const TabHome = () => {
             <View className={`rounded-full border-2 border-black p-2`}>
               <Image
                 source={
-                  users?.image_id
+                  user?.image?.path
                     ? {
-                        uri: users?.image_id,
+                        uri:
+                          process.env.EXPO_PUBLIC_API_HOST + user?.image?.path,
                       }
                     : require("@/assets/images/avatar_placeholder_icon.png")
                 }
@@ -82,7 +83,7 @@ const TabHome = () => {
               <Text className="font-pregular text-sm text-secondary-800">
                 Xin chào
               </Text>
-              <Text className="font-psemibold text-lg">{users?.name}</Text>
+              <Text className="font-psemibold text-lg">{user?.name}</Text>
             </View>
           </View>
         </View>

@@ -8,11 +8,12 @@ import {
   UserType,
 } from "@/types/type";
 import useAuthStore from "@/stores/authStore";
+import { Alert } from "react-native";
 
 type DataState = {
   services: ServiceType[];
   categories: CategoryType[];
-  users: UserType | null;
+  user: UserType | null;
   notifications: NotificationType[];
   favorites: ServiceType[];
 
@@ -24,14 +25,29 @@ type DataState = {
 
   fetchData: () => Promise<void>;
   updateFavorite: (serviceId: number) => Promise<void>;
+  update: (
+    data:
+      | {
+          name?: string | null;
+          phone_number?: string | null;
+          address?: string | null;
+        }
+      | {
+          old_password: string;
+          new_password: string;
+        },
+    isUpdatePassword?: boolean
+  ) => Promise<boolean>;
+  uploadAvatar: (imageUri: string) => Promise<boolean>;
 };
 
-const rentoHost = process.env.EXPO_PUBLIC_API_HOST;
+const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
 
 export const axiosFetch = async (
   url: string,
   method: Method = "get",
-  data?: any
+  data?: any,
+  isUpload = false
 ): Promise<AxiosResponse | undefined> => {
   console.log(
     "fetching",
@@ -45,6 +61,7 @@ export const axiosFetch = async (
       url: rentoHost + url,
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": `${isUpload ? "multipart/form-data" : "application/json"}`,
       },
       method,
       data,
@@ -61,7 +78,7 @@ export const axiosFetch = async (
 const useRentoData = create<DataState>((set, get) => ({
   services: [],
   categories: [],
-  users: null,
+  user: null,
   notifications: [],
   favorites: [],
 
@@ -92,7 +109,7 @@ const useRentoData = create<DataState>((set, get) => ({
   fetchUser: async () => {
     try {
       const response = await axiosFetch(`/auth/me`);
-      set({ users: response?.data || null });
+      set({ user: response?.data || null });
     } catch (error) {
       console.log("Error fetching user:", error?.response?.data);
     }
@@ -149,6 +166,50 @@ const useRentoData = create<DataState>((set, get) => ({
         "Lỗi khi thay đổi trạng thái yêu thích:",
         error?.response?.data
       );
+    }
+  },
+
+  update: async (data, isUpdatePassword: boolean = false) => {
+    try {
+      const response = await axiosFetch(
+        `/auth/update${isUpdatePassword ? "Password" : ""}`,
+        "put",
+        data
+      );
+      if (isUpdatePassword) {
+        const message = response?.data?.message;
+        console.log(message);
+        await useAuthStore.getState().refreshAccessToken();
+      }
+      await get().fetchUser();
+      return true;
+    } catch (error) {
+      console.log("Error updating profile:", error?.response?.data);
+      return false;
+    }
+  },
+
+  uploadAvatar: async (imageUri: string) => {
+    console.log("update ne");
+    try {
+      const formData = new FormData();
+      formData.append("avatar", {
+        uri: imageUri,
+        type: "image/jpeg",
+        name: "avatar.jpg",
+      } as any);
+      const response = await axiosFetch(
+        "/auth/uploadAvatar",
+        "post",
+        formData,
+        true
+      );
+      console.log(response?.data);
+      await get().fetchUser();
+      return true;
+    } catch (error) {
+      console.log("Error uploading avatar:", error?.response?.data);
+      return false;
     }
   },
 }));

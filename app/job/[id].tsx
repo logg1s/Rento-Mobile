@@ -58,7 +58,7 @@ const DetailJob = () => {
   const onPressOrder = () => {
     router.push({
       pathname: "/job/order",
-      params: { id, selectedPricing: selectedPricing },
+      params: { id, price_id: data?.price?.[selectedPricing]?.id },
     });
   };
 
@@ -200,8 +200,12 @@ const DetailJob = () => {
                 <View className="rounded-full border border-gray p-2">
                   <Image
                     source={
-                      data?.user?.image_id
-                        ? { uri: data?.user?.image_id }
+                      data?.user?.image?.path
+                        ? {
+                            uri:
+                              process.env.EXPO_PUBLIC_API_HOST +
+                              data?.user?.image?.path,
+                          }
                         : require("@/assets/images/avatar_placeholder_icon.png")
                     }
                     className="w-8 h-8"
@@ -297,7 +301,7 @@ const DetailJob = () => {
                   {data?.comment_count ?? 0} đánh giá
                 </Text>
               </View>
-              {data?.comment_count && (
+              {(data?.comment_count ?? 0) > 0 && (
                 <TouchableOpacity>
                   <Text className="font-psemibold text-primary-500">
                     Xem tất cả
@@ -369,7 +373,7 @@ const DetailJob = () => {
                 // }
               />
             </View>
-            {selectedImage && (
+            {(selectedImage?.length ?? 0) > 0 && (
               <View style={{ position: "relative", marginTop: 10 }}>
                 <Image
                   source={{ uri: selectedImage }}
@@ -439,7 +443,7 @@ const DetailJob = () => {
             </Text>
           </View>
           <CustomButton
-            title="Đặt lịch ngay"
+            title="Đặt dịch vụ"
             containerStyles="bg-black-500"
             onPress={onPressOrder}
           />

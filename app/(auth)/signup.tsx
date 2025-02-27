@@ -8,14 +8,10 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import CustomButton from "@/components/CustomButton";
 import Oauth from "@/components/Oauth";
 import { Link, router } from "expo-router";
-import { Role } from "@/types/type";
+import { Role, Rules } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
 import useAuthStore from "@/stores/authStore";
 import { debounce, set } from "lodash";
-
-type Rules = {
-  [key: string]: { isValid: boolean; message: string }[];
-};
 
 const SignUp = () => {
   const [isHidingPw, setIsHidingPw] = useState(true);
@@ -28,6 +24,7 @@ const SignUp = () => {
     email: "",
     password: "",
     phone_number: "",
+    address: "",
     role: "user",
   });
   const rules1: Rules = {
@@ -63,6 +60,12 @@ const SignUp = () => {
       {
         isValid: /([0-9]{10})\b/.test(formSignUp.phone_number.trim()),
         message: "Số điện thoại không hợp lệ",
+      },
+    ],
+    address: [
+      {
+        isValid: formSignUp.phone_number.trim().length > 0,
+        message: "Địa chỉ không được để trống",
       },
     ],
   };
@@ -208,6 +211,17 @@ const SignUp = () => {
                   onChangeText={(e) =>
                     setFormSignUp((prev) => ({ ...prev, phone_number: e }))
                   }
+                />
+                <InputField
+                  nameField="Địa chỉ"
+                  placeholder="Nhập địa chỉ"
+                  iconLeft={<Ionicons name="location" size={20} color="gray" />}
+                  rules={rules2.address}
+                  value={formSignUp.address}
+                  onChangeText={(e) =>
+                    setFormSignUp((prev) => ({ ...prev, address: e }))
+                  }
+                  canEmpty={false}
                 />
                 <Text className="font-psemibold text-xl">
                   Vai trò bạn mong muốn

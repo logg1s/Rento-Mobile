@@ -35,6 +35,8 @@ const InputField = ({
   editable,
   onPressIn,
   enableValidate = true,
+  keyBoardType = "default",
+  canEmpty = true,
 }: {
   nameField?: string;
   placeholder?: string;
@@ -54,16 +56,24 @@ const InputField = ({
   editable?: boolean;
   onPressIn?: () => void;
   enableValidate?: boolean;
+  keyBoardType?:
+    | "default"
+    | "number-pad"
+    | "decimal-pad"
+    | "numeric"
+    | "email-address"
+    | "phone-pad";
+  canEmpty?: boolean;
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  const isValidAll = value?.trim()?.length
-    ? rules?.every((rule) => rule?.isValid)
-    : true;
+  const isValidAll =
+    value?.trim()?.length > 0
+      ? rules?.every((rule) => rule?.isValid)
+      : canEmpty;
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1"
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="gap-1">
@@ -96,6 +106,7 @@ const InputField = ({
                 returnKeyType={returnKeyType}
                 editable={editable}
                 onPressIn={onPressIn}
+                keyboardType={keyBoardType}
               />
             </View>
             {iconRight}

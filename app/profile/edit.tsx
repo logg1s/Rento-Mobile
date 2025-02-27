@@ -1,21 +1,64 @@
 "use client";
 
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import useRentoData from "@/stores/dataStore";
+import InputField from "@/components/InputField";
+import { Rules } from "@/types/type";
 
 const EditProfileScreen = () => {
-  const [user, setUser] = useState({
-    name: "Nguyễn Văn A",
-    email: "nguyenvana@example.com",
-    phone: "0123456789",
+  const user = useRentoData((state) => state.user);
+  const updateProfile = useRentoData((state) => state.update);
+
+  const [form, setForm] = useState({
+    name: user?.name ?? "",
+    phone_number: user?.phone_number ?? "",
+    address: user?.address ?? "",
   });
 
-  const handleSave = () => {
-    // Implement save logic here
-    router.back();
+  const rules: Rules = {
+    name: [
+      {
+        isValid: form.name.trim().length >= 4,
+        message: "Họ tên phải có ít nhất 4 ký tự",
+      },
+    ],
+    phone_number: [
+      {
+        isValid: /([0-9]{10})\b/.test(form.phone_number.trim()),
+        message: "Số điện thoại không hợp lệ",
+      },
+    ],
+    address: [
+      {
+        isValid: form.address.trim().length > 0,
+        message: "Địa chỉ không được để trống",
+      },
+    ],
+  };
+
+  const isValidate = Object.values(rules).every((rule) =>
+    rule.every((r) => r.isValid)
+  );
+
+  const handleSubmit = async () => {
+    if (!isValidate) return;
+
+    const success = await updateProfile({
+      name: form.name.trim(),
+      phone_number: form.phone_number.trim(),
+      address: form.address.trim(),
+    });
+
+    if (success) {
+      Alert.alert("Thành công", "Cập nhật thông tin thành công");
+      // router.back();
+    } else {
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi cập nhật thông tin");
+    }
   };
 
   return (
@@ -25,38 +68,64 @@ const EditProfileScreen = () => {
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <Text className="text-xl font-pbold">Chỉnh sửa thông tin</Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text className="text-primary-500 font-pbold">Lưu</Text>
-        </TouchableOpacity>
+        <View style={{ width: 24 }} />
       </View>
 
-      <View className="mb-4">
-        <Text className="text-gray-600 mb-2">Họ và tên</Text>
-        <TextInput
-          value={user.name}
-          onChangeText={(text) => setUser((prev) => ({ ...prev, name: text }))}
-          className="border border-gray-300 rounded-lg px-4 py-2"
+      <View className="gap-5">
+        <InputField
+          nameField="Họ tên"
+          placeholder="Nhập họ tên"
+          iconLeft={<Ionicons name="person" size={20} color="gray" />}
+          rules={rules.name}
+          value={form.name}
+          onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
         />
-      </View>
 
-      <View className="mb-4">
-        <Text className="text-gray-600 mb-2">Email</Text>
-        <TextInput
-          value={user.email}
-          onChangeText={(text) => setUser((prev) => ({ ...prev, email: text }))}
-          keyboardType="email-address"
-          className="border border-gray-300 rounded-lg px-4 py-2"
+        <InputField
+          nameField="Số điện thoại"
+          placeholder="Nhập số điện thoại"
+          iconLeft={<Ionicons name="call" size={20} color="gray" />}
+          rules={rules.phone_number}
+          value={form.phone_number}
+          onChangeText={(text) =>
+            setForm((prev) => ({ ...prev, phone_number: text }))
+          }
+          keyBoardType="phone-pad"
         />
-      </View>
 
-      <View className="mb-4">
-        <Text className="text-gray-600 mb-2">Số điện thoại</Text>
-        <TextInput
-          value={user.phone}
-          onChangeText={(text) => setUser((prev) => ({ ...prev, phone: text }))}
-          keyboardType="phone-pad"
-          className="border border-gray-300 rounded-lg px-4 py-2"
+        <InputField
+          nameField="Địa chỉ"
+          placeholder="Nhập địa chỉ"
+          iconLeft={<Ionicons name="location" size={20} color="gray" />}
+          rules={rules.address}
+          value={form.address}
+          onChangeText={(text) =>
+            setForm((prev) => ({ ...prev, address: text }))
+          }
+          canEmpty={false}
         />
+        <View className="flex-row justify-around">
+          <TouchableOpacity
+            onPress={handleSubmit}
+            className={`py-3 px-4 rounded-lg mt-6 ${
+              isValidate ? "bg-primary-500" : "bg-primary-400"
+            }`}
+            disabled={!isValidate}
+          >
+            <Text className="text-white text-center font-pbold text-lg">
+              Cập nhật thông tin
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className={`py-3 px-6 rounded-lg mt-6 bg-white border border-primary-500`}
+          >
+            <Text className="text-black text-center font-pbold text-lg">
+              Hủy
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );

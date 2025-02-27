@@ -14,7 +14,7 @@ type AuthState = {
 };
 const key = "jwtToken";
 
-const hostAuth = process.env.EXPO_PUBLIC_API_HOST + "/auth";
+const hostAuth = process.env.EXPO_PUBLIC_API_HOST + "/api/auth";
 
 const defaultHeader = (token: string | null) => {
   return {
