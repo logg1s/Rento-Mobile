@@ -108,7 +108,7 @@ const useRentoData = create<DataState>((set, get) => ({
 
   fetchUser: async () => {
     try {
-      const response = await axiosFetch(`/auth/me`);
+      const response = await axiosFetch(`/users/me`);
       set({ user: response?.data || null });
     } catch (error) {
       console.error("Error fetching user:", error?.response?.data);
@@ -172,7 +172,7 @@ const useRentoData = create<DataState>((set, get) => ({
   update: async (data, isUpdatePassword: boolean = false) => {
     try {
       const response = await axiosFetch(
-        `/auth/update${isUpdatePassword ? "Password" : ""}`,
+        `/users/update${isUpdatePassword ? "Password" : ""}`,
         "put",
         data
       );
@@ -196,7 +196,7 @@ const useRentoData = create<DataState>((set, get) => ({
         name: "avatar.jpg",
       } as any);
       const response = await axiosFetch(
-        "/auth/uploadAvatar",
+        "/users/uploadAvatar",
         "post",
         formData,
         true

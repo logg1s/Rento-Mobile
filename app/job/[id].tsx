@@ -196,7 +196,25 @@ const DetailJob = () => {
               />
             </Swiper>
             <View className="p-5 bg-white flex-row justify-between items-center">
-              <View className="flex-row gap-3 flex-1 items-center flex-1">
+              <TouchableOpacity
+                className="flex-row gap-3 items-center flex-1"
+                onPress={() => {
+                  if (data?.user?.id) {
+                    router.push({
+                      pathname: "/user/[id]",
+                      params: {
+                        id: data.user.id,
+                        name: data.user.name,
+                        email: data.user.email,
+                        average_rate: data.user.average_rate,
+                        comment_count: data.user.comment_count,
+                      },
+                    });
+                  } else {
+                    Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng");
+                  }
+                }}
+              >
                 <View className="rounded-full border border-gray-300 p-2">
                   <Image
                     source={getAvatarUrl(data?.user)}
@@ -209,7 +227,7 @@ const DetailJob = () => {
                     {data?.category?.category_name}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
               <View className="flex-row items-center">
                 <Ionicons name="location-outline" size={16} color="gray" />
                 <Text className="ml-1 font-pmedium text-sm">
@@ -241,43 +259,47 @@ const DetailJob = () => {
               >
                 {data?.price?.map((item, index) => (
                   <CardPrice
-                    key={index + item.price_name}
-                    price_name={item?.price_name}
-                    price_value={item?.price_value}
+                    key={item?.id || index}
+                    price_name={item?.price_name || ""}
+                    price_value={item?.price_value || 0}
                     isActive={index === selectedPricing}
                     onPress={() => onPressCardPrice(index)}
                     ref={(el) => (priceRef.current[index] = el)}
                   />
                 ))}
               </ScrollView>
-              <View className="gap-3 mt-5">
-                <Text className="font-psemibold text-2xl">Lợi ích gói:</Text>
-                {data?.benefit?.map((benefit, index) => (
-                  <View
-                    className="flex-row items-center justify-between"
-                    key={benefit.id}
-                  >
-                    <Text
-                      className="font-pregular text-lg flex-1 ml-2"
-                      numberOfLines={1}
+              {data?.benefit?.length && data?.benefit?.length > 0 && (
+                <View className="gap-3 mt-5">
+                  <Text className="font-psemibold text-2xl">Lợi ích gói:</Text>
+                  {data?.benefit?.map((benefit, index) => (
+                    <View
+                      className="flex-row items-center justify-between"
+                      key={benefit.id}
                     >
-                      {index + 1}. {benefit.benefit_name}
-                    </Text>
-                    {selectedPricing !== -1 &&
-                      (benefit?.price_id?.includes(
-                        data?.price?.[selectedPricing]?.id
-                      ) ? (
-                        <Octicons
-                          name="check-circle-fill"
-                          size={20}
-                          color="#1b802f"
-                        />
-                      ) : (
-                        <Octicons name="x-circle" size={20} color="juniper" />
-                      ))}
-                  </View>
-                ))}
-              </View>
+                      <Text
+                        className="font-pregular text-lg flex-1 ml-2"
+                        numberOfLines={1}
+                      >
+                        {index + 1}. {benefit.benefit_name}
+                      </Text>
+                      {selectedPricing !== -1 &&
+                        benefit?.price_id &&
+                        data?.price?.[selectedPricing]?.id &&
+                        (benefit.price_id.includes(
+                          data.price[selectedPricing].id
+                        ) ? (
+                          <Octicons
+                            name="check-circle-fill"
+                            size={20}
+                            color="#1b802f"
+                          />
+                        ) : (
+                          <Octicons name="x-circle" size={20} color="juniper" />
+                        ))}
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
           <View className="bg-white p-5">
@@ -342,7 +364,7 @@ const DetailJob = () => {
                 size={38}
               />
             </View>
-            <View className="gap-5 flex-row items-center ">
+            <View className="gap-5 w-full">
               <InputField
                 nameField="Bình luận"
                 placeholder="Nhập bình luận của bạn"
@@ -365,7 +387,7 @@ const DetailJob = () => {
                 // }
               />
             </View>
-            {(selectedImage?.length ?? 0) > 0 && (
+            {selectedImage && (
               <View style={{ position: "relative", marginTop: 10 }}>
                 <Image
                   source={{ uri: selectedImage }}
