@@ -14,6 +14,7 @@ export type UserType = {
   address?: string;
   deleted_at: string | null;
   role: RoleType[];
+  is_oauth: boolean;
 } & TimeStampType;
 
 export type ImageType = {

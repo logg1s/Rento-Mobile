@@ -67,7 +67,7 @@ export const axiosFetch = async (
       data,
     });
   } catch (error) {
-    console.log("Lỗi fetch", url, error?.response?.data);
+    console.error("Lỗi fetch", url, error?.response?.data);
     const refreshResult = await useAuthStore.getState().refreshAccessToken();
     if (refreshResult) {
       return axiosFetch(url, method, data);
@@ -93,7 +93,7 @@ const useRentoData = create<DataState>((set, get) => ({
         })) || [];
       set({ services: updatedServices });
     } catch (error) {
-      console.log("Error fetching services:", error?.response?.data);
+      console.error("Error fetching services:", error?.response?.data);
     }
   },
 
@@ -102,7 +102,7 @@ const useRentoData = create<DataState>((set, get) => ({
       const response = await axiosFetch(`/categories`);
       set({ categories: response?.data?.data || [] });
     } catch (error) {
-      console.log("Error fetching categories:", error?.response?.data);
+      console.error("Error fetching categories:", error?.response?.data);
     }
   },
 
@@ -111,7 +111,7 @@ const useRentoData = create<DataState>((set, get) => ({
       const response = await axiosFetch(`/auth/me`);
       set({ user: response?.data || null });
     } catch (error) {
-      console.log("Error fetching user:", error?.response?.data);
+      console.error("Error fetching user:", error?.response?.data);
     }
   },
 
@@ -121,7 +121,7 @@ const useRentoData = create<DataState>((set, get) => ({
 
       set({ notifications: response?.data?.data || [] });
     } catch (error) {
-      console.log("Error fetching notifications:", error?.response?.data);
+      console.error("Error fetching notifications:", error?.response?.data);
     }
   },
 
@@ -130,7 +130,7 @@ const useRentoData = create<DataState>((set, get) => ({
       const response = await axiosFetch(`/favorites`);
       set({ favorites: response?.data || [] });
     } catch (error) {
-      console.log("Error fetching favorites:", error?.response?.data);
+      console.error("Error fetching favorites:", error?.response?.data);
     }
   },
 
@@ -144,7 +144,7 @@ const useRentoData = create<DataState>((set, get) => ({
       ]);
       await get().fetchServices();
     } catch (error) {
-      console.log("Error fetching data:", error?.response?.data);
+      console.error("Error fetching data:", error?.response?.data);
     }
   },
 
@@ -162,7 +162,7 @@ const useRentoData = create<DataState>((set, get) => ({
       await get().fetchFavorites();
     } catch (error) {
       set({ services: previousServices });
-      console.log(
+      console.error(
         "Lỗi khi thay đổi trạng thái yêu thích:",
         error?.response?.data
       );
@@ -177,20 +177,17 @@ const useRentoData = create<DataState>((set, get) => ({
         data
       );
       if (isUpdatePassword) {
-        const message = response?.data?.message;
-        console.log(message);
         await useAuthStore.getState().refreshAccessToken();
       }
       await get().fetchUser();
       return true;
     } catch (error) {
-      console.log("Error updating profile:", error?.response?.data);
+      console.error("Error updating profile:", error?.response?.data);
       return false;
     }
   },
 
   uploadAvatar: async (imageUri: string) => {
-    console.log("update ne");
     try {
       const formData = new FormData();
       formData.append("avatar", {
@@ -204,11 +201,10 @@ const useRentoData = create<DataState>((set, get) => ({
         formData,
         true
       );
-      console.log(response?.data);
       await get().fetchUser();
       return true;
     } catch (error) {
-      console.log("Error uploading avatar:", error?.response?.data);
+      console.error("Error uploading avatar:", error?.response?.data);
       return false;
     }
   },

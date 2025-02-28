@@ -75,7 +75,7 @@ const SignUp = () => {
       const result = await axiosFetch("/auth/checkEmail", "POST", { email });
       return result?.status === 200;
     } catch (error) {
-      console.log("Error check email:", error?.response?.data);
+      console.error("Error check email:", error?.response?.data);
       return false;
     }
   };
@@ -84,9 +84,8 @@ const SignUp = () => {
     try {
       const isNotExist = await checkEmail(email);
       setIsNotExistEmail(isNotExist);
-      console.log(isNotExist);
     } catch (error) {
-      console.log("Error in debounced check:", error);
+      console.error("Error in debounced check:", error);
     }
   }, 500);
 
@@ -105,11 +104,9 @@ const SignUp = () => {
       return;
     }
     try {
-      console.log(formSignUp);
       const result = await axiosFetch("/auth/register", "POST", formSignUp);
       const accessToken = result?.data?.access_token;
       if (accessToken) {
-        console.log(accessToken);
         await useAuthStore.getState().setToken(accessToken);
         router.replace("/(tabs)/home");
       }
@@ -118,7 +115,7 @@ const SignUp = () => {
         "Lỗi khi đăng ký",
         "Đăng ký không thành công, vui lòng kiểm tra lại kết nối"
       );
-      console.log("Error sign up:", error?.response?.data);
+      console.error("Error sign up:", error?.response?.data);
     }
   };
 

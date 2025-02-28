@@ -16,6 +16,7 @@ import Swiper from "react-native-swiper";
 import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
 import { router } from "expo-router";
+import { getAvatarUrl } from "@/utils/utils";
 
 const TabHome = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +32,7 @@ const TabHome = () => {
       setIsLoading(true);
       await fetchServices();
     } catch (error) {
-      console.log("Lỗi khi refresh:", error?.response?.data);
+      console.error("Lỗi khi refresh:", error?.response?.data);
     } finally {
       setIsLoading(false);
     }
@@ -66,17 +67,10 @@ const TabHome = () => {
       <View className="px-5">
         <View className="flex-row">
           <View className="flex-1 flex-row gap-2">
-            <View className={`rounded-full border-2 border-black p-2`}>
+            <View className={`rounded-full border border-gray-300 p-2`}>
               <Image
-                source={
-                  user?.image?.path
-                    ? {
-                        uri:
-                          process.env.EXPO_PUBLIC_API_HOST + user?.image?.path,
-                      }
-                    : require("@/assets/images/avatar_placeholder_icon.png")
-                }
-                className="w-8 h-8 "
+                source={getAvatarUrl(user)}
+                className="w-8 h-8 rounded-full"
               />
             </View>
             <View>
@@ -87,7 +81,7 @@ const TabHome = () => {
             </View>
           </View>
         </View>
-        <View className="mb-5">
+        <View className="">
           <InputField
             placeholder="Tìm kiếm dịch vụ"
             iconLeft={<Ionicons name="search" size={20} color="gray" />}

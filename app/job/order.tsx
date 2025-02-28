@@ -100,7 +100,7 @@ const OrderService = () => {
       );
     } catch (error) {
       Alert.alert("Đặt dịch vụ thất bại", "Vui lòng thử lại sau");
-      console.log(error?.response?.data);
+      console.error(error?.response?.data);
     }
   };
 

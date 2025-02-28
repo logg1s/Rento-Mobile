@@ -23,7 +23,7 @@ import { ServiceType } from "@/types/type";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import InputField from "@/components/InputField";
 import * as ImagePicker from "expo-image-picker";
-import { convertedPrice, formatToVND } from "@/utils/utils";
+import { convertedPrice, formatToVND, getAvatarUrl } from "@/utils/utils";
 
 const DetailJob = () => {
   const { id, user_name, category_name } = useLocalSearchParams();
@@ -129,22 +129,22 @@ const DetailJob = () => {
       await fetchData();
     } else {
       Alert.alert("Lỗi", "Bình luận hoặc đánh giá không được để trống");
-      console.log("Error: Comment or rating is empty");
+      console.error("Error: Comment or rating is empty");
     }
   };
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+  // const pickImage = async () => {
+  //   const result = await ImagePicker.launchImageLibraryAsync({
+  //     mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  //     allowsEditing: true,
+  //     aspect: [4, 3],
+  //     quality: 1,
+  //   });
 
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-    }
-  };
+  //   if (!result.canceled) {
+  //     setSelectedImage(result.assets[0].uri);
+  //   }
+  // };
 
   const handleDeleteComment = async (id: number) => {
     try {
@@ -197,18 +197,10 @@ const DetailJob = () => {
             </Swiper>
             <View className="p-5 bg-white flex-row justify-between items-center">
               <View className="flex-row gap-3 flex-1 items-center flex-1">
-                <View className="rounded-full border border-gray p-2">
+                <View className="rounded-full border border-gray-300 p-2">
                   <Image
-                    source={
-                      data?.user?.image?.path
-                        ? {
-                            uri:
-                              process.env.EXPO_PUBLIC_API_HOST +
-                              data?.user?.image?.path,
-                          }
-                        : require("@/assets/images/avatar_placeholder_icon.png")
-                    }
-                    className="w-8 h-8"
+                    source={getAvatarUrl(data?.user)}
+                    className="w-8 h-8 rounded-full"
                   />
                 </View>
                 <View>

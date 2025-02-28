@@ -3,7 +3,7 @@ import { Image, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
-import { convertedPrice } from "@/utils/utils";
+import { convertedPrice, getAvatarUrl } from "@/utils/utils";
 
 const ServiceCard: React.FC<ServiceCardProps> = ({
   data: {
@@ -41,14 +41,10 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       onPress={onPressServiceCard}
     >
       <View className="flex-row">
-        <View className={`rounded-full border-2 border-black p-5`}>
+        <View className={`w-20 p-1 justify-center items-center rounded-full`}>
           <Image
-            source={
-              user?.image?.path
-                ? { uri: process.env.EXPO_PUBLIC_API_HOST + user?.image?.path }
-                : require("@/assets/images/avatar_placeholder_icon.png")
-            }
-            className="w-9 h-9"
+            source={getAvatarUrl(user)}
+            className="w-20 h-20 rounded-full "
           />
         </View>
         <View className="ml-4 flex-1">
@@ -59,7 +55,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
           <View className="flex-row items-center mt-1">
             <FontAwesome name="star" size={14} color="#FFD700" />
             <Text className="ml-1 font-pmedium">
-              {average_rate && average_rate.toFixed(1)}
+              {average_rate?.toFixed(1) ?? 0}
             </Text>
             <Text className="ml-2 font-pregular text-sm text-secondary-700">
               ({comment_count} đánh giá)

@@ -1,4 +1,5 @@
-import { PriceType } from "@/types/type";
+import { PriceType, UserType } from "@/types/type";
+import { ImageSourcePropType } from "react-native";
 
 export const convertedPrice = (
   price?: PriceType[],
@@ -53,4 +54,18 @@ export const formatToVND = (price: number) => {
     style: "currency",
     currency: "VND",
   }).format(price);
+};
+
+export const getAvatarUrl = (
+  user: UserType | null | undefined
+): ImageSourcePropType => {
+  if (user?.image?.path) {
+    const isStorage = user?.image?.path.startsWith("/storage/avatar");
+    const prefixPath = isStorage ? process.env.EXPO_PUBLIC_API_HOST : "";
+    return {
+      uri: prefixPath + user?.image?.path,
+    };
+  } else {
+    return require("@/assets/images/avatar_placeholder_icon.png");
+  }
 };

@@ -7,6 +7,7 @@ import CustomButton from "@/components/CustomButton";
 import Oauth from "@/components/Oauth";
 import { Link, router } from "expo-router";
 import useAuthStore from "@/stores/authStore";
+
 const Login = () => {
   const [isHidingPw, setIsHidingPw] = useState(true);
   const [formLogin, setFormLogin] = useState({
@@ -14,7 +15,6 @@ const Login = () => {
     password: "",
   });
   const login = useAuthStore((state) => state.login);
-  // TODO: write logic login
   const handleLogin = async () => {
     const success = await login(formLogin.email, formLogin.password);
     if (success) {

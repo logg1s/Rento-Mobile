@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "vn.io.rento"
+      "bundleIdentifier": "vn.io.rento",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +25,8 @@
       },
       "package": "vn.io.rento",
       "versionCode": 1,
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": ["android.permission.RECORD_AUDIO"],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +34,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      // "@react-native-google-signin/google-signin",
       "expo-router",
       "expo-font",
       [
@@ -40,6 +43,8 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
         }
       ]
+      // "@react-native-firebase/app",
+      // "@react-native-firebase/auth"
     ],
     "experiments": {
       "typedRoutes": true

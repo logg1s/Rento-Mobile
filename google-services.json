@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "170059825831",
+    "project_id": "rento-24ceb",
+    "storage_bucket": "rento-24ceb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:170059825831:android:569286ced0c26eb5fb9182",
+        "android_client_info": {
+          "package_name": "vn.io.rento"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "170059825831-jj1f1sn8c8kcj30t06vgda5u7hgl4h4i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.io.rento",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "170059825831-0sm81d9ldjton3h84g625tioccfa7t71.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJXhXXAl6ZTk8Rmpvcj3uCqFngSK-QjUQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "170059825831-0sm81d9ldjton3h84g625tioccfa7t71.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "170059825831-qut6hckfc9n01dc7m0jrt2aqngm1tjmi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "vn.io.rento"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
