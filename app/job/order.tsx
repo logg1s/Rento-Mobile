@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, Alert } from "react-native";
+import { View, Text, ScrollView, Alert, TouchableOpacity } from "react-native";
 import {
   router,
   useLocalSearchParams,
@@ -16,16 +16,28 @@ import OrderServiceDetails from "@/components/OrderServiceDetails";
 import CustomButton from "@/components/CustomButton";
 import { PriceType, Rules, ServiceType } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
+import useRentoData from "@/stores/dataStore";
 
 const OrderService = () => {
   // TODO: replace with database
   const { id, price_id } = useLocalSearchParams();
+  const user = useRentoData((state) => state.user);
 
   const [formData, setFormData] = useState({
     address: "",
     phone_number: "",
     note: "",
   });
+
+  const applyUserInfo = () => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        address: user.address || prev.address,
+        phone_number: user.phone_number || prev.phone_number,
+      }));
+    }
+  };
 
   const [service, setService] = useState<ServiceType | null>(null);
   const [price, setPrice] = useState<PriceType | null>(null);
@@ -108,6 +120,34 @@ const OrderService = () => {
     <>
       <ScrollView contentContainerClassName="p-5">
         <View className="gap-5">
+          <OrderServiceDetails service={service} price={price} />
+
+          {((user?.address || user?.phone_number) ?? null) ? (
+            <View className="bg-primary-100 p-4 rounded-lg">
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="font-pmedium text-base text-primary-900">
+                  Thông tin từ tài khoản của bạn
+                </Text>
+                <TouchableOpacity
+                  onPress={applyUserInfo}
+                  className="bg-primary-500 p-2 rounded-lg"
+                >
+                  <Text className="font-pmedium text-white">Áp dụng</Text>
+                </TouchableOpacity>
+              </View>
+              {user?.address && (
+                <Text className="text-gray-600 mb-1">
+                  Địa chỉ: {user.address}
+                </Text>
+              )}
+              {user?.phone_number && (
+                <Text className="text-gray-600">
+                  Số điện thoại: {user.phone_number}
+                </Text>
+              )}
+            </View>
+          ) : null}
+
           <InputField
             nameField="Địa chỉ"
             placeholder="Nhập địa chỉ của bạn"
@@ -115,6 +155,8 @@ const OrderService = () => {
             onChangeText={(e) => setFormData({ ...formData, address: e })}
             rules={rules.address}
             value={formData.address}
+            required
+            canEmpty={false}
           />
 
           <InputField
@@ -125,6 +167,8 @@ const OrderService = () => {
             onChangeText={(e) => setFormData({ ...formData, phone_number: e })}
             rules={rules.phone_number}
             value={formData.phone_number}
+            required
+            canEmpty={false}
           />
 
           <InputField
@@ -133,9 +177,8 @@ const OrderService = () => {
             iconLeft={<Ionicons name="create" size={20} color="gray" />}
             onChangeText={(e) => setFormData({ ...formData, note: e })}
             value={formData.note}
+            enableValidate={false}
           />
-
-          <OrderServiceDetails service={service} price={price} />
         </View>
       </ScrollView>
       <View className="p-5">

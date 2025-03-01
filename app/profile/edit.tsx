@@ -91,6 +91,7 @@ const EditProfileScreen = () => {
             setForm((prev) => ({ ...prev, phone_number: text }))
           }
           keyBoardType="phone-pad"
+          canEmpty={false}
         />
 
         <InputField

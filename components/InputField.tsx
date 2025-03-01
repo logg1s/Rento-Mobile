@@ -37,6 +37,7 @@ const InputField = ({
   enableValidate = true,
   keyBoardType = "default",
   canEmpty = true,
+  required,
 }: {
   nameField?: string;
   placeholder?: string;
@@ -64,6 +65,7 @@ const InputField = ({
     | "email-address"
     | "phone-pad";
   canEmpty?: boolean;
+  required?: boolean;
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const isValidAll =
@@ -78,7 +80,7 @@ const InputField = ({
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="gap-1">
           <Text className="font-psemibold text-xl text-secondary-900">
-            {nameField}
+            {nameField} {required && <Text className="text-red-500">*</Text>}
           </Text>
           <View
             className={`w-full bg-general-300  ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center ${multiline && isFocused ? "h-40" : "h-16"} ${containerStyles}`}

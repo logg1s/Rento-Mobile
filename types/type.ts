@@ -15,6 +15,9 @@ export type UserType = {
   deleted_at: string | null;
   role: RoleType[];
   is_oauth: boolean;
+  service?: ServiceType[];
+  order?: OrderType[];
+  service_favorite?: ServiceType[];
 } & TimeStampType;
 
 export type ImageType = {
@@ -97,16 +100,70 @@ export type BenefitType = {
   deleted_at: string | null;
 } & TimeStampType;
 
-export type Order = {
+export type OrderType = {
   id: number;
-  user: UserType;
-  service: ServiceType;
-  status: number;
-  deleted_at: string | null;
+  user_id: number;
+  service_id: number;
+  user?: UserType;
+  service?: ServiceType;
+  price?: PriceType;
+  price_id: number;
   price_final_value: number;
-  location: string;
+  status: OrderStatus;
+  message?: string;
+  address?: string;
+  phone_number?: string;
+  time_start: string;
+  deleted_at: string | null;
+  cancel_by?: UserType | number;
 } & TimeStampType;
 
 export type Rules = {
   [key: string]: { isValid: boolean; message: string }[];
+};
+
+export enum OrderStatus {
+  CANCELLED = 0,
+  PENDING = 1,
+  IN_PROGRESS = 2,
+  COMPLETED = 3,
+}
+
+export interface OrderStatusConfig {
+  text: string;
+  style: {
+    text: { color: string };
+    container: { backgroundColor: string };
+  };
+}
+
+export const ORDER_STATUS_MAP: Record<OrderStatus, OrderStatusConfig> = {
+  [OrderStatus.CANCELLED]: {
+    text: "Đã hủy",
+    style: {
+      text: { color: "#dc2626" },
+      container: { backgroundColor: "#fef2f2" },
+    },
+  },
+  [OrderStatus.PENDING]: {
+    text: "Đang chờ",
+    style: {
+      text: { color: "#d97706" },
+      container: { backgroundColor: "#fefce8" },
+    },
+  },
+  [OrderStatus.IN_PROGRESS]: {
+    text: "Đang thực hiện",
+    style: {
+      text: { color: "#2563eb" },
+      container: { backgroundColor: "#eff6ff" },
+    },
+  },
+  [OrderStatus.COMPLETED]: {
+    text: "Hoàn thành",
+    style: {
+      text: { color: "#16a34a" },
+      container: { backgroundColor: "#f0fdf4" },
+    },
+  },
 };

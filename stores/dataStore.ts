@@ -4,6 +4,7 @@ import axios, { AxiosResponse, Method } from "axios";
 import {
   CategoryType,
   NotificationType,
+  OrderStatus,
   ServiceType,
   UserType,
 } from "@/types/type";
@@ -22,7 +23,6 @@ type DataState = {
   fetchUser: () => Promise<void>;
   fetchNotifications: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
-
   fetchData: () => Promise<void>;
   updateFavorite: (serviceId: number) => Promise<void>;
   update: (
@@ -39,6 +39,7 @@ type DataState = {
     isUpdatePassword?: boolean
   ) => Promise<boolean>;
   uploadAvatar: (imageUri: string) => Promise<boolean>;
+  updateStatusOrder: (orderId: number, status: number) => Promise<boolean>;
 };
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
@@ -205,6 +206,17 @@ const useRentoData = create<DataState>((set, get) => ({
       return true;
     } catch (error) {
       console.error("Error uploading avatar:", error?.response?.data);
+      return false;
+    }
+  },
+  updateStatusOrder: async (orderId: number, status: OrderStatus) => {
+    try {
+      await axiosFetch(`/users/orders/${orderId}/update-status`, "put", {
+        status: status,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error canceling order:", error?.response?.data);
       return false;
     }
   },

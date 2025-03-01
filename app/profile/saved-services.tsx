@@ -1,90 +1,93 @@
 "use client";
 
-import { useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, Image } from "react-native";
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import useRentoData from "@/stores/dataStore";
+import { ServiceType } from "@/types/type";
+import ServiceCard from "@/components/ServiceCard";
 
 const SavedServicesScreen = () => {
-  const [savedServices, setSavedServices] = useState([
-    {
-      id: "1",
-      name: "Sửa điện",
-      provider: "Lê Hoàng Cường",
-      rating: 4.5,
-      price: "250.000đ - 600.000đ",
-    },
-    {
-      id: "2",
-      name: "Dọn dẹp nhà",
-      provider: "Nguyễn Thị Anh",
-      rating: 4.8,
-      price: "200.000đ - 400.000đ",
-    },
-    {
-      id: "3",
-      name: "Sửa ống nước",
-      provider: "Trần Văn Bình",
-      rating: 4.2,
-      price: "300.000đ - 700.000đ",
-    },
-  ]);
+  const favorites = useRentoData((state) => state.favorites);
+  const updateFavorite = useRentoData((state) => state.updateFavorite);
+  const fetchFavorites = useRentoData((state) => state.fetchFavorites);
+  const fetchData = useRentoData((state) => state.fetchData);
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      className="flex-row items-center justify-between bg-white p-4 mb-4 rounded-lg shadow-sm"
-      onPress={() => router.push(`/job/${item.id}`)}
-    >
-      <View className="flex-row items-center">
-        <Image
-          source={{ uri: `https://picsum.photos/seed/${item.name}/100` }}
-          className="w-16 h-16 rounded-lg mr-4"
-        />
-        <View>
-          <Text className="font-pbold text-lg">{item.name}</Text>
-          <Text className="text-gray-600">{item.provider}</Text>
-          <View className="flex-row items-center">
-            <Ionicons name="star" size={16} color="#FFD700" />
-            <Text className="ml-1">{item.rating}</Text>
-          </View>
-        </View>
-      </View>
-      <View>
-        <Text className="font-pmedium text-right">{item.price}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            setSavedServices(
-              savedServices.filter((service) => service.id !== item.id),
-            );
-          }}
-          className="mt-2"
-        >
-          <Ionicons name="heart" size={24} color="red" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const onRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchFavorites();
+    } catch (error: any) {
+      console.error("Lỗi khi refresh:", error?.response?.data);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const onPressFavorite = (serviceId?: number) => {
+    if (serviceId) {
+      updateFavorite(serviceId);
+    }
+  };
+
+  const renderItem = ({ item }: { item: ServiceType }) => (
+    <ServiceCard
+      data={{
+        ...item,
+        is_liked: true,
+      }}
+      containerStyles="mb-4"
+      onPressFavorite={() => onPressFavorite(item.id)}
+    />
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100 px-4">
-      <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.back()}>
+    <SafeAreaView className="flex-1 bg-gray-100">
+      <View className="flex-row items-center mb-6 px-4 py-2">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text className="text-xl font-pbold ml-4">Dịch vụ đã lưu</Text>
+        <Text className="text-xl font-pbold ml-4">Dịch vụ đã thích</Text>
       </View>
 
       <FlatList
-        data={savedServices}
+        data={favorites}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
-          <View className="flex-1 justify-center items-center">
-            <Text className="text-gray-500 text-lg">
-              Bạn chưa lưu dịch vụ nào
+          <View className="flex-1 justify-center items-center py-20">
+            <Ionicons name="heart-outline" size={48} color="gray" />
+            <Text className="text-gray-500 text-lg mt-4 text-center">
+              Bạn chưa thích dịch vụ nào
             </Text>
+            <TouchableOpacity
+              className="mt-4 bg-blue-500 px-6 py-3 rounded-full"
+              onPress={() => router.push("/")}
+            >
+              <Text className="text-white font-pmedium">Khám phá dịch vụ</Text>
+            </TouchableOpacity>
           </View>
         }
       />

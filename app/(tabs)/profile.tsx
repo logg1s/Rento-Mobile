@@ -131,6 +131,18 @@ const ProfileScreen = () => {
         </View>
 
         <View className="bg-white rounded-lg shadow-sm mb-6">
+          <View className="bg-white rounded-lg shadow-sm mb-6">
+            <ProfileSection
+              title="Lịch sử đơn hàng"
+              onPress={() => router.push("/profile/order-history")}
+              icon="list-outline"
+            />
+            <ProfileSection
+              title="Dịch vụ đã thích"
+              onPress={() => router.push("/profile/saved-services")}
+              icon="heart-outline"
+            />
+          </View>
           <ProfileSection
             title="Chỉnh sửa thông tin cá nhân"
             onPress={handleEditProfile}
@@ -158,19 +170,6 @@ const ProfileScreen = () => {
               thumbColor={notificationsEnabled ? "#f4f3f4" : "#f4f3f4"}
             />
           </View>
-        </View>
-
-        <View className="bg-white rounded-lg shadow-sm mb-6">
-          <ProfileSection
-            title="Lịch sử đơn hàng"
-            onPress={() => router.push("/profile/order-history")}
-            icon="list-outline"
-          />
-          <ProfileSection
-            title="Dịch vụ đã lưu"
-            onPress={() => router.push("/profile/saved-services")}
-            icon="heart-outline"
-          />
         </View>
 
         <TouchableOpacity

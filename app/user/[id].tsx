@@ -6,6 +6,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   TextInput,
+  Alert,
+  Modal,
   Dimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
@@ -16,7 +18,7 @@ import { axiosFetch } from "@/stores/dataStore";
 import { getAvatarUrl } from "@/utils/utils";
 import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
-import CommentCard from "@/components/CommentCard";
+import * as Clipboard from "expo-clipboard";
 
 const normalizeVietnamese = (str: string) => {
   return str
@@ -30,16 +32,14 @@ const UserProfile = () => {
   const [userData, setUserData] = useState<UserType | null>(null);
   const [services, setServices] = useState<ServiceType[]>([]);
   const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [comments, setComments] = useState<CommentType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const updateFavorite = useRentoData((state) => state.updateFavorite);
-
+  const [showFullImage, setShowFullImage] = useState(false);
+  const favorites = useRentoData((state) => state.favorites);
   const fetchUserData = async () => {
     try {
-      setIsLoading(true);
       const [userRes, categoriesRes] = await Promise.all([
         axiosFetch(`/users/${id}`),
         axiosFetch("/categories"),
@@ -48,6 +48,10 @@ const UserProfile = () => {
       if (userRes?.data) {
         setUserData(userRes.data);
         setServices(userRes.data.service || []);
+        userRes.data.service.forEach((service: ServiceType) => {
+          service.is_liked =
+            favorites?.some((item) => item.id === service.id) ?? false;
+        });
       }
 
       if (categoriesRes?.data?.data) {
@@ -55,8 +59,6 @@ const UserProfile = () => {
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -73,8 +75,14 @@ const UserProfile = () => {
   const onPressFavorite = async (serviceId: number) => {
     if (!serviceId) return;
     try {
+      setServices((prev) =>
+        prev.map((service) =>
+          service.id === serviceId
+            ? { ...service, is_liked: !service.is_liked }
+            : service
+        )
+      );
       await updateFavorite(serviceId);
-      await fetchUserData();
     } catch (error) {
       console.error("Error updating favorite:", error);
     }
@@ -94,14 +102,6 @@ const UserProfile = () => {
     return matchesCategory && matchesSearch;
   });
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 justify-center items-center">
-        <Text className="font-pmedium text-gray-600 mb-4">Đang tải...</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -113,15 +113,63 @@ const UserProfile = () => {
       {/* Header Profile */}
       <View className="bg-white p-5">
         <View className="items-center gap-4">
-          <Image
-            source={getAvatarUrl(userData)}
-            className="w-24 h-24 rounded-full"
-          />
-          <View className="items-center">
-            <Text className="font-pbold text-2xl">{userData?.name}</Text>
-            <Text className="font-pmedium text-gray-600 mt-1">
-              {userData?.email}
+          <TouchableOpacity onPress={() => setShowFullImage(true)}>
+            <Image
+              source={getAvatarUrl(userData)}
+              className="w-24 h-24 rounded-full"
+            />
+          </TouchableOpacity>
+          <View className="items-center gap-2">
+            <Text
+              className="font-pbold text-2xl"
+              onPress={async () => {
+                if (userData?.name) {
+                  await Clipboard.setStringAsync(userData.name);
+                }
+              }}
+            >
+              {userData?.name}
             </Text>
+            <TouchableOpacity
+              className="flex-row items-center gap-2"
+              onPress={async () => {
+                if (userData?.email) {
+                  await Clipboard.setStringAsync(userData.email);
+                }
+              }}
+            >
+              <Ionicons name="mail-outline" size={16} color="gray" />
+              <Text className="font-pmedium text-gray-600">
+                {userData?.email}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-row items-center gap-2"
+              onPress={async () => {
+                if (userData?.address) {
+                  await Clipboard.setStringAsync(userData.address);
+                }
+              }}
+            >
+              {userData?.address && userData.address.length > 0 ? (
+                <>
+                  <Ionicons name="location-outline" size={16} color="gray" />
+                  <Text className="font-pmedium text-gray-600">
+                    {userData.address}
+                  </Text>
+                </>
+              ) : null}
+            </TouchableOpacity>
+            {userData?.phone_number && userData.phone_number.length > 0 ? (
+              <TouchableOpacity className="flex-row items-center gap-2">
+                <Ionicons name="call-outline" size={16} color="gray" />
+                <Text className="font-pmedium text-gray-600">
+                  {userData.phone_number
+                    ?.slice(0, -3)
+                    .padEnd(userData.phone_number.length || 0, "*")}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
       </View>
@@ -208,6 +256,32 @@ const UserProfile = () => {
           )}
         </View>
       </View>
+
+      <Modal
+        visible={showFullImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFullImage(false)}
+      >
+        <View className="flex-1 bg-black">
+          <TouchableOpacity
+            onPress={() => setShowFullImage(false)}
+            className="absolute right-4 top-12 z-10"
+          >
+            <Ionicons name="close" size={30} color="white" />
+          </TouchableOpacity>
+          <View className="flex-1 justify-center">
+            <Image
+              source={getAvatarUrl(userData)}
+              style={{
+                width: Dimensions.get("window").width,
+                height: Dimensions.get("window").width,
+              }}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
