@@ -13,11 +13,14 @@ import {
   Modal,
   Clipboard,
 } from "react-native";
+import firestore from "@react-native-firebase/firestore";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { router, useLocalSearchParams } from "expo-router";
+import { useGetChat, useSendChat } from "@/hooks/useChat";
 
 const MessageScreen = () => {
   const { callDuration } = useLocalSearchParams();
