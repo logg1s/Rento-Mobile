@@ -1,6 +1,79 @@
-"use client";
+// Utility functions
+const formatTime = (date: Date): string => {
+  return date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
-import { useState, useEffect, useRef } from "react";
+const formatDate = (date: Date): string => {
+  const now = new Date();
+  const diffDays = Math.floor(
+    (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDays === 0) return "Hôm nay";
+  if (diffDays === 1) return "Hôm qua";
+  if (diffDays < 7)
+    return [
+      "Chủ Nhật",
+      "Thứ Hai",
+      "Thứ Ba",
+      "Thứ Tư",
+      "Thứ Năm",
+      "Thứ Sáu",
+      "Thứ Bảy",
+    ][date.getDay()];
+  return date.toLocaleDateString("vi-VN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const formatDuration = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+};
+
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
+const getFileIcon = (mimeType: string): string => {
+  if (mimeType.startsWith("image")) return "file-image";
+  if (mimeType.startsWith("video")) return "file-video";
+  if (mimeType.startsWith("audio")) return "file-music";
+  if (mimeType.includes("pdf")) return "file-pdf-box";
+  if (mimeType.includes("word")) return "file-word";
+  if (mimeType.includes("excel") || mimeType.includes("sheet"))
+    return "file-excel";
+  if (mimeType.includes("powerpoint") || mimeType.includes("presentation"))
+    return "file-powerpoint";
+  return "file-document";
+};
+
+const getStatusIcon = (status: string): string => {
+  switch (status) {
+    case "sending":
+      return "time-outline";
+    case "sent":
+      return "checkmark-outline";
+    case "delivered":
+      return "checkmark-done-outline";
+    case "seen":
+      return "checkmark-done";
+    default:
+      return "checkmark-outline";
+  }
+};
+("use client");
+
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,173 +84,291 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  Clipboard,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-import firestore from "@react-native-firebase/firestore";
-
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useGetChat, useSendChat } from "@/hooks/useChat";
+import {
+  useGetChat,
+  useSendChat,
+  useMarkMessagesAsSeen,
+} from "@/hooks/useChat";
+import useRentoData from "@/stores/dataStore";
 
 const MessageScreen = () => {
-  const { callDuration } = useLocalSearchParams();
-  const [conversations, setConversations] = useState([
-    {
-      id: "1",
-      name: "Lê Hoàng Cường",
-      lastMessage: "Tôi sẽ đến trong 15 phút",
-      time: "10:30",
-      unread: 2,
-      avatar: "https://picsum.photos/id/1/100",
-      online: true,
-    },
-    {
-      id: "2",
-      name: "Nguyễn Thị Anh",
-      lastMessage: "Cảm ơn bạn đã sử dụng dịch vụ",
-      time: "09:45",
-      unread: 0,
-      avatar: "https://picsum.photos/id/2/100",
-      online: false,
-    },
-    {
-      id: "3",
-      name: "Trần Văn Bình",
-      lastMessage: "Bạn có cần hỗ trợ gì thêm không?",
-      time: "Hôm qua",
-      unread: 1,
-      avatar: "https://picsum.photos/id/3/100",
-      online: true,
-    },
-  ]);
+  const [imageError, setImageError] = useState(false);
 
+  const { callDuration } = useLocalSearchParams();
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState({});
   const [inputMessage, setInputMessage] = useState("");
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
     useState(false);
   const [longPressedMessage, setLongPressedMessage] = useState(null);
   const [showConversationOptions, setShowConversationOptions] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // Added loading state
   const flatListRef = useRef(null);
+  const user = useRentoData((state) => state.user);
+  const markMessagesSeen = useMarkMessagesAsSeen();
 
-  useEffect(() => {
-    if (selectedConversation && !messages[selectedConversation.id]) {
-      const currentDate = new Date();
-      const yesterdayDate = new Date(currentDate);
-      yesterdayDate.setDate(currentDate.getDate() - 1);
-      const lastWeekDate = new Date(currentDate);
-      lastWeekDate.setDate(currentDate.getDate() - 7);
+  // Get real-time chat data using the useChat hook
+  const { chatsData, isLoading, error } = useGetChat();
+  const sendChat = useSendChat();
 
-      setMessages({
-        ...messages,
-        [selectedConversation.id]: [
-          {
-            id: "1",
-            text: "Xin chào, tôi cần hỗ trợ về dịch vụ",
-            sender: "user",
-            time: lastWeekDate.toISOString(),
-            status: "seen",
-          },
-          {
-            id: "2",
-            text: "Chào bạn, tôi có thể giúp gì cho bạn?",
-            sender: "provider",
-            time: lastWeekDate.toISOString(),
-            status: "seen",
-          },
-          {
-            id: "3",
-            text: "Tôi cần sửa ổ điện bị hỏng",
-            sender: "user",
-            time: yesterdayDate.toISOString(),
-            status: "seen",
-          },
-          {
-            id: "4",
-            text: "Vâng, tôi có thể giúp bạn. Bạn có thể cho tôi biết địa chỉ của bạn không?",
-            sender: "provider",
-            time: yesterdayDate.toISOString(),
-            status: "seen",
-          },
-          {
-            id: "5",
-            text: "Số 123 Đường ABC, Quận XYZ",
-            sender: "user",
-            time: currentDate.toISOString(),
-            status: "seen",
-          },
-          {
-            id: "6",
-            text: "Tôi sẽ đến trong 15 phút",
-            sender: "provider",
-            time: currentDate.toISOString(),
-            status: "delivered",
-          },
-        ],
-      });
-    }
-  }, [selectedConversation, messages]);
+  // Handle conversation selection and mark messages as seen
+  const handleConversationSelect = useCallback(
+    async (conversation) => {
+      setSelectedConversation(conversation);
 
-  useEffect(() => {
-    if (callDuration && selectedConversation) {
-      const newCallSummary = {
-        id: String(Date.now()),
-        text: `Cuộc gọi kết thúc (${formatDuration(Number.parseInt(callDuration))})`,
-        sender: "system",
-        time: new Date().toISOString(),
-        status: "seen",
+      if (user?.id) {
+        try {
+          await markMessagesSeen(conversation.id, user.id);
+        } catch (error) {
+          console.error("Error marking messages as seen:", error);
+          // Don't show error to user as this is a background operation
+        }
+      }
+    },
+    [user?.id, markMessagesSeen],
+  );
+
+  // Memoize the conversation formatting logic
+  const conversations = useMemo(() => {
+    if (!chatsData || !user?.id) return [];
+
+    return chatsData.map((chat) => {
+      const roomParts = chat.roomId.split("-");
+      const id1 = Number.parseInt(roomParts[1]);
+      const id2 = Number.parseInt(roomParts[2]);
+      const otherUserId = user.id === id1 ? id2 : id1;
+
+      const lastMsg =
+        chat.messages.length > 0
+          ? chat.messages[chat.messages.length - 1]
+          : { message: "No messages yet", timestamp: Date.now().toString() };
+
+      // Only count messages that are not from the current user and not seen
+      const unreadCount = chat.messages.filter(
+        (msg) => msg.author !== user.id && !msg.seen,
+      ).length;
+
+      return {
+        id: chat.roomId,
+        name: `Provider ${otherUserId}`,
+        lastMessage: lastMsg.message,
+        time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
+        unread: unreadCount,
+        avatar: `https://picsum.photos/id/${otherUserId}/100`,
+        online: Math.random() > 0.5,
+        otherUserId: otherUserId,
       };
-      setMessages((prevMessages) => ({
-        ...prevMessages,
-        [selectedConversation.id]: [
-          ...prevMessages[selectedConversation.id],
-          newCallSummary,
-        ],
-      }));
-    }
-  }, [callDuration, selectedConversation]);
+    });
+  }, [chatsData, user?.id]);
 
-  const renderConversation = ({ item }) => (
-    <TouchableOpacity
-      className="flex-row items-center p-4 border-b border-gray-200"
-      onPress={() => setSelectedConversation(item)}
-    >
-      <View className="relative">
-        <Image
-          source={{ uri: item.avatar }}
-          className="w-12 h-12 rounded-full"
-        />
-        {item.online && (
-          <View className="absolute right-0 bottom-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-        )}
-      </View>
-      <View className="flex-1 ml-4">
-        <View className="flex-row justify-between items-center">
-          <Text className="font-pbold text-lg">{item.name}</Text>
-          <Text className="font-pregular text-gray-500 text-sm">
-            {item.time}
-          </Text>
-        </View>
-        <View className="flex-row justify-between items-center mt-1">
-          <Text
-            className="font-pregular text-gray-600 text-sm"
-            numberOfLines={1}
-          >
-            {item.lastMessage}
-          </Text>
-          {item.unread > 0 && (
-            <View className="bg-primary-500 rounded-full w-5 h-5 justify-center items-center">
-              <Text className="font-pmedium text-white text-xs">
-                {item.unread}
-              </Text>
-            </View>
+  // Auto-mark messages as seen when viewing a conversation
+  useEffect(() => {
+    if (!selectedConversation || !user?.id) return;
+
+    const markSeen = async () => {
+      try {
+        await markMessagesSeen(selectedConversation.id, user.id);
+      } catch (error) {
+        console.error("Error marking messages as seen:", error);
+      }
+    };
+
+    markSeen();
+  }, [selectedConversation, user?.id, markMessagesSeen]);
+
+  // Memoize current chat messages
+  const currentChatMessages = useMemo(() => {
+    if (!selectedConversation || !chatsData) return [];
+
+    const chatData = chatsData.find(
+      (chat) => chat.roomId === selectedConversation.id,
+    );
+    return chatData?.messages || [];
+  }, [selectedConversation, chatsData]);
+
+  // Message sending handler
+  const handleSendMessage = useCallback(
+    async (text = inputMessage, messageType = "user", attachment = null) => {
+      if ((!text.trim() && !attachment) || !selectedConversation || !user?.id)
+        return;
+
+      try {
+        await sendChat({
+          senderId: user.id,
+          receiverId: selectedConversation.otherUserId,
+          message: text,
+        });
+
+        setInputMessage("");
+        setIsAttachmentModalVisible(false);
+
+        // Scroll to bottom after sending
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      } catch (error) {
+        console.error("Error sending message:", error);
+        Alert.alert("Error", "Failed to send message. Please try again.");
+      }
+    },
+    [inputMessage, selectedConversation, user?.id, sendChat],
+  );
+
+  // Handle call duration updates
+  useEffect(() => {
+    if (!callDuration || !selectedConversation) return;
+
+    const callDurationMsg = `Call ended (${formatDuration(Number.parseInt(callDuration))})`;
+    handleSendMessage(callDurationMsg, "system");
+  }, [callDuration, selectedConversation, handleSendMessage]);
+
+  // Memoize rendering functions
+  const renderConversation = useCallback(
+    ({ item }) => (
+      <TouchableOpacity
+        className="flex-row items-center p-4 border-b border-gray-200"
+        onPress={() => handleConversationSelect(item)}
+      >
+        <View className="relative">
+          <Image
+            source={{ uri: item.avatar }}
+            className="w-12 h-12 rounded-full"
+          />
+          {item.online && (
+            <View className="absolute right-0 bottom-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
           )}
         </View>
-      </View>
-    </TouchableOpacity>
+        <View className="flex-1 ml-4">
+          <View className="flex-row justify-between items-center">
+            <Text className="font-pbold text-lg">{item.name}</Text>
+            <Text className="font-pregular text-gray-500 text-sm">
+              {item.time}
+            </Text>
+          </View>
+          <View className="flex-row justify-between items-center mt-1">
+            <Text
+              className="font-pregular text-gray-600 text-sm"
+              numberOfLines={1}
+            >
+              {item.lastMessage}
+            </Text>
+            {item.unread > 0 && (
+              <View className="bg-primary-500 rounded-full w-5 h-5 justify-center items-center">
+                <Text className="font-pmedium text-white text-xs">
+                  {item.unread}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    ),
+    [handleConversationSelect],
+  );
+
+  const renderMessage = useCallback(
+    ({ item, index }) => {
+      if (!selectedConversation || !user?.id) return null;
+
+      const currentMessageDate = new Date(Number.parseInt(item.timestamp));
+      const previousMessageDate =
+        index > 0
+          ? new Date(Number.parseInt(currentChatMessages[index - 1].timestamp))
+          : new Date(0);
+
+      const showDateSeparator =
+        index === 0 || !isSameDay(currentMessageDate, previousMessageDate);
+      const isCurrentUser = item.author === user.id;
+
+      return (
+        <>
+          {showDateSeparator && renderDateSeparator(currentMessageDate)}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={() => setLongPressedMessage(item)}
+          >
+            <View
+              className={`flex-row ${isCurrentUser ? "justify-end" : "justify-start"} mb-4`}
+            >
+              {!isCurrentUser && (
+                <Image
+                  source={{ uri: selectedConversation.avatar }}
+                  className="w-8 h-8 rounded-full mr-2"
+                />
+              )}
+              <View
+                className={`rounded-2xl p-3 ${isCurrentUser ? "bg-primary-500" : "bg-gray-200"} ${item.image ? "p-1" : "p-3"}`}
+              >
+                {item.image ? (
+                  <View>
+                    {!imageError ? (
+                      <Image
+                        source={{
+                          uri: `data:image/jpeg;base64,${item.image.base64}`,
+                        }}
+                        className="rounded-lg"
+                        style={{
+                          width: Math.min(280, item.image.width),
+                          height: Math.min(
+                            280 * (item.image.height / item.image.width),
+                            400,
+                          ),
+                        }}
+                        onError={() => setImageError(true)}
+                      />
+                    ) : (
+                      <View className="bg-gray-200 rounded-lg p-4 items-center justify-center">
+                        <Ionicons name="image-outline" size={32} color="gray" />
+                        <Text className="text-gray-500 mt-2">
+                          Failed to load image
+                        </Text>
+                      </View>
+                    )}
+                    {item.message.trim() && (
+                      <Text
+                        className={`mt-2 font-pregular ${isCurrentUser ? "text-white" : "text-black"}`}
+                      >
+                        {item.message}
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  <Text
+                    className={`font-pregular ${isCurrentUser ? "text-white" : "text-black"}`}
+                  >
+                    {item.message}
+                  </Text>
+                )}
+                <View className="flex-row items-center justify-end mt-1">
+                  <Text
+                    className={`text-xs mr-1 font-pregular ${isCurrentUser ? "text-white" : "text-gray-500"}`}
+                  >
+                    {formatTime(currentMessageDate)}
+                  </Text>
+                  {isCurrentUser && (
+                    <Ionicons
+                      name={getStatusIcon(item.seen ? "seen" : "delivered")}
+                      size={16}
+                      color={isCurrentUser ? "white" : "gray"}
+                    />
+                  )}
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </>
+      );
+    },
+    [selectedConversation, user?.id, currentChatMessages],
   );
 
   const renderDateSeparator = (date) => (
@@ -194,160 +385,110 @@ const MessageScreen = () => {
     setLongPressedMessage(message);
   };
 
-  const renderMessage = ({ item, index }) => {
-    const showDateSeparator =
-      index === 0 ||
-      !isSameDay(
-        new Date(item.time),
-        new Date(messages[selectedConversation.id][index - 1].time),
-      );
-    return (
-      <>
-        {showDateSeparator && renderDateSeparator(new Date(item.time))}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onLongPress={() => handleLongPress(item)}
-        >
-          <View
-            className={`flex-row ${item.sender === "user" ? "justify-end" : "justify-start"} mb-4`}
-          >
-            {item.sender === "provider" && (
-              <Image
-                source={{ uri: selectedConversation.avatar }}
-                className="w-8 h-8 rounded-full mr-2"
-              />
-            )}
-            {item.sender === "system" ? (
-              <View className="bg-gray-200 rounded-full px-4 py-2">
-                <Text className="font-pmedium text-sm text-gray-600">
-                  {item.text}
-                </Text>
-              </View>
-            ) : (
-              <View
-                className={`rounded-2xl p-3 ${item.sender === "user" ? "bg-primary-500" : "bg-gray-200"}`}
-              >
-                {item.attachment ? (
-                  <View>
-                    {item.attachment.type.startsWith("image") ? (
-                      <Image
-                        source={{ uri: item.attachment.uri }}
-                        className="w-48 h-48 rounded-lg mb-2"
-                      />
-                    ) : item.attachment.type.startsWith("video") ? (
-                      <View className="w-48 h-48 bg-black rounded-lg mb-2 justify-center items-center">
-                        <Ionicons name="play-circle" size={48} color="white" />
-                      </View>
-                    ) : (
-                      <View className="flex-row items-center bg-white p-2 rounded-lg mb-2">
-                        <MaterialCommunityIcons
-                          name={getFileIcon(item.attachment.type)}
-                          size={24}
-                          color="#0286FF"
-                        />
-                        <Text className="ml-2 font-pmedium" numberOfLines={1}>
-                          {item.attachment.name}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <Text
-                    className={`font-pregular ${item.sender === "user" ? "text-white" : "text-black"}`}
-                  >
-                    {item.text}
-                  </Text>
-                )}
-                <View className="flex-row items-center justify-end mt-1">
-                  <Text
-                    className={`text-xs mr-1 font-pregular ${item.sender === "user" ? "text-white" : "text-gray-500"}`}
-                  >
-                    {formatTime(new Date(item.time))}
-                  </Text>
-                  {item.sender === "user" && (
-                    <Ionicons
-                      name={getStatusIcon(item.status)}
-                      size={16}
-                      color={item.sender === "user" ? "white" : "gray"}
-                    />
-                  )}
-                </View>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </>
-    );
-  };
-
   const scrollToBottom = () => {
     if (flatListRef.current) {
       flatListRef.current.scrollToEnd({ animated: true });
     }
   };
 
-  const sendMessage = async (attachment = null) => {
-    if ((!inputMessage.trim() && !attachment) || !selectedConversation) return;
-    const newMessage = {
-      id: String(Date.now()),
-      text: inputMessage,
-      sender: "user",
-      time: new Date().toISOString(),
-      attachment: attachment,
-      status: "sending",
-    };
-    setMessages((prevMessages) => ({
-      ...prevMessages,
-      [selectedConversation.id]: [
-        ...prevMessages[selectedConversation.id],
-        newMessage,
-      ],
-    }));
-    setInputMessage("");
-    setIsAttachmentModalVisible(false);
+  const processAndSendImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    setIsUploading(true);
+    try {
+      await sendChat({
+        senderId: user.id,
+        receiverId: selectedConversation.otherUserId,
+        message: "",
+        image: {
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+        },
+      });
 
-    // Scroll to bottom after sending
-    setTimeout(scrollToBottom, 100);
-
-    // Simulate message sending delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setMessages((prevMessages) => ({
-      ...prevMessages,
-      [selectedConversation.id]: prevMessages[selectedConversation.id].map(
-        (msg) => (msg.id === newMessage.id ? { ...msg, status: "sent" } : msg),
-      ),
-    }));
-
-    // Simulate message delivered delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    setMessages((prevMessages) => ({
-      ...prevMessages,
-      [selectedConversation.id]: prevMessages[selectedConversation.id].map(
-        (msg) =>
-          msg.id === newMessage.id ? { ...msg, status: "delivered" } : msg,
-      ),
-    }));
+      setIsAttachmentModalVisible(false);
+    } catch (error) {
+      console.error("Error sending image:", error);
+      Alert.alert(
+        "Error",
+        error.message === "Image size too large"
+          ? "Image is too large. Please choose a smaller image or take a new photo with lower quality."
+          : "Failed to send image. Please try again.",
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleImagePicker = async (useCamera = false) => {
     let result;
-    if (useCamera) {
-      result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        quality: 1,
-      });
-    } else {
-      result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        quality: 1,
-      });
-    }
+    try {
+      if (useCamera) {
+        const permissionResult =
+          await ImagePicker.requestCameraPermissionsAsync();
+        if (!permissionResult.granted) {
+          Alert.alert(
+            "Permission Required",
+            "You need to grant camera permission",
+          );
+          return;
+        }
 
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      sendMessage({ uri: asset.uri, type: asset.type, name: "Image" });
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.5, // Reduce quality to decrease file size
+          allowsEditing: true,
+          aspect: [4, 3],
+          maxWidth: 1200, // Add max dimensions
+          maxHeight: 1200,
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.5, // Reduce quality to decrease file size
+          allowsEditing: true,
+          aspect: [4, 3],
+          maxWidth: 1200, // Add max dimensions
+          maxHeight: 1200,
+        });
+      }
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+
+        // Check file size before processing
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const fileSize = blob.size;
+
+        // If file is larger than 5MB, warn user
+        if (fileSize > 5 * 1024 * 1024) {
+          Alert.alert(
+            "Large Image",
+            "This image is quite large and may take longer to send. Would you like to continue?",
+            [
+              {
+                text: "Cancel",
+                style: "cancel",
+              },
+              {
+                text: "Continue",
+                onPress: async () => {
+                  await processAndSendImage(asset);
+                },
+              },
+            ],
+          );
+          return;
+        }
+
+        await processAndSendImage(asset);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to pick image. Please try again.",
+      );
     }
   };
 
@@ -357,83 +498,18 @@ const MessageScreen = () => {
     });
 
     if (result.type === "success") {
-      sendMessage({
-        uri: result.uri,
-        type: result.mimeType,
-        name: result.name,
-      });
+      // In a real implementation, you would upload the document to storage
+      // and then send a message with the document URL
+      Alert.alert(
+        "Feature in Development",
+        "Document sharing will be available soon!",
+      );
+      // sendMessage("Sent a document", "user", {
+      //   uri: result.uri,
+      //   type: result.mimeType,
+      //   name: result.name,
+      // });
     }
-  };
-
-  const getFileIcon = (mimeType) => {
-    if (mimeType.startsWith("image")) return "file-image";
-    if (mimeType.startsWith("video")) return "file-video";
-    if (mimeType.startsWith("audio")) return "file-music";
-    if (mimeType.includes("pdf")) return "file-pdf-box";
-    if (mimeType.includes("word")) return "file-word";
-    if (mimeType.includes("excel") || mimeType.includes("sheet"))
-      return "file-excel";
-    if (mimeType.includes("powerpoint") || mimeType.includes("presentation"))
-      return "file-powerpoint";
-    return "file-document";
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "sending":
-        return "time-outline";
-      case "sent":
-        return "checkmark-outline";
-      case "delivered":
-        return "checkmark-done-outline";
-      case "seen":
-        return "checkmark-done";
-      default:
-        return "checkmark-outline";
-    }
-  };
-
-  const formatDate = (date) => {
-    const now = new Date();
-    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "Hôm nay";
-    if (diffDays === 1) return "Hôm qua";
-    if (diffDays < 7)
-      return [
-        "Chủ Nhật",
-        "Thứ Hai",
-        "Thứ Ba",
-        "Thứ Tư",
-        "Thứ Năm",
-        "Thứ Sáu",
-        "Thứ Bảy",
-      ][date.getDay()];
-    return date.toLocaleDateString("vi-VN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const isSameDay = (date1, date2) => {
-    return (
-      date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate()
-    );
   };
 
   const AttachmentModal = () => (
@@ -504,6 +580,19 @@ const MessageScreen = () => {
             data={conversations}
             renderItem={renderConversation}
             keyExtractor={(item) => item.id}
+            ListEmptyComponent={() => (
+              <View className="flex-1 justify-center items-center p-10">
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={60}
+                  color="gray"
+                />
+                <Text className="text-gray-500 text-center mt-4 font-pmedium">
+                  Không có cuộc trò chuyện nào. Bắt đầu trò chuyện với nhà cung
+                  cấp dịch vụ!
+                </Text>
+              </View>
+            )}
           />
         </>
       ) : (
@@ -544,19 +633,31 @@ const MessageScreen = () => {
               <Ionicons name="ellipsis-vertical" size={24} color="black" />
             </TouchableOpacity>
           </View>
-          <FlatList
-            ref={flatListRef}
-            data={messages[selectedConversation.id]}
-            renderItem={renderMessage}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: "flex-end",
-              paddingHorizontal: 16,
-            }}
-            onContentSizeChange={scrollToBottom}
-            inverted={false}
-          />
+
+          {/* Messages list */}
+          {selectedConversation && (
+            <FlatList
+              ref={flatListRef}
+              data={currentChatMessages}
+              renderItem={renderMessage}
+              keyExtractor={(item, index) => `${item.timestamp}-${index}`}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: "flex-end",
+                paddingHorizontal: 16,
+              }}
+              onContentSizeChange={scrollToBottom}
+              inverted={false}
+              ListEmptyComponent={() => (
+                <View className="flex-1 justify-center items-center p-10">
+                  <Text className="text-gray-500 text-center font-pmedium">
+                    Không có tin nhắn. Hãy bắt đầu cuộc trò chuyện!
+                  </Text>
+                </View>
+              )}
+            />
+          )}
+
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
           >
@@ -564,17 +665,30 @@ const MessageScreen = () => {
               <TouchableOpacity
                 className="mr-2"
                 onPress={() => setIsAttachmentModalVisible(true)}
+                disabled={isUploading}
               >
-                <Ionicons name="attach" size={24} color="#0286FF" />
+                <Ionicons
+                  name="attach"
+                  size={24}
+                  color={isUploading ? "#ccc" : "#0286FF"}
+                />
               </TouchableOpacity>
               <TextInput
                 className="flex-1 bg-gray-100 rounded-full px-4 py-2 mr-2 font-pmedium"
                 placeholder="Nhập tin nhắn..."
                 value={inputMessage}
                 onChangeText={setInputMessage}
+                editable={!isUploading}
               />
-              <TouchableOpacity onPress={() => sendMessage()}>
-                <Ionicons name="send" size={24} color="#0286FF" />
+              <TouchableOpacity
+                onPress={() => handleSendMessage()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator size="small" color="#0286FF" />
+                ) : (
+                  <Ionicons name="send" size={24} color="#0286FF" />
+                )}
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
@@ -594,7 +708,11 @@ const MessageScreen = () => {
                   <TouchableOpacity
                     className="py-2"
                     onPress={() => {
-                      Clipboard.setString(longPressedMessage.text);
+                      // Copy message text to clipboard
+                      Alert.alert(
+                        "Feature in Development",
+                        "Copy functionality will be available soon!",
+                      );
                       setLongPressedMessage(null);
                     }}
                   >
@@ -603,12 +721,11 @@ const MessageScreen = () => {
                   <TouchableOpacity
                     className="py-2"
                     onPress={() => {
-                      setMessages((prevMessages) => ({
-                        ...prevMessages,
-                        [selectedConversation.id]: prevMessages[
-                          selectedConversation.id
-                        ].filter((msg) => msg.id !== longPressedMessage.id),
-                      }));
+                      // Delete message functionality
+                      Alert.alert(
+                        "Feature in Development",
+                        "Message deletion will be available soon!",
+                      );
                       setLongPressedMessage(null);
                     }}
                   >
@@ -636,6 +753,10 @@ const MessageScreen = () => {
                     className="py-2"
                     onPress={() => {
                       // Handle block user
+                      Alert.alert(
+                        "Feature in Development",
+                        "User blocking will be available soon!",
+                      );
                       setShowConversationOptions(false);
                     }}
                   >
@@ -647,6 +768,10 @@ const MessageScreen = () => {
                     className="py-2"
                     onPress={() => {
                       // Handle report user
+                      Alert.alert(
+                        "Feature in Development",
+                        "User reporting will be available soon!",
+                      );
                       setShowConversationOptions(false);
                     }}
                   >

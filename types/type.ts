@@ -167,3 +167,18 @@ export const ORDER_STATUS_MAP: Record<OrderStatus, OrderStatusConfig> = {
     },
   },
 };
+
+// Add image type to MessageType
+export type MessageType = {
+  id: string;
+  author: number;
+  message: string;
+  roomId: string;
+  seen: boolean;
+  timestamp: string;
+  image?: {
+    url: string;
+    width: number;
+    height: number;
+  };
+};
