@@ -15,7 +15,6 @@ export type RoomChatType = {
   lastTimestamp: string;
 };
 
-// Update MessageChatType to use base64 instead of url
 export type MessageChatType = {
   author: number;
   message: string;
@@ -67,7 +66,6 @@ export const useGetChat = () => {
     error: null,
   });
 
-  // Combine both Firebase listeners into a single useEffect
   useEffect(() => {
     let isMounted = true;
     let roomsUnsubscribe: (() => void) | null = null;
@@ -75,7 +73,6 @@ export const useGetChat = () => {
 
     const setupListeners = async () => {
       try {
-        // Set up rooms listener
         roomsUnsubscribe = chatsCollection.onSnapshot(
           (roomsSnapshot) => {
             if (!isMounted) return;
@@ -103,7 +100,6 @@ export const useGetChat = () => {
           },
         );
 
-        // Set up messages listener
         messagesUnsubscribe = messagesCollection.onSnapshot(
           (messagesSnapshot) => {
             if (!isMounted) return;
@@ -126,7 +122,6 @@ export const useGetChat = () => {
               }
             });
 
-            // Sort messages by timestamp
             messages.sort(
               (a, b) =>
                 Number.parseInt(a.timestamp) - Number.parseInt(b.timestamp),
@@ -163,15 +158,13 @@ export const useGetChat = () => {
 
     setupListeners();
 
-    // Cleanup function
     return () => {
       isMounted = false;
       if (roomsUnsubscribe) roomsUnsubscribe();
       if (messagesUnsubscribe) messagesUnsubscribe();
     };
-  }, []); // Empty dependency array since we don't want to recreate listeners
+  }, []);
 
-  // Memoize the chat data processing
   const chatsData = useMemo(() => {
     return chatState.rooms.map((room) => {
       const messageOfRoom = chatState.messages.filter(
@@ -191,29 +184,6 @@ export const useGetChat = () => {
   };
 };
 
-export const uploadImage = async (uri: string): Promise<string> => {
-  try {
-    // Create blob from uri
-    const response = await fetch(uri);
-    const blob = await response.blob();
-
-    // Generate unique filename
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    const storageRef = storage().ref().child(`chat-images/${filename}`);
-
-    // Upload blob
-    await storageRef.put(blob);
-
-    // Get download URL
-    const url = await storageRef.getDownloadURL();
-    return url;
-  } catch (error) {
-    console.error("Error uploading image:", error);
-    throw new Error("Failed to upload image");
-  }
-};
-
-// Add function to convert image to base64
 const getImageSize = (
   uri: string,
 ): Promise<{ width: number; height: number }> => {
@@ -241,10 +211,8 @@ const imageToBase64 = async (
   height: number;
 }> => {
   try {
-    // Get image dimensions first
     const dimensions = await getImageSize(uri);
 
-    // Calculate new dimensions while maintaining aspect ratio
     let newWidth = dimensions.width;
     let newHeight = dimensions.height;
 
@@ -258,11 +226,9 @@ const imageToBase64 = async (
       newWidth = (dimensions.width * maxHeight) / dimensions.height;
     }
 
-    // Fetch image and convert to blob
     const response = await fetch(uri);
     const blob = await response.blob();
 
-    // Convert blob to base64
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -392,26 +358,6 @@ export function getRoomId(senderId: number, receiverId: number) {
   const roomId = `room-${minId}-${maxId}`;
   return roomId;
 }
-
-export const markMessagesAsSeen = async (roomId: string, userId: number) => {
-  try {
-    const messagesSnapshot = await messagesCollection
-      .where("roomId", "==", roomId)
-      .where("author", "!=", userId)
-      .where("seen", "==", false)
-      .get();
-
-    const batch = firestore().batch();
-    messagesSnapshot.docs.forEach((doc) => {
-      batch.update(doc.ref, { seen: true });
-    });
-
-    return batch.commit();
-  } catch (error) {
-    console.error("Error marking messages as seen:", error);
-    throw new Error("Failed to update message status");
-  }
-};
 
 // Update markMessagesAsSeen to be a hook for better integration
 export const useMarkMessagesAsSeen = () => {

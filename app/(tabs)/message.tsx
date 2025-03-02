@@ -8,9 +8,18 @@ const formatTime = (date: Date): string => {
 
 const formatDate = (date: Date): string => {
   const now = new Date();
-  const diffDays = Math.floor(
-    (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const givenDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
   );
+
+  const diffDays = Math.floor(
+    (today.getTime() - givenDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
   if (diffDays === 0) return "Hôm nay";
   if (diffDays === 1) return "Hôm qua";
   if (diffDays < 7)
@@ -23,6 +32,7 @@ const formatDate = (date: Date): string => {
       "Thứ Sáu",
       "Thứ Bảy",
     ][date.getDay()];
+
   return date.toLocaleDateString("vi-VN", {
     year: "numeric",
     month: "long",
@@ -86,18 +96,22 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  BackHandler,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { AntDesign, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   useGetChat,
   useSendChat,
   useMarkMessagesAsSeen,
 } from "@/hooks/useChat";
-import useRentoData from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
+import { UserType } from "@/types/type";
+import { getAvatarUrl } from "@/utils/utils";
+import { realtimeDatabase, useIsOnline } from "@/hooks/userOnlineHook";
 
 const MessageScreen = () => {
   const [imageError, setImageError] = useState(false);
@@ -134,41 +148,90 @@ const MessageScreen = () => {
     },
     [user?.id, markMessagesSeen],
   );
+  useEffect(() => {
+    const backAction = () => {
+      setSelectedConversation(null);
+      return true;
+    };
 
-  // Memoize the conversation formatting logic
-  const conversations = useMemo(() => {
-    if (!chatsData || !user?.id) return [];
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction,
+    );
 
-    return chatsData.map((chat) => {
-      const roomParts = chat.roomId.split("-");
-      const id1 = Number.parseInt(roomParts[1]);
-      const id2 = Number.parseInt(roomParts[2]);
-      const otherUserId = user.id === id1 ? id2 : id1;
+    return () => backHandler.remove();
+  }, []);
 
-      const lastMsg =
-        chat.messages.length > 0
-          ? chat.messages[chat.messages.length - 1]
-          : { message: "No messages yet", timestamp: Date.now().toString() };
+  const [conversations, setConversations] = useState([]);
+  useEffect(() => {
+    const listener = realtimeDatabase
+      .ref("/online")
+      .on("value", async (snapshot) => {
+        await fetchConversations();
+      });
 
-      // Only count messages that are not from the current user and not seen
-      const unreadCount = chat.messages.filter(
-        (msg) => msg.author !== user.id && !msg.seen,
-      ).length;
+    return () => realtimeDatabase.ref("/online").off("value", listener);
+  }, []);
 
-      return {
-        id: chat.roomId,
-        name: `Provider ${otherUserId}`,
-        lastMessage: lastMsg.message,
-        time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
-        unread: unreadCount,
-        avatar: `https://picsum.photos/id/${otherUserId}/100`,
-        online: Math.random() > 0.5,
-        otherUserId: otherUserId,
-      };
-    });
+  const fetchConversations = async () => {
+    const conversationsData = await Promise.all(
+      chatsData
+        .filter((chat) => {
+          const roomIds = chat.roomId.split("-");
+          const firstId = roomIds[1];
+          const secondId = roomIds[2];
+          const userId = user?.id.toString();
+          return userId === firstId || userId === secondId;
+        })
+        .map(async (chat) => {
+          const roomParts = chat.roomId.split("-");
+          const id1 = Number.parseInt(roomParts[1]);
+          const id2 = Number.parseInt(roomParts[2]);
+          const otherUserId = user?.id === id1 ? id2 : id1;
+
+          const response = await axiosFetch(`/users/${otherUserId}`, "get");
+          const otherUserData = response?.data as UserType;
+          const lastMsg =
+            chat.messages.length > 0
+              ? chat.messages[chat.messages.length - 1]
+              : {
+                  message: "No messages yet",
+                  timestamp: Date.now().toString(),
+                };
+
+          const unreadCount = chat.messages.filter(
+            (msg) => msg.author !== user?.id && !msg.seen,
+          ).length;
+
+          return {
+            id: chat.roomId,
+            name: otherUserData ? otherUserData.name : `User ${otherUserId}`,
+            lastMessage: lastMsg.message,
+            time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
+            unread: unreadCount,
+            avatar: getAvatarUrl(otherUserData),
+            online: await useIsOnline(otherUserId),
+            otherUserId: otherUserId,
+          };
+        }),
+    );
+    setConversations(conversationsData);
+  };
+  useEffect(() => {
+    if (selectedConversation !== null) {
+      const newSelectedConversation = conversations?.find(
+        (conversation) => conversation?.id === selectedConversation?.id,
+      );
+      if (newSelectedConversation)
+        setSelectedConversation(newSelectedConversation);
+    }
+  }, [conversations]);
+  useEffect(() => {
+    if (!chatsData || !user?.id) return;
+
+    fetchConversations();
   }, [chatsData, user?.id]);
 
-  // Auto-mark messages as seen when viewing a conversation
   useEffect(() => {
     if (!selectedConversation || !user?.id) return;
 
@@ -239,10 +302,7 @@ const MessageScreen = () => {
         onPress={() => handleConversationSelect(item)}
       >
         <View className="relative">
-          <Image
-            source={{ uri: item.avatar }}
-            className="w-12 h-12 rounded-full"
-          />
+          <Image source={item.avatar} className="w-12 h-12 rounded-full" />
           {item.online && (
             <View className="absolute right-0 bottom-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
           )}
@@ -301,7 +361,7 @@ const MessageScreen = () => {
             >
               {!isCurrentUser && (
                 <Image
-                  source={{ uri: selectedConversation.avatar }}
+                  source={selectedConversation.avatar}
                   className="w-8 h-8 rounded-full mr-2"
                 />
               )}
@@ -492,26 +552,6 @@ const MessageScreen = () => {
     }
   };
 
-  const handleDocumentPicker = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: "*/*",
-    });
-
-    if (result.type === "success") {
-      // In a real implementation, you would upload the document to storage
-      // and then send a message with the document URL
-      Alert.alert(
-        "Feature in Development",
-        "Document sharing will be available soon!",
-      );
-      // sendMessage("Sent a document", "user", {
-      //   uri: result.uri,
-      //   type: result.mimeType,
-      //   name: result.name,
-      // });
-    }
-  };
-
   const AttachmentModal = () => (
     <Modal
       animationType="slide"
@@ -545,15 +585,6 @@ const MessageScreen = () => {
               </View>
               <Text className="font-pmedium">Máy ảnh</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              className="items-center"
-              onPress={handleDocumentPicker}
-            >
-              <View className="w-16 h-16 bg-primary-100 rounded-full justify-center items-center mb-2">
-                <Ionicons name="document" size={32} color="#0286FF" />
-              </View>
-              <Text className="font-pmedium">Tài liệu</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -580,6 +611,12 @@ const MessageScreen = () => {
             data={conversations}
             renderItem={renderConversation}
             keyExtractor={(item) => item.id}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={fetchConversations}
+              />
+            }
             ListEmptyComponent={() => (
               <View className="flex-1 justify-center items-center p-10">
                 <Ionicons
@@ -602,18 +639,18 @@ const MessageScreen = () => {
               <Ionicons name="arrow-back" size={24} color="black" />
             </TouchableOpacity>
             <Image
-              source={{ uri: selectedConversation.avatar }}
+              source={selectedConversation.avatar}
               className="w-10 h-10 rounded-full ml-4"
             />
             <View className="ml-3 flex-1">
               <Text className="font-pbold text-lg">
-                {selectedConversation.name}
+                {selectedConversation?.name ?? ""}
               </Text>
-              <Text className="text-green-500 font-pregular">
-                {selectedConversation.online
-                  ? "Đang hoạt động"
-                  : "Không hoạt động"}
-              </Text>
+              {selectedConversation?.online && (
+                <Text className="text-green-500 font-pregular">
+                  Đang hoạt động
+                </Text>
+              )}
             </View>
             <TouchableOpacity
               onPress={() =>
@@ -667,11 +704,7 @@ const MessageScreen = () => {
                 onPress={() => setIsAttachmentModalVisible(true)}
                 disabled={isUploading}
               >
-                <Ionicons
-                  name="attach"
-                  size={24}
-                  color={isUploading ? "#ccc" : "#0286FF"}
-                />
+                <AntDesign name="picture" size={24} color="gray" />
               </TouchableOpacity>
               <TextInput
                 className="flex-1 bg-gray-100 rounded-full px-4 py-2 mr-2 font-pmedium"

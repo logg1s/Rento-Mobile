@@ -17,6 +17,7 @@ import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
 import { router } from "expo-router";
 import { getAvatarUrl } from "@/utils/utils";
+import { useIsOnline } from "@/hooks/userOnlineHook";
 
 const TabHome = () => {
   const [isLoading, setIsLoading] = useState(false);
