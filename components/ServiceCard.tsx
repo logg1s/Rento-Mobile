@@ -3,7 +3,7 @@ import { Image, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
-import { convertedPrice, getAvatarUrl } from "@/utils/utils";
+import { convertedPrice, getImageSource } from "@/utils/utils";
 
 const ServiceCard: React.FC<ServiceCardProps> = ({
   data: {
@@ -43,7 +43,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       <View className="flex-row">
         <View className={`w-20 p-1 justify-center items-center rounded-full`}>
           <Image
-            source={getAvatarUrl(user)}
+            source={getImageSource(user)}
             className="w-20 h-20 rounded-full "
           />
         </View>

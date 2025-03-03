@@ -4,7 +4,7 @@ import { OrderType, OrderStatus, ORDER_STATUS_MAP } from "@/types/type";
 import {
   convertedPrice,
   formatDateToVietnamese,
-  getAvatarUrl,
+  getImageSource,
 } from "@/utils/utils";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -40,7 +40,7 @@ export const OrderCard = ({ order, onOrderUpdate }: OrderCardProps) => {
             try {
               const success = await updateStatusOrder(
                 order.id,
-                OrderStatus.CANCELLED
+                OrderStatus.CANCELLED,
               );
               if (success) {
                 Alert.alert("Thành công", "Đã hủy đơn hàng thành công");
@@ -51,12 +51,12 @@ export const OrderCard = ({ order, onOrderUpdate }: OrderCardProps) => {
             } catch (error) {
               Alert.alert(
                 "Lỗi",
-                "Không thể hủy đơn hàng. Vui lòng thử lại sau"
+                "Không thể hủy đơn hàng. Vui lòng thử lại sau",
               );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -135,7 +135,7 @@ export const OrderCard = ({ order, onOrderUpdate }: OrderCardProps) => {
         }
       >
         <Image
-          source={getAvatarUrl(provider)}
+          source={getImageSource(provider)}
           className="w-14 h-14 rounded-full bg-gray-100"
           contentFit="cover"
           transition={200}

@@ -19,6 +19,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import useRentoData from "@/stores/dataStore";
 import useAuthStore from "@/stores/authStore";
 import { useState } from "react";
+import { Appearance } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,7 +61,9 @@ const Layout = () => {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar
+        style={Appearance.getColorScheme() === "dark" ? "dark" : "light"}
+      />
     </GestureHandlerRootView>
   );
 };

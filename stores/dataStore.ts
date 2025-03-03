@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosResponse, Method } from "axios";
 import {
   CategoryType,
+  ImageType,
   NotificationType,
   OrderStatus,
   ServiceType,
@@ -36,9 +37,10 @@ type DataState = {
           old_password: string;
           new_password: string;
         },
-    isUpdatePassword?: boolean
+    isUpdatePassword?: boolean,
   ) => Promise<boolean>;
   uploadAvatar: (imageUri: string) => Promise<boolean>;
+  uploadImage: (imageUri: string) => Promise<string>;
   updateStatusOrder: (orderId: number, status: number) => Promise<boolean>;
 };
 
@@ -48,13 +50,13 @@ export const axiosFetch = async (
   url: string,
   method: Method = "get",
   data?: any,
-  isUpload = false
+  isUpload = false,
 ): Promise<AxiosResponse | undefined> => {
   console.log(
     "fetching",
     rentoHost + url,
     method,
-    data ? JSON.stringify(data) : ""
+    data ? JSON.stringify(data) : "",
   );
   try {
     const token = await AsyncStorage.getItem("jwtToken");
@@ -156,7 +158,7 @@ const useRentoData = create<DataState>((set, get) => ({
         services: previousServices.map((service) =>
           service.id === serviceId
             ? { ...service, is_liked: !service.is_liked }
-            : service
+            : service,
         ),
       });
       await axiosFetch(`/favorites/${serviceId}`, "post");
@@ -165,7 +167,7 @@ const useRentoData = create<DataState>((set, get) => ({
       set({ services: previousServices });
       console.error(
         "Lỗi khi thay đổi trạng thái yêu thích:",
-        error?.response?.data
+        error?.response?.data,
       );
     }
   },
@@ -175,7 +177,7 @@ const useRentoData = create<DataState>((set, get) => ({
       const response = await axiosFetch(
         `/users/update${isUpdatePassword ? "Password" : ""}`,
         "put",
-        data
+        data,
       );
       if (isUpdatePassword) {
         await useAuthStore.getState().refreshAccessToken();
@@ -200,7 +202,7 @@ const useRentoData = create<DataState>((set, get) => ({
         "/users/uploadAvatar",
         "post",
         formData,
-        true
+        true,
       );
       await get().fetchUser();
       return true;
@@ -209,6 +211,28 @@ const useRentoData = create<DataState>((set, get) => ({
       return false;
     }
   },
+
+  uploadImage: async (imageUri: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", {
+        uri: imageUri,
+        type: "image/jpeg",
+        name: "image.jpg",
+      } as any);
+      const response = await axiosFetch(
+        "/users/uploadImage",
+        "post",
+        formData,
+        true,
+      );
+      return (response?.data as ImageType)?.path ?? "";
+    } catch (error) {
+      console.error("Error uploading avatar:", error?.response?.data);
+      return "";
+    }
+  },
+
   updateStatusOrder: async (orderId: number, status: OrderStatus) => {
     try {
       await axiosFetch(`/users/orders/${orderId}/update-status`, "put", {

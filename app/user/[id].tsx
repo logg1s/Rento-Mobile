@@ -15,7 +15,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { CategoryType, ServiceType, UserType, CommentType } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
-import { getAvatarUrl } from "@/utils/utils";
+import { getImageSource } from "@/utils/utils";
 import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
 import * as Clipboard from "expo-clipboard";
@@ -79,8 +79,8 @@ const UserProfile = () => {
         prev.map((service) =>
           service.id === serviceId
             ? { ...service, is_liked: !service.is_liked }
-            : service
-        )
+            : service,
+        ),
       );
       await updateFavorite(serviceId);
     } catch (error) {
@@ -115,7 +115,7 @@ const UserProfile = () => {
         <View className="items-center gap-4">
           <TouchableOpacity onPress={() => setShowFullImage(true)}>
             <Image
-              source={getAvatarUrl(userData)}
+              source={getImageSource(userData)}
               className="w-24 h-24 rounded-full"
             />
           </TouchableOpacity>
@@ -272,7 +272,7 @@ const UserProfile = () => {
           </TouchableOpacity>
           <View className="flex-1 justify-center">
             <Image
-              source={getAvatarUrl(userData)}
+              source={getImageSource(userData)}
               style={{
                 width: Dimensions.get("window").width,
                 height: Dimensions.get("window").width,

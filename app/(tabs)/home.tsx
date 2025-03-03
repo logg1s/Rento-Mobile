@@ -16,7 +16,7 @@ import Swiper from "react-native-swiper";
 import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
 import { router } from "expo-router";
-import { getAvatarUrl } from "@/utils/utils";
+import { getImageSource } from "@/utils/utils";
 import { useIsOnline } from "@/hooks/userOnlineHook";
 
 const TabHome = () => {
@@ -70,7 +70,7 @@ const TabHome = () => {
           <View className="flex-1 flex-row gap-2">
             <View className={`rounded-full border border-gray-300 p-2`}>
               <Image
-                source={getAvatarUrl(user)}
+                source={getImageSource(user)}
                 className="w-8 h-8 rounded-full"
               />
             </View>

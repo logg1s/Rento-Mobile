@@ -25,7 +25,10 @@
       },
       "package": "vn.io.rento",
       "versionCode": 1,
-      "permissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -34,7 +37,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      // "@react-native-google-signin/google-signin",
       "expo-router",
       "expo-font",
       [
@@ -42,12 +44,33 @@
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "infoPlist": {
+              "NSAppTransportSecurity": {
+                "NSAllowsArbitraryLoads": true
+              }
+            }
+          },
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
-      // "@react-native-firebase/app",
-      // "@react-native-firebase/auth"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "fd960f85-b299-4564-b7d4-2a2b079d633d"
+      }
     }
   }
 }

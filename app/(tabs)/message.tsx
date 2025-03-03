@@ -98,6 +98,8 @@ import {
   ActivityIndicator,
   BackHandler,
   RefreshControl,
+  ProgressBarAndroidComponent,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
@@ -110,11 +112,13 @@ import {
 } from "@/hooks/useChat";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { UserType } from "@/types/type";
-import { getAvatarUrl } from "@/utils/utils";
+import { getImagePath, getImageSource } from "@/utils/utils";
 import { realtimeDatabase, useIsOnline } from "@/hooks/userOnlineHook";
 
 const MessageScreen = () => {
   const [imageError, setImageError] = useState(false);
+  const [showFullImage, setShowFullImage] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState("");
 
   const { callDuration } = useLocalSearchParams();
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -129,7 +133,7 @@ const MessageScreen = () => {
   const markMessagesSeen = useMarkMessagesAsSeen();
 
   // Get real-time chat data using the useChat hook
-  const { chatsData, isLoading, error } = useGetChat();
+  const { chatsData, isLoading, error, listOnline } = useGetChat();
   const sendChat = useSendChat();
 
   // Handle conversation selection and mark messages as seen
@@ -153,7 +157,6 @@ const MessageScreen = () => {
       setSelectedConversation(null);
       return true;
     };
-
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       backAction,
@@ -164,16 +167,19 @@ const MessageScreen = () => {
 
   const [conversations, setConversations] = useState([]);
   useEffect(() => {
-    const listener = realtimeDatabase
-      .ref("/online")
-      .on("value", async (snapshot) => {
-        await fetchConversations();
-      });
-
-    return () => realtimeDatabase.ref("/online").off("value", listener);
-  }, []);
+    if (conversations.length === 0) return;
+    setConversations((prev: any) =>
+      prev.map((conversation: any) => {
+        return {
+          ...conversation,
+          isOnline: listOnline?.has(conversation?.otherUserId?.toString()),
+        };
+      }),
+    );
+  }, [listOnline]);
 
   const fetchConversations = async () => {
+    if (chatsData.length === 0) return;
     const conversationsData = await Promise.all(
       chatsData
         .filter((chat) => {
@@ -209,8 +215,8 @@ const MessageScreen = () => {
             lastMessage: lastMsg.message,
             time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
             unread: unreadCount,
-            avatar: getAvatarUrl(otherUserData),
-            online: await useIsOnline(otherUserId),
+            avatar: getImageSource(otherUserData),
+            isOnline: listOnline?.has(otherUserId.toString()),
             otherUserId: otherUserId,
           };
         }),
@@ -227,7 +233,9 @@ const MessageScreen = () => {
     }
   }, [conversations]);
   useEffect(() => {
-    if (!chatsData || !user?.id) return;
+    if (!chatsData || !user?.id) {
+      return;
+    }
 
     fetchConversations();
   }, [chatsData, user?.id]);
@@ -293,7 +301,6 @@ const MessageScreen = () => {
     const callDurationMsg = `Call ended (${formatDuration(Number.parseInt(callDuration))})`;
     handleSendMessage(callDurationMsg, "system");
   }, [callDuration, selectedConversation, handleSendMessage]);
-
   // Memoize rendering functions
   const renderConversation = useCallback(
     ({ item }) => (
@@ -303,7 +310,7 @@ const MessageScreen = () => {
       >
         <View className="relative">
           <Image source={item.avatar} className="w-12 h-12 rounded-full" />
-          {item.online && (
+          {item?.isOnline && (
             <View className="absolute right-0 bottom-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
           )}
         </View>
@@ -371,20 +378,29 @@ const MessageScreen = () => {
                 {item.image ? (
                   <View>
                     {!imageError ? (
-                      <Image
-                        source={{
-                          uri: `data:image/jpeg;base64,${item.image.base64}`,
+                      <TouchableOpacity
+                        onPress={() => {
+                          setCurrentImageUrl(
+                            getImagePath(item?.image?.path) ?? "",
+                          );
+                          setShowFullImage(true);
                         }}
-                        className="rounded-lg"
-                        style={{
-                          width: Math.min(280, item.image.width),
-                          height: Math.min(
-                            280 * (item.image.height / item.image.width),
-                            400,
-                          ),
-                        }}
-                        onError={() => setImageError(true)}
-                      />
+                      >
+                        <Image
+                          source={{
+                            uri: getImagePath(item?.image?.path) ?? "",
+                          }}
+                          className="rounded-lg"
+                          style={{
+                            width: Math.min(280, item.image.width),
+                            height: Math.min(
+                              280 * (item.image.height / item.image.width),
+                              400,
+                            ),
+                          }}
+                          onError={() => setImageError(true)}
+                        />
+                      </TouchableOpacity>
                     ) : (
                       <View className="bg-gray-200 rounded-lg p-4 items-center justify-center">
                         <Ionicons name="image-outline" size={32} color="gray" />
@@ -450,16 +466,18 @@ const MessageScreen = () => {
       flatListRef.current.scrollToEnd({ animated: true });
     }
   };
+  const uploadImage = useRentoData((state) => state.uploadImage);
 
   const processAndSendImage = async (asset: ImagePicker.ImagePickerAsset) => {
     setIsUploading(true);
     try {
+      const imagePath = await uploadImage(asset.uri);
       await sendChat({
         senderId: user.id,
         receiverId: selectedConversation.otherUserId,
         message: "",
         image: {
-          uri: asset.uri,
+          path: imagePath,
           width: asset.width,
           height: asset.height,
         },
@@ -497,50 +515,44 @@ const MessageScreen = () => {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.5, // Reduce quality to decrease file size
           allowsEditing: true,
-          aspect: [4, 3],
-          maxWidth: 1200, // Add max dimensions
-          maxHeight: 1200,
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.5, // Reduce quality to decrease file size
           allowsEditing: true,
-          aspect: [4, 3],
-          maxWidth: 1200, // Add max dimensions
-          maxHeight: 1200,
         });
       }
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-
-        // Check file size before processing
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        const fileSize = blob.size;
-
-        // If file is larger than 5MB, warn user
-        if (fileSize > 5 * 1024 * 1024) {
-          Alert.alert(
-            "Large Image",
-            "This image is quite large and may take longer to send. Would you like to continue?",
-            [
-              {
-                text: "Cancel",
-                style: "cancel",
-              },
-              {
-                text: "Continue",
-                onPress: async () => {
-                  await processAndSendImage(asset);
-                },
-              },
-            ],
-          );
-          return;
-        }
-
+        //
+        // // Check file size before processing
+        // const response = await fetch(asset.uri);
+        // const blob = await response.blob();
+        // const fileSize = blob.size;
+        //
+        // // If file is larger than 5MB, warn user
+        // if (fileSize > 5 * 1024 * 1024) {
+        //   Alert.alert(
+        //     "Large Image",
+        //     "This image is quite large and may take longer to send. Would you like to continue?",
+        //     [
+        //       {
+        //         text: "Cancel",
+        //         style: "cancel",
+        //       },
+        //       {
+        //         text: "Continue",
+        //         onPress: async () => {
+        //           await processAndSendImage(asset);
+        //         },
+        //       },
+        //     ],
+        //   );
+        //   return;
+        // }
+        //
         await processAndSendImage(asset);
       }
     } catch (error) {
@@ -551,7 +563,41 @@ const MessageScreen = () => {
       );
     }
   };
-
+  const ShowFullImageModal = () => (
+    <Modal
+      visible={showFullImage}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        setShowFullImage(false);
+        setCurrentImageUrl("");
+      }}
+    >
+      <View className="flex-1 bg-black">
+        <TouchableOpacity
+          onPress={() => {
+            setShowFullImage(false);
+            setCurrentImageUrl("");
+          }}
+          className="absolute right-4 top-4 z-10 rounded-full bg-white"
+        >
+          <Ionicons name="close" size={30} color="black" />
+        </TouchableOpacity>
+        <View className="flex-1 justify-center">
+          {currentImageUrl ? (
+            <Image
+              source={{ uri: currentImageUrl }}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
   const AttachmentModal = () => (
     <Modal
       animationType="slide"
@@ -646,7 +692,7 @@ const MessageScreen = () => {
               <Text className="font-pbold text-lg">
                 {selectedConversation?.name ?? ""}
               </Text>
-              {selectedConversation?.online && (
+              {selectedConversation?.isOnline && (
                 <Text className="text-green-500 font-pregular">
                   Đang hoạt động
                 </Text>
@@ -725,6 +771,7 @@ const MessageScreen = () => {
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
+          <ShowFullImageModal />
           <AttachmentModal />
           {longPressedMessage && (
             <Modal

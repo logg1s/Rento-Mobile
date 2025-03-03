@@ -4,7 +4,7 @@ import { ImageSourcePropType } from "react-native";
 export const convertedPrice = (
   price?: PriceType[],
   short = false,
-  single: "no" | "lowest" | "highest" = "no"
+  single: "no" | "lowest" | "highest" = "no",
 ) => {
   if (!price?.length) return formatToVND(0);
   const minPrice = Math.min(...price.map((p) => p.price_value));
@@ -56,16 +56,20 @@ export const formatToVND = (price: number) => {
   }).format(price);
 };
 
-export const getAvatarUrl = (
-  user: UserType | null | undefined
-): ImageSourcePropType => {
-  if (user?.image?.path) {
-    const isStorage = user?.image?.path.startsWith("/storage/avatar");
+export const getImagePath = (path: string | null | undefined) => {
+  if (path) {
+    const isStorage = path.startsWith("/storage/");
     const prefixPath = isStorage ? process.env.EXPO_PUBLIC_API_HOST : "";
-    return {
-      uri: prefixPath + user?.image?.path,
-    };
-  } else {
-    return require("@/assets/images/avatar_placeholder_icon.png");
+    return prefixPath + path;
   }
+  return null;
+};
+
+export const getImageSource = (
+  user: UserType | null | undefined,
+): ImageSourcePropType => {
+  const path = getImagePath(user?.image?.path);
+  return path
+    ? { uri: path }
+    : require("@/assets/images/avatar_placeholder_icon.png");
 };

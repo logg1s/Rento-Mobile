@@ -7,12 +7,11 @@ import {
   isErrorWithCode,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
-import { Alert } from "react-native";
+import { Alert, processColor } from "react-native";
 
 import auth from "@react-native-firebase/auth";
 GoogleSignin.configure({
-  webClientId: require("@/google-services.json").client[0].oauth_client[1]
-    .client_id,
+  webClientId: process.env.EXPO_PUBLIC_FIRESTORE_DATABASE,
 });
 
 type AuthState = {
@@ -95,7 +94,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       const response = await axios.post(
         `${hostAuth}/refresh`,
         {},
-        defaultHeader(storedToken)
+        defaultHeader(storedToken),
       );
 
       const newToken = response?.data?.access_token;
@@ -129,7 +128,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const googleCredential = auth.GoogleAuthProvider.credential(
-        signInResult.data.idToken
+        signInResult.data.idToken,
       );
 
       const credentials = await auth().signInWithCredential(googleCredential);

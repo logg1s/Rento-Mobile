@@ -23,7 +23,7 @@ import { ServiceType } from "@/types/type";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import InputField from "@/components/InputField";
 import * as ImagePicker from "expo-image-picker";
-import { convertedPrice, formatToVND, getAvatarUrl } from "@/utils/utils";
+import { convertedPrice, formatToVND, getImageSource } from "@/utils/utils";
 
 const DetailJob = () => {
   const { id, user_name, category_name } = useLocalSearchParams();
@@ -113,7 +113,7 @@ const DetailJob = () => {
             x: x - width / 10,
             animated: true,
           });
-        }
+        },
       );
     }
   }, [selectedPricing]);
@@ -217,7 +217,7 @@ const DetailJob = () => {
               >
                 <View className="rounded-full border border-gray-300 p-2">
                   <Image
-                    source={getAvatarUrl(data?.user)}
+                    source={getImageSource(data?.user)}
                     className="w-8 h-8 rounded-full"
                   />
                 </View>
@@ -286,7 +286,7 @@ const DetailJob = () => {
                         benefit?.price_id &&
                         data?.price?.[selectedPricing]?.id &&
                         (benefit.price_id.includes(
-                          data.price[selectedPricing].id
+                          data.price[selectedPricing].id,
                         ) ? (
                           <Octicons
                             name="check-circle-fill"
@@ -406,7 +406,7 @@ const DetailJob = () => {
                 title={data?.comment_by_you === null ? "Gửi" : "Cập nhật"}
                 onPress={() =>
                   submitComment(
-                    data?.comment_by_you === null ? "submit" : "update"
+                    data?.comment_by_you === null ? "submit" : "update",
                   )
                 }
                 containerStyles="w-1/3 self-center mt-5"

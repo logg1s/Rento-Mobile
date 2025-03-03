@@ -5,6 +5,9 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import CryptoJS from "react-native-crypto-js";
 import storage from "@react-native-firebase/storage";
 import { Image } from "react-native";
+import { realtimeDatabase, useIsOnline } from "./userOnlineHook";
+import useRentoData from "@/stores/dataStore";
+import { compatibilityFlags } from "react-native-screens";
 
 const chatsCollection = firestore().collection("chats");
 const messagesCollection = firestore().collection("messages");
@@ -22,13 +25,14 @@ export type MessageChatType = {
   seen: boolean;
   timestamp: string;
   image?: {
-    base64: string;
+    path: string;
     width: number;
     height: number;
   };
 };
 
 export type ChatsData = RoomChatType & {
+  isOnline: boolean;
   messages: MessageChatType[] | never[];
 };
 
@@ -56,20 +60,32 @@ export function encrypt(messageRaw: string) {
 export const useGetChat = () => {
   const [chatState, setChatState] = useState<{
     rooms: RoomChatType[];
+    isOnline: boolean;
     messages: MessageChatType[];
     isLoading: boolean;
     error: string | null;
   }>({
     rooms: [],
     messages: [],
+    isOnline: false,
     isLoading: true,
     error: null,
   });
 
+  const [listOnline, setListOnline] = useState<Set<string>>();
   useEffect(() => {
     let isMounted = true;
     let roomsUnsubscribe: (() => void) | null = null;
     let messagesUnsubscribe: (() => void) | null = null;
+    let realtimeOnline = realtimeDatabase
+      .ref("/online")
+      .on("value", (snapshot) => {
+        const onlineHashSet = new Set<string>();
+        snapshot.forEach((c) => {
+          onlineHashSet.add(c.key);
+        });
+        setListOnline(onlineHashSet);
+      });
 
     const setupListeners = async () => {
       try {
@@ -78,7 +94,7 @@ export const useGetChat = () => {
             if (!isMounted) return;
 
             const rooms: RoomChatType[] = [];
-            roomsSnapshot.forEach((doc) => {
+            roomsSnapshot.forEach(async (doc) => {
               rooms.push(doc.data() as RoomChatType);
             });
 
@@ -162,6 +178,7 @@ export const useGetChat = () => {
       isMounted = false;
       if (roomsUnsubscribe) roomsUnsubscribe();
       if (messagesUnsubscribe) messagesUnsubscribe();
+      realtimeDatabase.ref("/online").off("value", realtimeOnline);
     };
   }, []);
 
@@ -179,6 +196,7 @@ export const useGetChat = () => {
 
   return {
     chatsData,
+    listOnline,
     isLoading: chatState.isLoading,
     error: chatState.error,
   };
@@ -251,7 +269,6 @@ const imageToBase64 = async (
   }
 };
 
-// Update useSendChat to handle base64 images
 export const useSendChat = () => {
   const sendChat = useCallback(
     async (data: {
@@ -259,7 +276,7 @@ export const useSendChat = () => {
       receiverId: number;
       message: string;
       image?: {
-        uri: string;
+        path: string;
         width: number;
         height: number;
       };
@@ -279,30 +296,9 @@ export const useSendChat = () => {
         const roomId = getRoomId(senderId, receiverId);
         const timestamp = Date.now().toString();
 
-        // If there's an image, process it with error handling
-        let imageData = null;
-        if (image) {
-          try {
-            imageData = await imageToBase64(image.uri);
-          } catch (error) {
-            console.error("Error processing image:", error);
-            throw new Error(
-              "Failed to process image. Please try again with a smaller image.",
-            );
-          }
-
-          // Check if the base64 string is too large (approaching Firestore's 1MB limit)
-          if (imageData.base64.length > 750000) {
-            // Leave some room for other message data
-            throw new Error(
-              "Image size too large. Please use a smaller image.",
-            );
-          }
-        }
-
         const roomData: RoomChatType = {
           roomId,
-          lastMessage: image ? "📷 Image" : message,
+          lastMessage: image?.path ? "📷 Hình ảnh" : message,
           lastTimestamp: timestamp,
         };
 
@@ -317,22 +313,19 @@ export const useSendChat = () => {
           roomId,
           seen: false,
           timestamp,
-          ...(imageData && {
+          ...(image?.path && {
             image: {
-              base64: imageData.base64,
-              width: imageData.width,
-              height: imageData.height,
+              path: image.path,
+              width: image.width,
+              height: image.height,
             },
           }),
         };
 
-        // Use a batch write for atomicity
         const batch = firestore().batch();
 
-        // Update or create chat room
         batch.set(chatsCollection.doc(roomId), roomData);
 
-        // Add new message
         const newMessageRef = messagesCollection.doc();
         batch.set(newMessageRef, messageData);
 
@@ -340,9 +333,6 @@ export const useSendChat = () => {
         return newMessageRef;
       } catch (error) {
         console.error("Error sending message:", error);
-        if (error.message.includes("Image size too large")) {
-          throw new Error("Image size too large. Please use a smaller image.");
-        }
         throw error;
       }
     },

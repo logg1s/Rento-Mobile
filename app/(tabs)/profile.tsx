@@ -16,7 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import useAuthStore from "@/stores/authStore";
 import useRentoData from "@/stores/dataStore";
-import { getAvatarUrl } from "@/utils/utils";
+import { getImageSource } from "@/utils/utils";
 
 const ProfileScreen = () => {
   const user = useRentoData((state) => state.user);
@@ -32,7 +32,7 @@ const ProfileScreen = () => {
     if (user?.is_oauth) {
       Alert.alert(
         "",
-        "Bạn đang đăng nhập bằng tài khoản Google. Vui lòng truy cập trang chủ của Google để đổi mật khẩu !"
+        "Bạn đang đăng nhập bằng tài khoản Google. Vui lòng truy cập trang chủ của Google để đổi mật khẩu !",
       );
       return;
     }
@@ -90,7 +90,7 @@ const ProfileScreen = () => {
           style: "cancel",
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -119,7 +119,7 @@ const ProfileScreen = () => {
         <View className="items-center mt-6 mb-8">
           <TouchableOpacity onPress={handleChangeAvatar}>
             <Image
-              source={getAvatarUrl(user)}
+              source={getImageSource(user)}
               className="w-32 h-32 rounded-full"
             />
             <View className="absolute bottom-0 right-0 bg-primary-500 rounded-full p-2">

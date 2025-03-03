@@ -12,7 +12,7 @@ import React, { useRef, useState } from "react";
 import { CommentCardProp } from "@/types/prop";
 import Fontisto from "@expo/vector-icons/Fontisto";
 import { CommentType, UserType } from "@/types/type";
-import { formatDateToVietnamese, getAvatarUrl } from "@/utils/utils";
+import { formatDateToVietnamese, getImageSource } from "@/utils/utils";
 import { Entypo, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { axiosFetch } from "@/stores/dataStore";
 
@@ -73,7 +73,7 @@ const CommentCard = ({
       <View className="flex-row gap-3 items-center">
         <View className="flex-row flex-1 item-center gap-2">
           <View className="rounded-full border border-gray p-2 ">
-            <Image source={getAvatarUrl(user)} className="w-8 h-8" />
+            <Image source={getImageSource(user)} className="w-8 h-8" />
           </View>
           <Text className="font-pbold self-center">{user?.name}</Text>
         </View>
