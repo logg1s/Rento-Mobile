@@ -25,7 +25,7 @@ type DataState = {
   fetchNotifications: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
   fetchData: () => Promise<void>;
-  updateFavorite: (serviceId: number) => Promise<void>;
+  updateFavorite: (serviceId: number, action: boolean) => Promise<void>;
   update: (
     data:
       | {
@@ -151,18 +151,19 @@ const useRentoData = create<DataState>((set, get) => ({
     }
   },
 
-  updateFavorite: async (serviceId: number) => {
+  updateFavorite: async (serviceId: number, action: boolean) => {
     const previousServices = get().services;
     try {
       set({
         services: previousServices.map((service) =>
-          service.id === serviceId
-            ? { ...service, is_liked: !service.is_liked }
-            : service,
+          service.id === serviceId ? { ...service, is_liked: action } : service,
         ),
       });
-      await axiosFetch(`/favorites/${serviceId}`, "post");
+      await axiosFetch(`/favorites/${serviceId}`, "post", {
+        action,
+      });
       await get().fetchFavorites();
+      await get().fetchServices();
     } catch (error) {
       set({ services: previousServices });
       console.error(

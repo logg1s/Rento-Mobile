@@ -61,9 +61,7 @@ const Layout = () => {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar
-        style={Appearance.getColorScheme() === "dark" ? "dark" : "light"}
-      />
+      <StatusBar style="dark" />
     </GestureHandlerRootView>
   );
 };

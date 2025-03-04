@@ -41,11 +41,11 @@ export const formatDateToVietnamese = (date: Date) => {
     "Thứ sáu",
     "Thứ bảy",
   ];
+
   const day = daysOfWeek[date.getDay()];
   const dayOfMonth = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
-
   return `${day}, ${dayOfMonth}/${month}/${year}`;
 };
 
@@ -72,4 +72,20 @@ export const getImageSource = (
   return path
     ? { uri: path }
     : require("@/assets/images/avatar_placeholder_icon.png");
+};
+export const normalizeVietnamese = (str: string) => {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+};
+export const searchFilter = (itemName: string, searchQuery: string) => {
+  if (!itemName) return false;
+  if (!searchQuery) return true;
+
+  const normalizedItem = normalizeVietnamese(itemName.trim());
+  const normalizedQuery = normalizeVietnamese(searchQuery.trim());
+
+  const queryWords = normalizedQuery.split(" ");
+  return queryWords.some((word) => normalizedItem.includes(word));
 };

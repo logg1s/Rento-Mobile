@@ -19,12 +19,11 @@ const SavedServicesScreen = () => {
   const favorites = useRentoData((state) => state.favorites);
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const fetchFavorites = useRentoData((state) => state.fetchFavorites);
-  const fetchData = useRentoData((state) => state.fetchData);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchFavorites();
   }, []);
 
   const onRefresh = async () => {
@@ -38,9 +37,9 @@ const SavedServicesScreen = () => {
     }
   };
 
-  const onPressFavorite = (serviceId?: number) => {
+  const onPressFavorite = (serviceId: number, action: boolean) => {
     if (serviceId) {
-      updateFavorite(serviceId);
+      updateFavorite(serviceId, action);
     }
   };
 
@@ -51,7 +50,7 @@ const SavedServicesScreen = () => {
         is_liked: true,
       }}
       containerStyles="mb-4"
-      onPressFavorite={() => onPressFavorite(item.id)}
+      onPressFavorite={() => onPressFavorite(item.id, false)}
     />
   );
 

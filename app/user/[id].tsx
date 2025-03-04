@@ -15,17 +15,10 @@ import { useLocalSearchParams, router } from "expo-router";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { CategoryType, ServiceType, UserType, CommentType } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
-import { getImageSource } from "@/utils/utils";
+import { getImageSource, normalizeVietnamese } from "@/utils/utils";
 import ServiceCard from "@/components/ServiceCard";
 import useRentoData from "@/stores/dataStore";
 import * as Clipboard from "expo-clipboard";
-
-const normalizeVietnamese = (str: string) => {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-};
 
 const UserProfile = () => {
   const { id } = useLocalSearchParams();
@@ -72,7 +65,7 @@ const UserProfile = () => {
     setIsRefreshing(false);
   };
 
-  const onPressFavorite = async (serviceId: number) => {
+  const onPressFavorite = async (serviceId: number, action: boolean) => {
     if (!serviceId) return;
     try {
       setServices((prev) =>
@@ -82,7 +75,7 @@ const UserProfile = () => {
             : service,
         ),
       );
-      await updateFavorite(serviceId);
+      await updateFavorite(serviceId, action);
     } catch (error) {
       console.error("Error updating favorite:", error);
     }
@@ -246,7 +239,9 @@ const UserProfile = () => {
             <ServiceCard
               key={service.id}
               data={service}
-              onPressFavorite={() => onPressFavorite(service.id)}
+              onPressFavorite={() =>
+                onPressFavorite(service.id, !service.is_liked)
+              }
             />
           ))}
           {filteredServices.length === 0 && (

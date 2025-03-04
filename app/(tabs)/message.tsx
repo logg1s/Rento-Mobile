@@ -109,18 +109,27 @@ import {
   useGetChat,
   useSendChat,
   useMarkMessagesAsSeen,
+  getRoomId,
 } from "@/hooks/useChat";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { UserType } from "@/types/type";
-import { getImagePath, getImageSource } from "@/utils/utils";
+import {
+  getImagePath,
+  getImageSource,
+  normalizeVietnamese,
+  searchFilter,
+} from "@/utils/utils";
 import { realtimeDatabase, useIsOnline } from "@/hooks/userOnlineHook";
+import { debounce } from "lodash";
 
 const MessageScreen = () => {
   const [imageError, setImageError] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState("");
+  const [filterMesasgeInput, setFilterMessageInput] = useState("");
 
   const { callDuration } = useLocalSearchParams();
+  const { chatWithId } = useLocalSearchParams();
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [inputMessage, setInputMessage] = useState("");
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
@@ -132,10 +141,27 @@ const MessageScreen = () => {
   const user = useRentoData((state) => state.user);
   const markMessagesSeen = useMarkMessagesAsSeen();
 
-  // Get real-time chat data using the useChat hook
   const { chatsData, isLoading, error, listOnline } = useGetChat();
   const sendChat = useSendChat();
-
+  useEffect(() => {
+    const chatWithUser = async () => {
+      const responseInfo = await axiosFetch(`/users/${chatWithId}`, "get");
+      const otherUserData = responseInfo?.data as UserType;
+      setSelectedConversation({
+        id: getRoomId(user?.id, chatWithId),
+        name: otherUserData ? otherUserData.name : `User ${chatWithId}`,
+        lastMessage: "",
+        time: "",
+        unread: 0,
+        avatar: getImageSource(otherUserData),
+        isOnline: listOnline?.has(chatWithId.toString()),
+        otherUserId: chatWithId.toString(),
+      });
+    };
+    if (chatWithId && user?.id) {
+      chatWithUser();
+    }
+  }, [chatWithId]);
   // Handle conversation selection and mark messages as seen
   const handleConversationSelect = useCallback(
     async (conversation) => {
@@ -155,6 +181,9 @@ const MessageScreen = () => {
   useEffect(() => {
     const backAction = () => {
       setSelectedConversation(null);
+      router.setParams({
+        chatWithId: "",
+      });
       return true;
     };
     const backHandler = BackHandler.addEventListener(
@@ -212,7 +241,7 @@ const MessageScreen = () => {
           return {
             id: chat.roomId,
             name: otherUserData ? otherUserData.name : `User ${otherUserId}`,
-            lastMessage: lastMsg.message,
+            lastMessage: chat.lastMessage,
             time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
             unread: unreadCount,
             avatar: getImageSource(otherUserData),
@@ -303,43 +332,46 @@ const MessageScreen = () => {
   }, [callDuration, selectedConversation, handleSendMessage]);
   // Memoize rendering functions
   const renderConversation = useCallback(
-    ({ item }) => (
-      <TouchableOpacity
-        className="flex-row items-center p-4 border-b border-gray-200"
-        onPress={() => handleConversationSelect(item)}
-      >
-        <View className="relative">
-          <Image source={item.avatar} className="w-12 h-12 rounded-full" />
-          {item?.isOnline && (
-            <View className="absolute right-0 bottom-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-          )}
-        </View>
-        <View className="flex-1 ml-4">
-          <View className="flex-row justify-between items-center">
-            <Text className="font-pbold text-lg">{item.name}</Text>
-            <Text className="font-pregular text-gray-500 text-sm">
-              {item.time}
-            </Text>
-          </View>
-          <View className="flex-row justify-between items-center mt-1">
-            <Text
-              className="font-pregular text-gray-600 text-sm"
-              numberOfLines={1}
-            >
-              {item.lastMessage}
-            </Text>
-            {item.unread > 0 && (
-              <View className="bg-primary-500 rounded-full w-5 h-5 justify-center items-center">
-                <Text className="font-pmedium text-white text-xs">
-                  {item.unread}
-                </Text>
-              </View>
+    ({ item }) =>
+      normalizeVietnamese(item?.name as string).includes(
+        normalizeVietnamese(filterMesasgeInput.trim().toLowerCase()),
+      ) ? (
+        <TouchableOpacity
+          className="flex-row items-center p-4 border-b border-gray-200"
+          onPress={() => handleConversationSelect(item)}
+        >
+          <View className="relative">
+            <Image source={item.avatar} className="w-12 h-12 rounded-full" />
+            {item?.isOnline && (
+              <View className="absolute right-0 bottom-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
             )}
           </View>
-        </View>
-      </TouchableOpacity>
-    ),
-    [handleConversationSelect],
+          <View className="flex-1 ml-4">
+            <View className="flex-row justify-between items-center">
+              <Text className="font-pbold text-lg">{item.name}</Text>
+              <Text className="font-pregular text-gray-500 text-sm">
+                {item.time}
+              </Text>
+            </View>
+            <View className="flex-row justify-between items-center mt-1">
+              <Text
+                className="font-pregular text-gray-600 text-sm"
+                numberOfLines={1}
+              >
+                {item.lastMessage}
+              </Text>
+              {item.unread > 0 && (
+                <View className="bg-primary-500 rounded-full w-5 h-5 justify-center items-center">
+                  <Text className="font-pmedium text-white text-xs">
+                    {item.unread}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      ) : null,
+    [handleConversationSelect, filterMesasgeInput],
   );
 
   const renderMessage = useCallback(
@@ -459,6 +491,9 @@ const MessageScreen = () => {
 
   const handleLongPress = (message) => {
     setLongPressedMessage(message);
+  };
+  const handleFilterSearch = (searchContent: string) => {
+    setFilterMessageInput(searchContent);
   };
 
   const scrollToBottom = () => {
@@ -648,9 +683,16 @@ const MessageScreen = () => {
             <View className="flex-row items-center bg-gray-100 rounded-full px-4 py-2">
               <Ionicons name="search" size={20} color="gray" />
               <TextInput
-                placeholder="Tìm kiếm tin nhắn"
+                placeholder="Tìm kiếm người dùng"
                 className="ml-2 flex-1 font-pmedium"
+                value={filterMesasgeInput}
+                onChangeText={(e) => handleFilterSearch(e)}
               />
+              {filterMesasgeInput.trim().length > 0 && (
+                <TouchableOpacity onPress={() => setFilterMessageInput("")}>
+                  <Ionicons name="close-circle" size={20} color="gray" />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
           <FlatList
@@ -681,7 +723,14 @@ const MessageScreen = () => {
       ) : (
         <>
           <View className="flex-row items-center p-4 border-b border-gray-200">
-            <TouchableOpacity onPress={() => setSelectedConversation(null)}>
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedConversation(null);
+                router.setParams({
+                  chatWithId: "",
+                });
+              }}
+            >
               <Ionicons name="arrow-back" size={24} color="black" />
             </TouchableOpacity>
             <Image

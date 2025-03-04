@@ -64,16 +64,16 @@ const UserServices = () => {
     setIsRefreshing(false);
   };
 
-  const onPressFavorite = async (serviceId: number) => {
+  const onPressFavorite = async (serviceId: number, action: boolean) => {
     if (!serviceId) return;
     try {
-      await updateFavorite(serviceId);
+      await updateFavorite(serviceId, action);
       await fetchServices();
     } catch (error) {
       console.error("Error updating favorite:", error);
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật trạng thái yêu thích. Vui lòng thử lại sau."
+        "Không thể cập nhật trạng thái yêu thích. Vui lòng thử lại sau.",
       );
     }
   };
@@ -87,7 +87,9 @@ const UserServices = () => {
 
     if (searchQuery) {
       const filtered = services.filter((service) =>
-        service?.service_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        service?.service_name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()),
       );
       setFilteredServices(filtered);
     } else {
@@ -142,10 +144,12 @@ const UserServices = () => {
                 <SmallerServiceCard
                   data={service}
                   containerStyles="mb-4"
-                  onPressFavorite={() => onPressFavorite(service.id)}
+                  onPressFavorite={() =>
+                    onPressFavorite(service.id, !service.is_liked)
+                  }
                 />
               </View>
-            ) : null
+            ) : null,
           )}
           {!filteredServices?.length && (
             <Text className="text-center text-gray-500 w-full mt-4">

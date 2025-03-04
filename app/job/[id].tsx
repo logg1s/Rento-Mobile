@@ -53,7 +53,7 @@ const DetailJob = () => {
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [id, favorites]);
 
   const onPressOrder = () => {
     router.push({
@@ -71,7 +71,9 @@ const DetailJob = () => {
     navigation.setOptions({
       headerTitle: `${user_name} - ${category_name}` || "Thông tin dịch vụ",
       headerRight: () => (
-        <TouchableOpacity onPress={() => onPressFavoriteHeader(data?.id)}>
+        <TouchableOpacity
+          onPress={() => onPressFavorite(data?.id, !data?.is_liked)}
+        >
           {data ? (
             <FontAwesome
               name={data?.is_liked ? "heart" : "heart-o"}
@@ -90,15 +92,10 @@ const DetailJob = () => {
     }
   };
 
-  const onPressFavoriteHeader = async (id?: number) => {
+  const onPressFavorite = async (id: number, action: boolean) => {
     if (id) {
       setData((prev) => ({ ...prev!, is_liked: !prev?.is_liked }));
-      await updateFavorite(id);
-    }
-  };
-  const onPressFavorite = async (id?: number) => {
-    if (id) {
-      await updateFavorite(id);
+      await updateFavorite(id, action);
     }
   };
 
@@ -157,11 +154,48 @@ const DetailJob = () => {
       Alert.alert("Xóa bình luận thất bại");
     }
   };
+  const [hasScrolledHalfway, setHasScrolledHalfway] = useState(false);
+  const screenHeight = Dimensions.get("window").height;
+  const handleScroll = (event) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    if (scrollY > screenHeight / 2) {
+      setHasScrolledHalfway(true);
+    } else {
+      setHasScrolledHalfway(false);
+    }
+  };
+  const goToMessage = (userId: number) => {
+    if (userId) {
+      router.push({
+        pathname: "/(tabs)/message",
+        params: {
+          chatWithId: userId,
+        },
+      });
+    }
+  };
 
   return (
-    <>
-      {data && (
+    <View className="flex-1">
+      {!hasScrolledHalfway && (
+        <TouchableOpacity
+          className="flex-row items-center justify-center absolute bottom-20 gap-2 bg-gray-200 right-5 z-10 p-2  border border-gray-500 rounded-full shadow-md shadow-gray-900 "
+          onPress={() => goToMessage(data?.user?.id)}
+        >
+          <View className="rounded-full border border-gray-300 p-2">
+            <Image
+              source={getImageSource(data?.user)}
+              className="w-8 h-8 rounded-full"
+            />
+          </View>
+
+          <Text className="font-psemibold">Nhắn tin</Text>
+        </TouchableOpacity>
+      )}
+      {data !== null && (
         <ScrollView
+          onScroll={handleScroll}
+          scrollEventThrottle={100}
           showsVerticalScrollIndicator={false}
           contentContainerClassName="gap-5"
           refreshControl={
@@ -463,7 +497,7 @@ const DetailJob = () => {
           />
         </View>
       )}
-    </>
+    </View>
   );
 };
 

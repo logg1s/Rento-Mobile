@@ -5,6 +5,7 @@ import {
   Image,
   RefreshControl,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -43,9 +44,9 @@ const TabHome = () => {
     fetchData();
   }, []);
 
-  const onPressFavorite = (serviceId?: number) => {
+  const onPressFavorite = (serviceId?: number, action: boolean) => {
     if (serviceId) {
-      updateFavorite(serviceId);
+      updateFavorite(serviceId, action);
     }
   };
 
@@ -82,17 +83,25 @@ const TabHome = () => {
             </View>
           </View>
         </View>
-        <View className="">
-          <InputField
-            placeholder="Tìm kiếm dịch vụ"
-            iconLeft={<Ionicons name="search" size={20} color="gray" />}
-            value={searchText}
+        <View className="flex-row items-center bg-white rounded-full px-4 py-5 mt-5 border-2 border-gray-400 -mb-5">
+          <Ionicons name="search" size={20} color="gray" />
+          <TextInput
+            placeholder="Tìm kiếm dịch vụ..."
             onChangeText={setSearchText}
-            onSubmitEditing={handleSearchPress} // Xử lý khi nhấn Enter
+            value={searchText}
+            className="flex-1 ml-2 font-pmedium text-lg"
             returnKeyType="search"
-            editable={true}
-            enableValidate={false}
+            onSubmitEditing={() => {
+              if (searchText.trim()) {
+                handleSearchPress();
+              }
+            }}
           />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText("")}>
+              <Ionicons name="close-circle" size={20} color="gray" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       <FlatList
@@ -112,7 +121,7 @@ const TabHome = () => {
           item ? (
             <ServiceCard
               data={item}
-              onPressFavorite={() => onPressFavorite(item.id)}
+              onPressFavorite={() => onPressFavorite(item.id, !item.is_liked)}
             />
           ) : null
         }

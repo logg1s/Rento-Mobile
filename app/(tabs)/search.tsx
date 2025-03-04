@@ -19,7 +19,7 @@ import CustomButton from "@/components/CustomButton";
 import debounce from "lodash/debounce";
 import useRentoData from "@/stores/dataStore";
 import Slider from "@react-native-community/slider";
-import { formatToVND } from "@/utils/utils";
+import { formatToVND, normalizeVietnamese, searchFilter } from "@/utils/utils";
 import { FilterType, defaultFilters } from "@/types/filter";
 import { ScrollView } from "react-native-gesture-handler";
 import { ServiceType } from "@/types/type";
@@ -44,14 +44,12 @@ const SearchTab = () => {
       setShowSearch(true);
       setFilterState((prev) => ({ ...prev, categories: [] })); // Reset to all categories
 
-      // Nếu có searchText từ home screen, set giá trị và hiện kết quả
       if (searchText) {
         setSearchQuery(searchText as string);
       }
     }
   }, [fromHome, searchText]);
 
-  // Add rating counts calculation
   const ratingCounts = useMemo(() => {
     const counts = new Array(6).fill(0); // 0-5 stars
     services.forEach((service) => {
@@ -61,24 +59,19 @@ const SearchTab = () => {
     return counts;
   }, [services]);
 
-  // Enhanced filtered data logic with better provider search
   const filteredData = useMemo(() => {
     if (!showSearch) return [];
 
     return services.filter((item) => {
-      const searchTerms = searchQuery.toLowerCase();
-      const providerTerms = providerFilter.toLowerCase();
-
+      const searchTerms = normalizeVietnamese(searchQuery.toLowerCase());
+      const providerTerms = normalizeVietnamese(providerFilter.toLowerCase());
       // Separate search conditions for clarity
-      const matchesServiceName = item.service_name
-        .toLowerCase()
-        .includes(searchTerms);
-      const matchesDescription = item.service_description
-        .toLowerCase()
-        .includes(searchTerms);
-      const matchesProvider = item.user?.name
-        .toLowerCase()
-        .includes(providerTerms);
+      const matchesServiceName = searchFilter(item.service_name, searchTerms);
+      const matchesDescription = searchFilter(
+        item.service_description,
+        searchTerms,
+      );
+      const matchesProvider = searchFilter(item.user?.name, providerTerms);
 
       const matchesSearch =
         searchQuery === "" || matchesServiceName || matchesDescription;
@@ -95,7 +88,7 @@ const SearchTab = () => {
           : item.price?.some(
               (p) =>
                 p.price_value >= filters.priceRange.min &&
-                p.price_value <= filters.priceRange.max
+                p.price_value <= filters.priceRange.max,
             );
 
       const matchesRating =
@@ -353,7 +346,6 @@ const SearchTab = () => {
               </View>
             </ScrollView>
 
-            {/* Modified reset button to also clear provider filter */}
             <View className="flex-row gap-2 mt-4 pt-2 border-t border-gray-200">
               <CustomButton
                 title="Đặt lại"
@@ -521,7 +513,7 @@ const SearchTab = () => {
           ? item.price
           : [{ price_value: 0, price_name: "Miễn phí" }],
       }}
-      onPressFavorite={() => updateFavorite(item.id)}
+      onPressFavorite={() => updateFavorite(item.id, !item.is_liked)}
       containerStyles="mb-4"
     />
   );
@@ -583,7 +575,7 @@ const SearchTab = () => {
                   {filters.priceRange.min === 0
                     ? `Tối đa ${formatToVND(filters.priceRange.max)}`
                     : `${formatToVND(filters.priceRange.min)} - ${formatToVND(
-                        filters.priceRange.max
+                        filters.priceRange.max,
                       )}`}
                 </Text>
               </View>
@@ -647,7 +639,6 @@ const SearchTab = () => {
                 className="flex-1 ml-2 font-pmedium text-base"
                 returnKeyType="search"
                 onSubmitEditing={() => {
-                  // Xử lý khi nhấn Enter
                   if (searchQuery.trim()) {
                     setShowSearch(true);
                   }
