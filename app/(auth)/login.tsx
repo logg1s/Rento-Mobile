@@ -70,11 +70,16 @@ const Login = () => {
           </View>
           <View className="gap-10">
             <CustomButton title="Đăng nhập" onPress={handleLogin} />
-            <Oauth />
+            <View className="flex-row items-center gap-5">
+              <View className="flex-1 h-[1px] bg-gray-400 text-secondary-800"></View>
+              <Text className="font-pregular">Hoặc đăng nhập với</Text>
+              <View className="flex-1 h-[1px] bg-gray-400"></View>
+            </View>
+            <Oauth rightText="Đăng nhập với Google" />
             <Text className="font-pmedium text-center text-secondary-800">
               Bạn chưa có tài khoản?{" "}
-              <Link href={"/(auth)/signup"} replace>
-                <Text className="font-pbold text-secondary-900">
+              <Link href={"/(auth)/signup"}>
+                <Text className="font-pbold text-secondary-900 underline">
                   Đăng ký ngay
                 </Text>
               </Link>

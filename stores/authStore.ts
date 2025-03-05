@@ -10,6 +10,7 @@ import {
 import { Alert, processColor } from "react-native";
 
 import auth from "@react-native-firebase/auth";
+import { useStatusOnline } from "@/hooks/userOnlineHook";
 GoogleSignin.configure({
   webClientId: process.env.EXPO_PUBLIC_FIRESTORE_DATABASE,
 });
@@ -64,6 +65,8 @@ const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     try {
       await axios.post(`${hostAuth}/logout`, {}, defaultHeader(get().token));
+      useStatusOnline(useRentoData.getState().user?.id, false);
+
       if (useRentoData.getState().user?.is_oauth) {
         await GoogleSignin.signOut();
       }

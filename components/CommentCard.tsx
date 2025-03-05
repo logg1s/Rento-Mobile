@@ -15,6 +15,7 @@ import { CommentType, UserType } from "@/types/type";
 import { formatDateToVietnamese, getImageSource } from "@/utils/utils";
 import { Entypo, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { axiosFetch } from "@/stores/dataStore";
+import { twMerge } from "tailwind-merge";
 
 const CommentCard = ({
   data: { id, rate, comment_body },
@@ -65,7 +66,10 @@ const CommentCard = ({
   const onLongPressComment = () => {};
   return (
     <TouchableOpacity
-      className={`rounded-xl w-72 p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
+      className={twMerge(
+        `rounded-xl w-72 p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500 `,
+        containerStyles,
+      )}
       onPress={onPressComment}
       activeOpacity={1}
       onLongPress={onLongPressComment}

@@ -5,6 +5,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
 import { convertedPrice } from "@/utils/utils";
+import { twMerge } from "tailwind-merge";
 
 const SmallerServiceCard: React.FC<ServiceCardProps> = ({
   data: {
@@ -40,7 +41,10 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
   const onLongPressServiceCard = () => {};
   return (
     <TouchableOpacity
-      className={`w-48 rounded-xl gap-3 border border-general-100 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
+      className={twMerge(
+        `w-48 rounded-xl gap-3 border border-general-100 bg-white shadow-md shadow-gray-500 `,
+        containerStyles,
+      )}
       onPress={onPressServiceCard}
       onLongPress={onLongPressServiceCard}
     >

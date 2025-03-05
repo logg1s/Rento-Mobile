@@ -1,13 +1,12 @@
 import { firebase } from "@react-native-firebase/database";
-import { compatibilityFlags } from "react-native-screens";
 
 export const realtimeDatabase = firebase
   .app()
   .database(process.env.EXPO_PUBLIC_REALTIME_DATABASE);
 
-export const useOnline = (userId: number) => {
+export const useStatusOnline = (userId: number, online: boolean) => {
   const reference = realtimeDatabase.ref(`/online/${userId}`);
-  reference.set(true);
+  online ? reference.set(true) : reference.remove();
   reference.onDisconnect().remove();
 };
 

@@ -8,6 +8,7 @@ import {
   ImageSourcePropType,
 } from "react-native";
 import React, { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
 const CustomButton = ({
   title,
@@ -32,7 +33,10 @@ const CustomButton = ({
     <TouchableOpacity
       onPress={isDisabled ? () => {} : onPress}
       activeOpacity={isDisabled ? 1 : 0.7}
-      className={`justify-center items-center flex-row gap-2 rounded-xl p-3.5 ${outline ? "bg-white" : "bg-primary-500"} ${containerStyles}`}
+      className={twMerge(
+        `justify-center items-center flex-row gap-2 rounded-xl p-3.5 ${outline ? "bg-white" : "bg-primary-500"}`,
+        containerStyles,
+      )}
     >
       {iconLeft}
       <Text

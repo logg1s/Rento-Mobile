@@ -12,6 +12,7 @@ import { Role, Rules } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
 import useAuthStore from "@/stores/authStore";
 import { debounce, set } from "lodash";
+import { twMerge } from "tailwind-merge";
 
 const SignUp = () => {
   const [isHidingPw, setIsHidingPw] = useState(true);
@@ -90,10 +91,10 @@ const SignUp = () => {
   }, 500);
 
   const isValidatePhase1 = Object.values(rules1).every((rule) =>
-    rule.every((r) => r.isValid)
+    rule.every((r) => r.isValid),
   );
   const isValidatePhase2 = Object.values(rules2).every((rule) =>
-    rule.every((r) => r.isValid)
+    rule.every((r) => r.isValid),
   );
   const isValidate = isValidatePhase2 && isValidatePhase1;
 
@@ -113,7 +114,7 @@ const SignUp = () => {
     } catch (error) {
       Alert.alert(
         "Lỗi khi đăng ký",
-        "Đăng ký không thành công, vui lòng kiểm tra lại kết nối"
+        "Đăng ký không thành công, vui lòng kiểm tra lại kết nối",
       );
       console.error("Error sign up:", error?.response?.data);
     }
@@ -138,9 +139,9 @@ const SignUp = () => {
         <View className="p-3 gap-5">
           <View className="gap-1 mt-5">
             <Text className="font-pbold text-4xl ">Đăng ký tài khoản</Text>
-            <Text className="font-pmedium text-lg text-secondary-700">
-              Điền đầy đủ thông tin hoặc sử dụng tài khoản ứng dụng được hỗ trợ
-            </Text>
+            {/* <Text className="font-pmedium text-lg text-secondary-700"> */}
+            {/*   Điền đầy đủ thông tin hoặc sử dụng tài khoản ứng dụng được hỗ trợ */}
+            {/* </Text> */}
           </View>
           <View className="my-7 gap-5">
             {!secondPhase ? (
@@ -191,11 +192,6 @@ const SignUp = () => {
                     setFormSignUp((prev) => ({ ...prev, password: e }))
                   }
                 />
-                <Link href={"/(auth)/forgot-pw"}>
-                  <Text className="font-pmedium text-right text-secondary-900">
-                    Quên mật khẩu?
-                  </Text>
-                </Link>
               </>
             ) : (
               <>
@@ -255,18 +251,21 @@ const SignUp = () => {
                   containerStyles={`${isValidatePhase1 ? "bg-primary-500" : "bg-primary-400"}`}
                   isDisabled={!isValidatePhase1}
                 />
-                <Oauth />
-                <Text
-                  className="font-pmedium text-center text-secondary-800"
-                  style={{ paddingBottom: 60 }}
+                <View
+                  className={twMerge("flex-row justify-center items-center")}
                 >
-                  Bạn đã có tài khoản?{" "}
-                  <Link href={"/(auth)/login"} replace>
+                  <Text className="font-pmedium text-center text-secondary-800 justify-center items-center">
+                    Bạn đã có tài khoản?{" "}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.back()}
+                    className={twMerge("justify-center items-center")}
+                  >
                     <Text className="font-pbold text-secondary-900">
                       Đăng nhập ngay
                     </Text>
-                  </Link>
-                </Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>

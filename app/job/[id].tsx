@@ -179,7 +179,7 @@ const DetailJob = () => {
     <View className="flex-1">
       {!hasScrolledHalfway && (
         <TouchableOpacity
-          className="flex-row items-center justify-center absolute bottom-20 gap-2 bg-gray-200 right-5 z-10 p-2  border border-gray-500 rounded-full shadow-md shadow-gray-900 "
+          className="flex-row items-center justify-center absolute bottom-24 gap-2 bg-gray-200 right-5 z-10 p-2  border border-gray-500 rounded-full shadow-md shadow-gray-900 "
           onPress={() => goToMessage(data?.user?.id)}
         >
           <View className="rounded-full border border-gray-300 p-2">
@@ -492,7 +492,7 @@ const DetailJob = () => {
           </View>
           <CustomButton
             title="Đặt dịch vụ"
-            containerStyles="bg-black-500"
+            containerStyles="bg-black"
             onPress={onPressOrder}
           />
         </View>

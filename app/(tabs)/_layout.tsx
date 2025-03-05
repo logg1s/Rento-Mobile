@@ -2,14 +2,15 @@ import { Tabs, Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import useRentoData from "@/stores/dataStore";
 import { useEffect } from "react";
-import { useOnline } from "@/hooks/userOnlineHook";
+import { useStatusOnline } from "@/hooks/userOnlineHook";
+import { useNotification } from "@/hooks/notificationHook";
 
 const TabLayout = () => {
   const user = useRentoData((state) => state.user);
 
   useEffect(() => {
     if (user?.id) {
-      useOnline(user.id);
+      useStatusOnline(user.id, true);
     }
   }, [user]);
   return (

@@ -11,6 +11,9 @@ import {
 } from "@/types/type";
 import useAuthStore from "@/stores/authStore";
 import { Alert } from "react-native";
+import { compatibilityFlags } from "react-native-screens";
+import { cloneWith } from "lodash";
+import { router } from "expo-router";
 
 type DataState = {
   services: ServiceType[];
@@ -115,6 +118,8 @@ const useRentoData = create<DataState>((set, get) => ({
       set({ user: response?.data || null });
     } catch (error) {
       console.error("Error fetching user:", error?.response?.data);
+      // useAuthStore.getState().logout();
+      // router.replace("/");
     }
   },
 

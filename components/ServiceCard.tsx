@@ -4,6 +4,7 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
 import { convertedPrice, getImageSource } from "@/utils/utils";
+import { twMerge } from "tailwind-merge";
 
 const ServiceCard: React.FC<ServiceCardProps> = ({
   data: {
@@ -37,7 +38,10 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
 
   return (
     <TouchableOpacity
-      className={`rounded-xl p-4 gap-3 border border-general-100 bg-white shadow-md shadow-gray-500 ${containerStyles}`}
+      className={twMerge(
+        `rounded-xl p-4 gap-3 border border-general-100 bg-white shadow-md shadow-gray-500`,
+        containerStyles,
+      )}
       onPress={onPressServiceCard}
     >
       <View className="flex-row">

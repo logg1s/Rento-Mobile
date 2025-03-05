@@ -13,8 +13,19 @@ import {
 import React, { useState } from "react";
 import useAuthStore from "@/stores/authStore";
 import { router } from "expo-router";
+import { twMerge } from "tailwind-merge";
 
-const Oauth = () => {
+const Oauth = ({
+  containerStyles,
+  textStyles,
+  leftText,
+  rightText,
+}: {
+  containerStyles?: string;
+  textStyles?: string;
+  leftText?: string;
+  rightText?: string;
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
 
@@ -28,33 +39,40 @@ const Oauth = () => {
     } catch (error) {
       ToastAndroid.show(
         "Đăng nhập không thành công. Vui lòng thử lại !",
-        ToastAndroid.SHORT
+        ToastAndroid.SHORT,
       );
       console.error("Google login error:", error);
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <>
       <View className="justify-center items-center gap-5">
-        <View className="flex-row items-center gap-5">
-          <View className="flex-1 h-[1px] bg-gray-400 text-secondary-800"></View>
-          <Text className="font-pregular">Hoặc đăng nhập với</Text>
-          <View className="flex-1 h-[1px] bg-gray-400"></View>
-        </View>
         <View className="flex-row justify-center items-center gap-5">
           <TouchableOpacity
-            className="rounded-xl p-3 bg-zinc-200"
+            className={twMerge(
+              `rounded-xl p-3 bg-zinc-200 flex-row justify-center items-center gap-5`,
+              containerStyles,
+            )}
             onPress={handleLoginWithGoogle}
             disabled={isLoading}
           >
+            {leftText ? (
+              <Text className={twMerge(`font-pmedium text-lg `, textStyles)}>
+                {leftText}
+              </Text>
+            ) : null}
             <Image
               source={require("@/assets/icons/google.png")}
               className="w-10 h-10"
               resizeMode="contain"
             />
+            {rightText ? (
+              <Text className={twMerge(`font-pmedium text-lg `, textStyles)}>
+                {rightText}
+              </Text>
+            ) : null}
           </TouchableOpacity>
         </View>
       </View>

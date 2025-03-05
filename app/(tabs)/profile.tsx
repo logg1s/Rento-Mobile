@@ -97,7 +97,7 @@ const ProfileScreen = () => {
   const logout = useAuthStore((state) => state.logout);
   const handleLogout = async () => {
     await logout();
-    router.replace("/login");
+    router.replace("/");
   };
 
   const ProfileSection = ({ title, onPress, icon }) => (

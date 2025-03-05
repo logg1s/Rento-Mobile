@@ -1,6 +1,11 @@
-import React from "react";
+import ServiceCard from "@/components/ServiceCard";
+import useRentoData from "@/stores/dataStore";
+import { getImageSource } from "@/utils/utils";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   RefreshControl,
@@ -9,16 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import InputField from "@/components/InputField";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import Swiper from "react-native-swiper";
-import ServiceCard from "@/components/ServiceCard";
-import useRentoData from "@/stores/dataStore";
-import { router } from "expo-router";
-import { getImageSource } from "@/utils/utils";
-import { useIsOnline } from "@/hooks/userOnlineHook";
 
 const TabHome = () => {
   const [isLoading, setIsLoading] = useState(false);

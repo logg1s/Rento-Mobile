@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import React, { ReactNode, useEffect, useState } from "react";
 import { debounce, set } from "lodash";
+import { twMerge } from "tailwind-merge";
 
 const getBorderStyle = (isValid: boolean, isFocused: boolean): string => {
   if (!isValid) {
@@ -83,7 +84,10 @@ const InputField = ({
             {nameField} {required && <Text className="text-red-500">*</Text>}
           </Text>
           <View
-            className={`w-full bg-general-300  ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center ${multiline && isFocused ? "h-40" : "h-16"} ${containerStyles}`}
+            className={twMerge(
+              `w-full bg-general-300  ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center ${multiline && isFocused ? "h-40" : "h-16"}`,
+              containerStyles,
+            )}
             style={
               !isValidAll &&
               enableValidate && {
@@ -121,7 +125,7 @@ const InputField = ({
                     <Text key={index} className="text-red-500 font-pmedium">
                       {rule?.message}
                     </Text>
-                  )
+                  ),
               )}
           </View>
         </View>

@@ -6,7 +6,7 @@ import CryptoJS from "react-native-crypto-js";
 import storage from "@react-native-firebase/storage";
 import { Image } from "react-native";
 import { realtimeDatabase, useIsOnline } from "./userOnlineHook";
-import useRentoData from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { compatibilityFlags } from "react-native-screens";
 
 const chatsCollection = firestore().collection("chats");
@@ -329,10 +329,15 @@ export const useSendChat = () => {
         const newMessageRef = messagesCollection.doc();
         batch.set(newMessageRef, messageData);
 
-        await batch.commit();
+        batch.commit();
+        const isOnline = await useIsOnline(receiverId);
+        axiosFetch(`/notifications/chat/${receiverId}`, "post", {
+          body: roomData.lastMessage,
+        });
+
         return newMessageRef;
       } catch (error) {
-        console.error("Error sending message:", error);
+        console.error("Error sending message:", error.response?.data);
         throw error;
       }
     },
