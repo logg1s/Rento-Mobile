@@ -18,6 +18,7 @@ export type UserType = {
   service?: ServiceType[];
   order?: OrderType[];
   service_favorite?: ServiceType[];
+  user_setting?: UserSettingType;
 } & TimeStampType;
 
 export type ImageType = {
@@ -182,3 +183,10 @@ export type MessageType = {
     height: number;
   };
 };
+
+export type UserSettingType = {
+  id: number;
+  user_id: number;
+  is_notification: boolean;
+  deleted_at: string | null;
+} & TimeStampType;

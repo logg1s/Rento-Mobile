@@ -22,7 +22,9 @@ const ProfileScreen = () => {
   const user = useRentoData((state) => state.user);
   const uploadAvatar = useRentoData((state) => state.uploadAvatar);
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    user?.user_setting?.is_notification ?? true
+  );
 
   const handleEditProfile = () => {
     router.push("/profile/edit");
