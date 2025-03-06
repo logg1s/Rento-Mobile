@@ -13,11 +13,11 @@ const formatDate = (date: Date): string => {
   const givenDate = new Date(
     date.getFullYear(),
     date.getMonth(),
-    date.getDate(),
+    date.getDate()
   );
 
   const diffDays = Math.floor(
-    (today.getTime() - givenDate.getTime()) / (1000 * 60 * 60 * 24),
+    (today.getTime() - givenDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   if (diffDays === 0) return "Hôm nay";
@@ -104,7 +104,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   useGetChat,
   useSendChat,
@@ -119,8 +119,13 @@ import {
   normalizeVietnamese,
   searchFilter,
 } from "@/utils/utils";
-import { realtimeDatabase, useIsOnline } from "@/hooks/userOnlineHook";
+import {
+  realtimeDatabase,
+  useIsOnline,
+  useStatusOnline,
+} from "@/hooks/userOnlineHook";
 import { debounce } from "lodash";
+import useChatStore from "@/stores/chatStore";
 
 const MessageScreen = () => {
   const [imageError, setImageError] = useState(false);
@@ -147,6 +152,7 @@ const MessageScreen = () => {
     const chatWithUser = async () => {
       const responseInfo = await axiosFetch(`/users/${chatWithId}`, "get");
       const otherUserData = responseInfo?.data as UserType;
+      useChatStore.getState().setCurrentChatId(chatWithId as string);
       setSelectedConversation({
         id: getRoomId(user?.id, chatWithId),
         name: otherUserData ? otherUserData.name : `User ${chatWithId}`,
@@ -162,9 +168,28 @@ const MessageScreen = () => {
       chatWithUser();
     }
   }, [chatWithId]);
-  // Handle conversation selection and mark messages as seen
+  const updateStatus = useStatusOnline;
+  const changeStatus = debounce(updateStatus, 1000);
+  const currentChatId = useChatStore((state) => state.currentChatId);
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedConversation) {
+        changeStatus(user.id, true);
+      } else {
+        changeStatus(user?.id, false);
+        useChatStore.getState().setCurrentChatId(null);
+      }
+      return () => {
+        changeStatus(user?.id, false);
+      };
+    }, [currentChatId, user])
+  );
+
   const handleConversationSelect = useCallback(
     async (conversation) => {
+      useChatStore
+        .getState()
+        .setCurrentChatId(conversation?.otherUserId as string);
       setSelectedConversation(conversation);
 
       if (user?.id) {
@@ -176,11 +201,12 @@ const MessageScreen = () => {
         }
       }
     },
-    [user?.id, markMessagesSeen],
+    [user?.id, markMessagesSeen]
   );
   useEffect(() => {
     const backAction = () => {
       setSelectedConversation(null);
+      useChatStore.getState().setCurrentChatId(null);
       router.setParams({
         chatWithId: "",
       });
@@ -188,7 +214,7 @@ const MessageScreen = () => {
     };
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
-      backAction,
+      backAction
     );
 
     return () => backHandler.remove();
@@ -203,7 +229,7 @@ const MessageScreen = () => {
           ...conversation,
           isOnline: listOnline?.has(conversation?.otherUserId?.toString()),
         };
-      }),
+      })
     );
   }, [listOnline]);
 
@@ -235,7 +261,7 @@ const MessageScreen = () => {
                 };
 
           const unreadCount = chat.messages.filter(
-            (msg) => msg.author !== user?.id && !msg.seen,
+            (msg) => msg.author !== user?.id && !msg.seen
           ).length;
 
           return {
@@ -248,17 +274,20 @@ const MessageScreen = () => {
             isOnline: listOnline?.has(otherUserId.toString()),
             otherUserId: otherUserId,
           };
-        }),
+        })
     );
     setConversations(conversationsData);
   };
   useEffect(() => {
     if (selectedConversation !== null) {
       const newSelectedConversation = conversations?.find(
-        (conversation) => conversation?.id === selectedConversation?.id,
+        (conversation) => conversation?.id === selectedConversation?.id
       );
       if (newSelectedConversation)
         setSelectedConversation(newSelectedConversation);
+      useChatStore
+        .getState()
+        .setCurrentChatId(newSelectedConversation?.otherUserId as string);
     }
   }, [conversations]);
   useEffect(() => {
@@ -288,7 +317,7 @@ const MessageScreen = () => {
     if (!selectedConversation || !chatsData) return [];
 
     const chatData = chatsData.find(
-      (chat) => chat.roomId === selectedConversation.id,
+      (chat) => chat.roomId === selectedConversation.id
     );
     return chatData?.messages || [];
   }, [selectedConversation, chatsData]);
@@ -312,7 +341,7 @@ const MessageScreen = () => {
         // Scroll to bottom after sending
         setTimeout(() => {
           if (flatListRef.current) {
-            flatListRef.current.scrollToEnd({ animated: true });
+            flatListRef.current.scrollToEnd({ animated: false });
           }
         }, 100);
       } catch (error) {
@@ -320,7 +349,7 @@ const MessageScreen = () => {
         Alert.alert("Error", "Failed to send message. Please try again.");
       }
     },
-    [inputMessage, selectedConversation, user?.id, sendChat],
+    [inputMessage, selectedConversation, user?.id, sendChat]
   );
 
   // Handle call duration updates
@@ -334,7 +363,7 @@ const MessageScreen = () => {
   const renderConversation = useCallback(
     ({ item }) =>
       normalizeVietnamese(item?.name as string).includes(
-        normalizeVietnamese(filterMesasgeInput.trim().toLowerCase()),
+        normalizeVietnamese(filterMesasgeInput.trim().toLowerCase())
       ) ? (
         <TouchableOpacity
           className="flex-row items-center p-4 border-b border-gray-200"
@@ -371,7 +400,7 @@ const MessageScreen = () => {
           </View>
         </TouchableOpacity>
       ) : null,
-    [handleConversationSelect, filterMesasgeInput],
+    [handleConversationSelect, filterMesasgeInput]
   );
 
   const renderMessage = useCallback(
@@ -413,7 +442,7 @@ const MessageScreen = () => {
                       <TouchableOpacity
                         onPress={() => {
                           setCurrentImageUrl(
-                            getImagePath(item?.image?.path) ?? "",
+                            getImagePath(item?.image?.path) ?? ""
                           );
                           setShowFullImage(true);
                         }}
@@ -427,7 +456,7 @@ const MessageScreen = () => {
                             width: Math.min(280, item.image.width),
                             height: Math.min(
                               280 * (item.image.height / item.image.width),
-                              400,
+                              400
                             ),
                           }}
                           onError={() => setImageError(true)}
@@ -476,7 +505,7 @@ const MessageScreen = () => {
         </>
       );
     },
-    [selectedConversation, user?.id, currentChatMessages],
+    [selectedConversation, user?.id, currentChatMessages]
   );
 
   const renderDateSeparator = (date) => (
@@ -525,7 +554,7 @@ const MessageScreen = () => {
         "Error",
         error.message === "Image size too large"
           ? "Image is too large. Please choose a smaller image or take a new photo with lower quality."
-          : "Failed to send image. Please try again.",
+          : "Failed to send image. Please try again."
       );
     } finally {
       setIsUploading(false);
@@ -541,7 +570,7 @@ const MessageScreen = () => {
         if (!permissionResult.granted) {
           Alert.alert(
             "Permission Required",
-            "You need to grant camera permission",
+            "You need to grant camera permission"
           );
           return;
         }
@@ -594,7 +623,7 @@ const MessageScreen = () => {
       console.error("Error picking image:", error);
       Alert.alert(
         "Error",
-        error.message || "Failed to pick image. Please try again.",
+        error.message || "Failed to pick image. Please try again."
       );
     }
   };
@@ -726,6 +755,7 @@ const MessageScreen = () => {
             <TouchableOpacity
               onPress={() => {
                 setSelectedConversation(null);
+                useChatStore.getState().setCurrentChatId(null);
                 router.setParams({
                   chatWithId: "",
                 });
@@ -840,7 +870,7 @@ const MessageScreen = () => {
                       // Copy message text to clipboard
                       Alert.alert(
                         "Feature in Development",
-                        "Copy functionality will be available soon!",
+                        "Copy functionality will be available soon!"
                       );
                       setLongPressedMessage(null);
                     }}
@@ -853,7 +883,7 @@ const MessageScreen = () => {
                       // Delete message functionality
                       Alert.alert(
                         "Feature in Development",
-                        "Message deletion will be available soon!",
+                        "Message deletion will be available soon!"
                       );
                       setLongPressedMessage(null);
                     }}
@@ -884,7 +914,7 @@ const MessageScreen = () => {
                       // Handle block user
                       Alert.alert(
                         "Feature in Development",
-                        "User blocking will be available soon!",
+                        "User blocking will be available soon!"
                       );
                       setShowConversationOptions(false);
                     }}
@@ -899,7 +929,7 @@ const MessageScreen = () => {
                       // Handle report user
                       Alert.alert(
                         "Feature in Development",
-                        "User reporting will be available soon!",
+                        "User reporting will be available soon!"
                       );
                       setShowConversationOptions(false);
                     }}

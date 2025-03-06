@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import useAuthStore from "@/stores/authStore";
-import useRentoData from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { getImageSource } from "@/utils/utils";
 
 const ProfileScreen = () => {
@@ -32,11 +32,16 @@ const ProfileScreen = () => {
     if (user?.is_oauth) {
       Alert.alert(
         "",
-        "Bạn đang đăng nhập bằng tài khoản Google. Vui lòng truy cập trang chủ của Google để đổi mật khẩu !",
+        "Bạn đang đăng nhập bằng tài khoản Google. Vui lòng truy cập trang chủ của Google để đổi mật khẩu !"
       );
       return;
     }
     router.push("/profile/change-password");
+  };
+
+  const handleNotificationsChange = async (value: boolean) => {
+    axiosFetch("/users/setting", "post", { is_notification: value });
+    setNotificationsEnabled(value);
   };
 
   const handleImageUpload = async (result: ImagePicker.ImagePickerResult) => {
@@ -90,7 +95,7 @@ const ProfileScreen = () => {
           style: "cancel",
         },
       ],
-      { cancelable: true },
+      { cancelable: true }
     );
   };
 
@@ -165,7 +170,7 @@ const ProfileScreen = () => {
             </View>
             <Switch
               value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
+              onValueChange={(value) => handleNotificationsChange(value)}
               trackColor={{ false: "#767577", true: "#0286FF" }}
               thumbColor={notificationsEnabled ? "#f4f3f4" : "#f4f3f4"}
             />

@@ -113,7 +113,7 @@ export const useGetChat = () => {
                 isLoading: false,
               }));
             }
-          },
+          }
         );
 
         messagesUnsubscribe = messagesCollection.onSnapshot(
@@ -140,7 +140,7 @@ export const useGetChat = () => {
 
             messages.sort(
               (a, b) =>
-                Number.parseInt(a.timestamp) - Number.parseInt(b.timestamp),
+                Number.parseInt(a.timestamp) - Number.parseInt(b.timestamp)
             );
 
             setChatState((prev) => ({
@@ -158,7 +158,7 @@ export const useGetChat = () => {
                 isLoading: false,
               }));
             }
-          },
+          }
         );
       } catch (error) {
         console.error("Error setting up listeners:", error);
@@ -185,7 +185,7 @@ export const useGetChat = () => {
   const chatsData = useMemo(() => {
     return chatState.rooms.map((room) => {
       const messageOfRoom = chatState.messages.filter(
-        (m) => m.roomId === room.roomId,
+        (m) => m.roomId === room.roomId
       );
       return {
         ...room,
@@ -203,7 +203,7 @@ export const useGetChat = () => {
 };
 
 const getImageSize = (
-  uri: string,
+  uri: string
 ): Promise<{ width: number; height: number }> => {
   return new Promise((resolve, reject) => {
     Image.getSize(
@@ -214,7 +214,7 @@ const getImageSize = (
       (error) => {
         console.error("Error getting image size:", error);
         reject(error);
-      },
+      }
     );
   });
 };
@@ -222,7 +222,7 @@ const getImageSize = (
 const imageToBase64 = async (
   uri: string,
   maxWidth = 800,
-  maxHeight = 800,
+  maxHeight = 800
 ): Promise<{
   base64: string;
   width: number;
@@ -331,9 +331,11 @@ export const useSendChat = () => {
 
         batch.commit();
         const isOnline = await useIsOnline(receiverId);
-        axiosFetch(`/notifications/chat/${receiverId}`, "post", {
-          body: roomData.lastMessage,
-        });
+        if (!isOnline) {
+          axiosFetch(`/notifications/chat/${receiverId}`, "post", {
+            body: roomData.lastMessage,
+          });
+        }
 
         return newMessageRef;
       } catch (error) {
@@ -341,7 +343,7 @@ export const useSendChat = () => {
         throw error;
       }
     },
-    [],
+    []
   );
 
   return sendChat;

@@ -1,8 +1,7 @@
-import { SplashScreen, Stack } from "expo-router";
+import { SplashScreen, Stack, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 
 import useAuthStore from "@/stores/authStore";
-import { axiosFetch } from "@/stores/dataStore";
 import {
   Poppins_100Thin,
   Poppins_200ExtraLight,
@@ -15,62 +14,13 @@ import {
   Poppins_900Black,
   useFonts,
 } from "@expo-google-fonts/poppins";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
-import { registerForPushNotificationsAsync } from "@/hooks/notificationHook";
 
 SplashScreen.preventAutoHideAsync();
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
 
 const Layout = () => {
-  const notificationListener = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
-  const [n, setN] = useState("");
-  console.log(n);
-
-  useEffect(() => {
-    // registerForPushNotificationsAsync()
-    //   .then((token) => {
-    //     if (token) {
-    //       AsyncStorage.setItem("expo_token", token ?? "");
-    //       axiosFetch("/notifications/token/register", "post", {
-    //         expo_token: token,
-    //       });
-    //     }
-    //   })
-    //   .catch((error: any) => {
-    //     console.error("Loi token", error);
-    //     AsyncStorage.removeItem("expo_token");
-    //   });
-
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {});
-
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        setN("123");
-        console.log("abc");
-      });
-
-    return () => {
-      notificationListener.current &&
-        Notifications.removeNotificationSubscription(
-          notificationListener.current,
-        );
-      responseListener.current &&
-        Notifications.removeNotificationSubscription(responseListener.current);
-    };
-  }, []);
-
   const initialize = useAuthStore((state) => state.initialize);
   useEffect(() => {
     const init = async () => {

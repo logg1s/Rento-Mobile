@@ -6,18 +6,22 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { axiosFetch } from "@/stores/dataStore";
+import { router } from "expo-router";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 export const useNotification = () => {
   const notificationListener = useRef<Notifications.EventSubscription>();
   const responseListener = useRef<Notifications.EventSubscription>();
+
   useEffect(() => {
     registerForPushNotificationsAsync()
       .then((token) => {
@@ -38,19 +42,50 @@ export const useNotification = () => {
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(response.notification.request.content.data);
+        handleNotification(response.notification);
       });
 
     return () => {
       notificationListener.current &&
         Notifications.removeNotificationSubscription(
-          notificationListener.current,
+          notificationListener.current
         );
       responseListener.current &&
         Notifications.removeNotificationSubscription(responseListener.current);
     };
   }, []);
+
+  useEffect(() => {
+    const getLastNotificationResponse = async () => {
+      const response = await Notifications.getLastNotificationResponseAsync();
+      if (response) {
+        handleNotification(response.notification);
+      }
+    };
+    getLastNotificationResponse();
+  }, []);
 };
+
+function handleNotification(notification: Notifications.Notification) {
+  const data = notification.request.content.data;
+  console.log(data);
+  switch (data.type) {
+    case "message":
+      if (data?.id) {
+        router.push({
+          pathname: "/(tabs)/message",
+          params: {
+            chatWithId: data.id,
+          },
+        });
+      }
+      break;
+    case "order":
+      console.log("order");
+      break;
+  }
+}
+
 async function sendTestPushNotification(expoPushToken: string) {
   const message = {
     to: expoPushToken,
@@ -105,7 +140,7 @@ export async function registerForPushNotificationsAsync() {
     }
     if (finalStatus !== "granted") {
       console.log(
-        "Vui lòng cho phép quyền thông báo để ứng dụng hoạt động hiệu quả",
+        "Vui lòng cho phép quyền thông báo để ứng dụng hoạt động hiệu quả"
       );
       return;
     }
