@@ -39,6 +39,15 @@ const DetailJob = () => {
   const [comment, setComment] = useState("");
   const [selectedRating, setSelectedRating] = useState<number>(0);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const user = useRentoData((state) => state.user);
+  const viewedService = services.filter(
+    (item) =>
+      item.id.toString() !== id &&
+      user?.viewed_service_log?.some((viewed) => viewed.service_id === item.id)
+  );
+  const suggestedServices = services.filter((item) =>
+    data?.suggested_services?.includes(item.id)
+  );
 
   const fetchData = async () => {
     const serviceRes = await axiosFetch(`/services/${id}`);
@@ -110,7 +119,7 @@ const DetailJob = () => {
             x: x - width / 10,
             animated: true,
           });
-        },
+        }
       );
     }
   }, [selectedPricing]);
@@ -320,7 +329,7 @@ const DetailJob = () => {
                         benefit?.price_id &&
                         data?.price?.[selectedPricing]?.id &&
                         (benefit.price_id.includes(
-                          data.price[selectedPricing].id,
+                          data.price[selectedPricing].id
                         ) ? (
                           <Octicons
                             name="check-circle-fill"
@@ -440,7 +449,7 @@ const DetailJob = () => {
                 title={data?.comment_by_you === null ? "Gửi" : "Cập nhật"}
                 onPress={() =>
                   submitComment(
-                    data?.comment_by_you === null ? "submit" : "update",
+                    data?.comment_by_you === null ? "submit" : "update"
                   )
                 }
                 containerStyles="w-1/3 self-center mt-5"
@@ -448,38 +457,42 @@ const DetailJob = () => {
             </View>
           </View>
 
-          <View className="bg-white p-5">
-            <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName="gap-5 py-5"
-            >
-              {services?.map((item) => (
-                <SmallerServiceCard
-                  key={item.id}
-                  data={item}
-                  onPressFavorite={() => onPressFavorite(item.id)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-          <View className="bg-white p-5">
-            <Text className="font-psemibold text-xl">Đã xem gần đây</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName="gap-5 py-5"
-            >
-              {services?.map((item) => (
-                <SmallerServiceCard
-                  key={item.id}
-                  data={item}
-                  onPressFavorite={() => onPressFavorite(item.id)}
-                />
-              ))}
-            </ScrollView>
-          </View>
+          {suggestedServices.length > 0 && (
+            <View className="bg-white p-5">
+              <Text className="font-psemibold text-xl">Gợi ý cho bạn</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="gap-5 py-5"
+              >
+                {suggestedServices.map((item) => (
+                  <SmallerServiceCard
+                    key={item.id}
+                    data={item}
+                    onPressFavorite={() => onPressFavorite(item.id)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          {viewedService.length > 0 && (
+            <View className="bg-white p-5">
+              <Text className="font-psemibold text-xl">Đã xem gần đây</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="gap-5 py-5"
+              >
+                {viewedService.map((item) => (
+                  <SmallerServiceCard
+                    key={item.id}
+                    data={item}
+                    onPressFavorite={() => onPressFavorite(item.id)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </ScrollView>
       )}
       {selectedPricing !== -1 && (

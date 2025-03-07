@@ -19,6 +19,7 @@ export type UserType = {
   order?: OrderType[];
   service_favorite?: ServiceType[];
   user_setting?: UserSettingType;
+  viewed_service_log?: ViewedServiceType[];
 } & TimeStampType;
 
 export type ImageType = {
@@ -40,6 +41,15 @@ export type CategoryType = {
   category_name: string;
   image_id: string;
   deleted_at: string | null;
+} & TimeStampType;
+
+export type ViewedServiceType = {
+  id: number;
+  service_id: number;
+  user_id: number;
+  deleted_at: string | null;
+  service?: ServiceType;
+  user?: UserType;
 } & TimeStampType;
 
 export type PriceType = {
@@ -78,6 +88,7 @@ export type ServiceType = {
   average_rate?: number;
   benefit?: BenefitType[];
   comment_by_you?: CommentType;
+  suggested_services?: number[];
 } & TimeStampType;
 
 export type NotificationType = {
