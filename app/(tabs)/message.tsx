@@ -203,22 +203,27 @@ const MessageScreen = () => {
     },
     [user?.id, markMessagesSeen]
   );
-  useEffect(() => {
-    const backAction = () => {
-      setSelectedConversation(null);
-      useChatStore.getState().setCurrentChatId(null);
-      router.setParams({
-        chatWithId: "",
-      });
-      return true;
-    };
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      backAction
-    );
-
-    return () => backHandler.remove();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (selectedConversation) {
+          setSelectedConversation(null);
+          useChatStore.getState().setCurrentChatId(null);
+          router.setParams({
+            chatWithId: "",
+          });
+        } else {
+          router.back();
+        }
+        return true;
+      };
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        backAction
+      );
+      return () => backHandler.remove();
+    }, [selectedConversation])
+  );
 
   const [conversations, setConversations] = useState([]);
   useEffect(() => {

@@ -68,7 +68,6 @@ export const useNotification = () => {
 
 function handleNotification(notification: Notifications.Notification) {
   const data = notification.request.content.data;
-  console.log(data);
   switch (data.type) {
     case "message":
       if (data?.id) {
@@ -107,11 +106,6 @@ async function sendTestPushNotification(expoPushToken: string) {
   });
 }
 
-function handleRegistrationError(errorMessage: string) {
-  alert(errorMessage);
-  throw new Error(errorMessage);
-}
-
 export async function registerForPushNotificationsAsync() {
   if (Platform.OS === "android") {
     Notifications.setNotificationChannelAsync("default", {
@@ -119,7 +113,6 @@ export async function registerForPushNotificationsAsync() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#FF231F7C",
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
 
     Notifications.setNotificationChannelAsync("messaging", {

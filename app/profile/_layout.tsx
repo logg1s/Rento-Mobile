@@ -9,6 +9,13 @@ const ProfileLayout = () => {
       <Stack.Screen name="order-history" options={{ headerShown: false }} />
       <Stack.Screen name="saved-services" options={{ headerShown: false }} />
       <Stack.Screen name="change-password" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="view-history"
+        options={{
+          headerTitle: "Lịch sử xem dịch vụ",
+          headerBackTitle: "Quay lại",
+        }}
+      />
     </Stack>
   );
 };

@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
 import { SelectList } from "react-native-dropdown-select-list";
@@ -91,12 +91,20 @@ const SignUp = () => {
   }, 500);
 
   const isValidatePhase1 = Object.values(rules1).every((rule) =>
-    rule.every((r) => r.isValid),
+    rule.every((r) => r.isValid)
   );
   const isValidatePhase2 = Object.values(rules2).every((rule) =>
-    rule.every((r) => r.isValid),
+    rule.every((r) => r.isValid)
   );
   const isValidate = isValidatePhase2 && isValidatePhase1;
+
+  useEffect(() => {
+    if (rules1.email.every((r) => r.isValid)) {
+      debouncedCheckEmail(formSignUp.email);
+    } else {
+      setIsNotExistEmail(true);
+    }
+  }, [formSignUp.email]);
 
   // TODO: write logic sign up
   const handleSignUp = async () => {
@@ -106,15 +114,17 @@ const SignUp = () => {
     }
     try {
       const result = await axiosFetch("/auth/register", "POST", formSignUp);
-      const accessToken = result?.data?.access_token;
-      if (accessToken) {
-        await useAuthStore.getState().setToken(accessToken);
-        router.replace("/(tabs)/home");
+      if (result?.status === 200) {
+        useAuthStore.getState().setTempPassword(formSignUp.password);
+        router.push({
+          pathname: "/verify-email",
+          params: { email: formSignUp.email },
+        });
       }
     } catch (error) {
       Alert.alert(
         "Lỗi khi đăng ký",
-        "Đăng ký không thành công, vui lòng kiểm tra lại kết nối",
+        "Đăng ký không thành công, vui lòng kiểm tra lại kết nối"
       );
       console.error("Error sign up:", error?.response?.data);
     }
@@ -164,11 +174,6 @@ const SignUp = () => {
                   rules={rules1.email}
                   onChangeText={(e) => {
                     setFormSignUp((prev) => ({ ...prev, email: e }));
-                    if (rules1.email.every((r) => r.isValid)) {
-                      debouncedCheckEmail(e);
-                    } else {
-                      setIsNotExistEmail(true);
-                    }
                   }}
                 />
                 <InputField
@@ -224,7 +229,6 @@ const SignUp = () => {
                     title="Thuê dịch vụ"
                     outline={selectedRole !== "user"}
                     onPress={() => handleSelectRole("user")}
-                    containerStyles={`${selectedRole !== "user" ? "bg-red-500" : ""}`}
                   />
                   <CustomButton
                     title="Cung cấp dịch vụ"

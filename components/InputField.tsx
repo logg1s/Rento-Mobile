@@ -39,6 +39,7 @@ const InputField = ({
   keyBoardType = "default",
   canEmpty = true,
   required,
+  maxLength,
 }: {
   nameField?: string;
   placeholder?: string;
@@ -67,6 +68,7 @@ const InputField = ({
     | "phone-pad";
   canEmpty?: boolean;
   required?: boolean;
+  maxLength?: number;
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const isValidAll =
@@ -86,7 +88,7 @@ const InputField = ({
           <View
             className={twMerge(
               `w-full bg-general-300  ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center ${multiline && isFocused ? "h-40" : "h-16"}`,
-              containerStyles,
+              containerStyles
             )}
             style={
               !isValidAll &&
@@ -113,6 +115,7 @@ const InputField = ({
                 editable={editable}
                 onPressIn={onPressIn}
                 keyboardType={keyBoardType}
+                maxLength={maxLength}
               />
             </View>
             {iconRight}
@@ -125,7 +128,7 @@ const InputField = ({
                     <Text key={index} className="text-red-500 font-pmedium">
                       {rule?.message}
                     </Text>
-                  ),
+                  )
               )}
           </View>
         </View>

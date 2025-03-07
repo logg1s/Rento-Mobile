@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import useAuthStore from "@/stores/authStore";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { getImageSource } from "@/utils/utils";
@@ -21,9 +21,15 @@ import { getImageSource } from "@/utils/utils";
 const ProfileScreen = () => {
   const user = useRentoData((state) => state.user);
   const uploadAvatar = useRentoData((state) => state.uploadAvatar);
+  const fetchUser = useRentoData((state) => state.fetchUser);
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
+    user?.user_setting?.is_notification === 1
+  );
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    user?.user_setting?.is_notification ?? true
+  useFocusEffect(
+    useCallback(() => {
+      fetchUser();
+    }, [])
   );
 
   const handleEditProfile = () => {
@@ -148,6 +154,11 @@ const ProfileScreen = () => {
               title="Dịch vụ đã thích"
               onPress={() => router.push("/profile/saved-services")}
               icon="heart-outline"
+            />
+            <ProfileSection
+              title="Lịch sử xem dịch vụ"
+              onPress={() => router.push("/profile/view-history")}
+              icon="time-outline"
             />
           </View>
           <ProfileSection

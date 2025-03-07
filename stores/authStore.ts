@@ -11,6 +11,8 @@ import { Alert, processColor } from "react-native";
 
 import auth from "@react-native-firebase/auth";
 import { useStatusOnline } from "@/hooks/userOnlineHook";
+import { useRouter } from "expo-router";
+
 GoogleSignin.configure({
   webClientId: process.env.EXPO_PUBLIC_FIRESTORE_DATABASE,
 });
@@ -18,12 +20,20 @@ GoogleSignin.configure({
 type AuthState = {
   token: string | null;
   isLoggedIn: boolean | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  tempPassword: string | null;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; status: number | null }>;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   setToken: (token: string) => Promise<void>;
   loginWithGoogle: () => Promise<boolean>;
+  removeToken: () => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<any>;
+  resendVerificationCode: (email: string) => Promise<any>;
+  setTempPassword: (password: string) => void;
 };
 const key = "jwtToken";
 
@@ -40,6 +50,11 @@ const defaultHeader = (token: string | null) => {
 const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   isLoggedIn: false,
+  tempPassword: null,
+
+  setTempPassword: (password: string) => {
+    set({ tempPassword: password });
+  },
 
   login: async (email: string, password: string) => {
     try {
@@ -49,17 +64,27 @@ const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       const newToken = response?.data?.access_token;
+      const userStatus = response?.data?.info?.status;
 
       if (newToken) {
+        if (userStatus === 0) {
+          Alert.alert("Thông báo", "Tài khoản của bạn đã bị khóa");
+          return { success: false, status: userStatus };
+        }
+
+        if (userStatus === 1) {
+          return { success: false, status: userStatus };
+        }
+
         await AsyncStorage.setItem("jwtToken", newToken);
         await useRentoData.getState().fetchData();
         set({ token: newToken, isLoggedIn: true });
-        return true;
+        return { success: true, status: userStatus };
       }
     } catch (error) {
       console.error("Lỗi khi đăng nhập:", error?.response?.data);
     }
-    return false;
+    return { success: false, status: null };
   },
 
   logout: async () => {
@@ -97,7 +122,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       const response = await axios.post(
         `${hostAuth}/refresh`,
         {},
-        defaultHeader(storedToken),
+        defaultHeader(storedToken)
       );
 
       const newToken = response?.data?.access_token;
@@ -131,7 +156,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const googleCredential = auth.GoogleAuthProvider.credential(
-        signInResult.data.idToken,
+        signInResult.data.idToken
       );
 
       const credentials = await auth().signInWithCredential(googleCredential);
@@ -170,6 +195,48 @@ const useAuthStore = create<AuthState>((set, get) => ({
       throw error;
     }
     return false;
+  },
+  removeToken: async () => {
+    set({ token: null });
+    await AsyncStorage.removeItem("jwtToken");
+  },
+  verifyEmailCode: async (email: string, code: string) => {
+    try {
+      const result = await axiosFetch("/auth/verify-code", "POST", {
+        email,
+        code,
+      });
+
+      if (result?.status === 200) {
+        const loginResult = await axios.post(`${hostAuth}/login`, {
+          email,
+          password: get().tempPassword,
+        });
+
+        const newToken = loginResult?.data?.access_token;
+        if (newToken) {
+          await AsyncStorage.setItem("jwtToken", newToken);
+          await useRentoData.getState().fetchData();
+          set({ token: newToken, isLoggedIn: true, tempPassword: null });
+          return { success: true, token: newToken };
+        }
+      }
+      return { success: false };
+    } catch (error: any) {
+      console.error("Lỗi khi xác thực email:", error?.response?.data);
+      throw error;
+    }
+  },
+  resendVerificationCode: async (email: string) => {
+    try {
+      const result = await axiosFetch("/auth/resend-verification", "POST", {
+        email,
+      });
+      return result;
+    } catch (error: any) {
+      console.error("Lỗi khi gửi lại mã xác thực:", error?.response?.data);
+      throw error;
+    }
   },
 }));
 

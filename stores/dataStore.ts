@@ -29,6 +29,8 @@ type DataState = {
   fetchFavorites: () => Promise<void>;
   fetchData: () => Promise<void>;
   updateFavorite: (serviceId: number, action: boolean) => Promise<void>;
+  markNotificationAsRead: (id: number) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
   update: (
     data:
       | {
@@ -40,7 +42,7 @@ type DataState = {
           old_password: string;
           new_password: string;
         },
-    isUpdatePassword?: boolean,
+    isUpdatePassword?: boolean
   ) => Promise<boolean>;
   uploadAvatar: (imageUri: string) => Promise<boolean>;
   uploadImage: (imageUri: string) => Promise<string>;
@@ -53,13 +55,13 @@ export const axiosFetch = async (
   url: string,
   method: Method = "get",
   data?: any,
-  isUpload = false,
+  isUpload = false
 ): Promise<AxiosResponse | undefined> => {
   console.log(
     "fetching",
     rentoHost + url,
     method,
-    data ? JSON.stringify(data) : "",
+    data ? JSON.stringify(data) : ""
   );
   try {
     const token = await AsyncStorage.getItem("jwtToken");
@@ -161,7 +163,7 @@ const useRentoData = create<DataState>((set, get) => ({
     try {
       set({
         services: previousServices.map((service) =>
-          service.id === serviceId ? { ...service, is_liked: action } : service,
+          service.id === serviceId ? { ...service, is_liked: action } : service
         ),
       });
       await axiosFetch(`/favorites/${serviceId}`, "post", {
@@ -173,8 +175,37 @@ const useRentoData = create<DataState>((set, get) => ({
       set({ services: previousServices });
       console.error(
         "Lỗi khi thay đổi trạng thái yêu thích:",
-        error?.response?.data,
+        error?.response?.data
       );
+    }
+  },
+
+  markNotificationAsRead: async (id: number) => {
+    try {
+      await axiosFetch(`/notifications/readed/${id}`, "put");
+      const currentNotifications = get().notifications;
+      set({
+        notifications: currentNotifications.map((notif) =>
+          notif.id === id ? { ...notif, is_read: true } : notif
+        ),
+      });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  },
+
+  markAllNotificationsAsRead: async () => {
+    try {
+      await axiosFetch(`/notifications/read/all`, "put");
+      const currentNotifications = get().notifications;
+      set({
+        notifications: currentNotifications.map((notif) => ({
+          ...notif,
+          is_read: true,
+        })),
+      });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
     }
   },
 
@@ -183,7 +214,7 @@ const useRentoData = create<DataState>((set, get) => ({
       const response = await axiosFetch(
         `/users/update${isUpdatePassword ? "Password" : ""}`,
         "put",
-        data,
+        data
       );
       if (isUpdatePassword) {
         await useAuthStore.getState().refreshAccessToken();
@@ -208,7 +239,7 @@ const useRentoData = create<DataState>((set, get) => ({
         "/users/uploadAvatar",
         "post",
         formData,
-        true,
+        true
       );
       await get().fetchUser();
       return true;
@@ -230,7 +261,7 @@ const useRentoData = create<DataState>((set, get) => ({
         "/users/uploadImage",
         "post",
         formData,
-        true,
+        true
       );
       return (response?.data as ImageType)?.path ?? "";
     } catch (error) {

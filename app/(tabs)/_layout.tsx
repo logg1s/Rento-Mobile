@@ -6,14 +6,7 @@ import { useStatusOnline } from "@/hooks/userOnlineHook";
 import { useNotification } from "@/hooks/notificationHook";
 
 const TabLayout = () => {
-  const user = useRentoData((state) => state.user);
-  const updateStatus = useStatusOnline;
   useNotification();
-  // useEffect(() => {
-  //   if (user?.id) {
-  //     updateStatus(user.id, true);
-  //   }
-  // }, [user]);
   return (
     <Tabs
       screenOptions={{

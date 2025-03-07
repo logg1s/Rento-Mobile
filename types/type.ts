@@ -1,4 +1,9 @@
 export type Role = "user" | "provider";
+export enum UserStatusEnum {
+  BLOCKED = 0,
+  PENDING = 1,
+  ACTIVE = 2,
+}
 
 export type TimeStampType = {
   created_at: string;
@@ -14,12 +19,14 @@ export type UserType = {
   address?: string;
   deleted_at: string | null;
   role: RoleType[];
+  status: UserStatusEnum;
   is_oauth: boolean;
   service?: ServiceType[];
   order?: OrderType[];
   service_favorite?: ServiceType[];
   user_setting?: UserSettingType;
-  viewed_service_log?: ViewedServiceType[];
+  viewed_service_log?: { service_id: number }[];
+  notification?: NotificationType[];
 } & TimeStampType;
 
 export type ImageType = {
@@ -93,9 +100,10 @@ export type ServiceType = {
 
 export type NotificationType = {
   id: number;
-  user: UserType;
+  user_id: number;
   title: string;
-  message: string;
+  body: string;
+  data: string;
   is_read: boolean;
 } & TimeStampType;
 
@@ -198,6 +206,6 @@ export type MessageType = {
 export type UserSettingType = {
   id: number;
   user_id: number;
-  is_notification: boolean;
+  is_notification: number;
   deleted_at: string | null;
 } & TimeStampType;

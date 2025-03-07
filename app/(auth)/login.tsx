@@ -14,13 +14,22 @@ const Login = () => {
     email: "",
     password: "",
   });
-  const login = useAuthStore((state) => state.login);
   const handleLogin = async () => {
-    const success = await login(formLogin.email, formLogin.password);
-    if (success) {
-      router.replace("/(tabs)/home");
-    } else {
-      Alert.alert("Lỗi", "Sai email hoặc mật khẩu");
+    try {
+      const result = await useAuthStore
+        .getState()
+        .login(formLogin.email, formLogin.password);
+
+      if (result.success) {
+        router.replace("/(tabs)/home");
+      } else if (result.status === 1) {
+        router.push({
+          pathname: "/verify-email",
+          params: { email: formLogin.email },
+        });
+      }
+    } catch (error) {
+      Alert.alert("Lỗi", "Email hoặc mật khẩu không chính xác");
     }
   };
   return (
