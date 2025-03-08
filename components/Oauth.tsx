@@ -36,7 +36,12 @@ const Oauth = ({
       setIsLoading(true);
       const success = await loginWithGoogle();
       if (success) {
-        router.replace("/(tabs)/home");
+        const user = useRentoData.getState().user;
+        if (user?.role?.some((r) => r.id === "provider")) {
+          router.replace("/provider/dashboard");
+        } else {
+          router.replace("/(tabs)/home");
+        }
       }
     } catch (error) {
       ToastAndroid.show(
@@ -48,53 +53,41 @@ const Oauth = ({
       setIsLoading(false);
     }
   };
-  return (
-    <>
-      <View className="justify-center items-center gap-5">
-        <View className="flex-row justify-center items-center gap-5">
-          <TouchableOpacity
-            className={twMerge(
-              `rounded-xl p-3 bg-zinc-200 flex-row justify-center items-center gap-5`,
-              containerStyles
-            )}
-            onPress={handleLoginWithGoogle}
-            disabled={isLoading}
-          >
-            {leftText ? (
-              <Text className={twMerge(`font-pmedium text-lg `, textStyles)}>
-                {leftText}
-              </Text>
-            ) : null}
-            <Image
-              source={require("@/assets/icons/google.png")}
-              className="w-10 h-10"
-              resizeMode="contain"
-            />
-            {rightText ? (
-              <Text className={twMerge(`font-pmedium text-lg `, textStyles)}>
-                {rightText}
-              </Text>
-            ) : null}
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      <Modal
-        transparent={true}
-        animationType="fade"
-        visible={isLoading}
-        onRequestClose={() => {}}
-      >
-        <View className="flex-1 bg-black/50 justify-center items-center">
-          <View className="bg-white p-5 rounded-2xl items-center gap-3">
-            <ActivityIndicator size="large" color="#4285F4" />
-            <Text className="text-gray-700 font-medium">
-              Đang đăng nhập với Google...
+  return (
+    <TouchableOpacity
+      onPress={handleLoginWithGoogle}
+      className={twMerge(
+        "flex-row items-center justify-center gap-3 bg-white py-4 px-2 rounded-xl",
+        containerStyles
+      )}
+      disabled={isLoading}
+    >
+      {isLoading ? (
+        <ActivityIndicator size="small" color="black" />
+      ) : (
+        <>
+          {leftText && (
+            <Text
+              className={twMerge("font-pmedium text-black text-lg", textStyles)}
+            >
+              {leftText}
             </Text>
-          </View>
-        </View>
-      </Modal>
-    </>
+          )}
+          <Image
+            source={require("@/assets/icons/google.png")}
+            className="w-6 h-6"
+          />
+          {rightText && (
+            <Text
+              className={twMerge("font-pmedium text-black text-lg", textStyles)}
+            >
+              {rightText}
+            </Text>
+          )}
+        </>
+      )}
+    </TouchableOpacity>
   );
 };
 

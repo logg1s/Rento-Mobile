@@ -68,7 +68,11 @@ const CompleteProfile = () => {
       });
 
       if (success) {
-        router.replace("/(tabs)/home");
+        if (selectedRole === "provider") {
+          router.replace("/provider/dashboard");
+        } else {
+          router.replace("/(tabs)/home");
+        }
       } else {
         Alert.alert(
           "Lỗi khi cập nhật",

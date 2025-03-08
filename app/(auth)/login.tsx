@@ -7,6 +7,8 @@ import CustomButton from "@/components/CustomButton";
 import Oauth from "@/components/Oauth";
 import { Link, router } from "expo-router";
 import useAuthStore from "@/stores/authStore";
+import useRentoData from "@/stores/dataStore";
+import { useCheckUserRole } from "@/hooks/useCheckUserRole";
 
 const Login = () => {
   const [isHidingPw, setIsHidingPw] = useState(true);
@@ -14,6 +16,7 @@ const Login = () => {
     email: "",
     password: "",
   });
+
   const handleLogin = async () => {
     try {
       const result = await useAuthStore
@@ -21,7 +24,12 @@ const Login = () => {
         .login(formLogin.email, formLogin.password);
 
       if (result.success) {
-        router.replace("/(tabs)/home");
+        const user = useRentoData.getState().user;
+        if (user?.role?.some((r) => r.id === "provider")) {
+          router.replace("/provider/dashboard");
+        } else {
+          router.replace("/(tabs)/home");
+        }
       } else if (result.status === 1) {
         router.push({
           pathname: "/verify-email",
@@ -32,6 +40,7 @@ const Login = () => {
       Alert.alert("Lỗi", "Email hoặc mật khẩu không chính xác");
     }
   };
+
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <ScrollView className="p-5">

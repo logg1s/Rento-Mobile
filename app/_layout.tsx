@@ -17,14 +17,26 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
+import useRentoData from "@/stores/dataStore";
 
 SplashScreen.preventAutoHideAsync();
 
 const Layout = () => {
+  const router = useRouter();
   const initialize = useAuthStore((state) => state.initialize);
+  const user = useRentoData((state) => state.user);
+
   useEffect(() => {
     const init = async () => {
       await initialize();
+      const currentUser = useRentoData.getState().user;
+      if (currentUser) {
+        if (currentUser.role?.some((r) => r.id === "provider")) {
+          router.replace("/provider/dashboard");
+        } else {
+          router.replace("/(tabs)/home");
+        }
+      }
     };
     init();
   }, []);
@@ -56,6 +68,7 @@ const Layout = () => {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="provider" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="dark" />
