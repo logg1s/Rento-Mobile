@@ -37,6 +37,7 @@ type DataState = {
           name?: string | null;
           phone_number?: string | null;
           address?: string | null;
+          role?: string | null;
         }
       | {
           old_password: string;

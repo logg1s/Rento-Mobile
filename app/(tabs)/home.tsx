@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from "react-native-swiper";
+import { useCheckProfileComplete } from "@/hooks/useCheckProfileComplete";
 
 const TabHome = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -60,6 +61,8 @@ const TabHome = () => {
       });
     }
   };
+
+  useCheckProfileComplete();
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">

@@ -14,6 +14,7 @@ import React, { useState } from "react";
 import useAuthStore from "@/stores/authStore";
 import { router } from "expo-router";
 import { twMerge } from "tailwind-merge";
+import useRentoData from "@/stores/dataStore";
 
 const Oauth = ({
   containerStyles,
@@ -28,6 +29,7 @@ const Oauth = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
+  const user = useRentoData((state) => state.user);
 
   const handleLoginWithGoogle = async () => {
     try {
@@ -39,7 +41,7 @@ const Oauth = ({
     } catch (error) {
       ToastAndroid.show(
         "Đăng nhập không thành công. Vui lòng thử lại !",
-        ToastAndroid.SHORT,
+        ToastAndroid.SHORT
       );
       console.error("Google login error:", error);
     } finally {
@@ -53,7 +55,7 @@ const Oauth = ({
           <TouchableOpacity
             className={twMerge(
               `rounded-xl p-3 bg-zinc-200 flex-row justify-center items-center gap-5`,
-              containerStyles,
+              containerStyles
             )}
             onPress={handleLoginWithGoogle}
             disabled={isLoading}

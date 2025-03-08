@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Alert, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -55,7 +55,7 @@ const EditProfileScreen = () => {
 
     if (success) {
       Alert.alert("Thành công", "Cập nhật thông tin thành công");
-      // router.back();
+      Keyboard.dismiss();
     } else {
       Alert.alert("Lỗi", "Có lỗi xảy ra khi cập nhật thông tin");
     }
