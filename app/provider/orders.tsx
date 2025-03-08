@@ -1,106 +1,79 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  ScrollView,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, FlatList, RefreshControl, TouchableOpacity } from "react-native";
+import { Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
+import useProviderStore from "@/stores/providerStore";
 import { OrderCard } from "@/components/OrderCard";
+import { SelectList } from "react-native-dropdown-select-list";
 
-const OrdersScreen = () => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState("all");
-  const [orders, setOrders] = useState([]); // TODO: Replace with actual orders data
+const ORDER_STATUS = {
+  all: { label: "Tất cả", value: "all" },
+  pending: { label: "Chờ xử lý", value: "pending" },
+  processing: { label: "Đang thực hiện", value: "processing" },
+  completed: { label: "Hoàn thành", value: "completed" },
+  cancelled: { label: "Đã hủy", value: "cancelled" },
+};
 
-  const tabs = [
-    { id: "all", label: "Tất cả" },
-    { id: "pending", label: "Chờ xử lý" },
-    { id: "in_progress", label: "Đang thực hiện" },
-    { id: "completed", label: "Hoàn thành" },
-    { id: "cancelled", label: "Đã hủy" },
-  ];
+export default function ProviderOrders() {
+  const { orders, isLoading, fetchOrders } = useProviderStore();
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const onRefresh = async () => {
-    setIsRefreshing(true);
-    // TODO: Fetch latest orders
-    setIsRefreshing(false);
-  };
+  useEffect(() => {
+    fetchOrders(statusFilter);
+  }, [statusFilter]);
 
-  const handleOrderUpdate = async (orderId: number, status: string) => {
-    try {
-      // TODO: Update order status
-      onRefresh();
-    } catch (error) {
-      console.error("Error updating order:", error);
-    }
-  };
-
-  const filteredOrders = orders.filter(
-    (order) => selectedTab === "all" || order.status === selectedTab
-  );
+  const statusOptions = Object.values(ORDER_STATUS).map((status) => ({
+    key: status.value,
+    value: status.label,
+  }));
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      {/* Header */}
-      <View className="bg-white p-4">
-        <Text className="text-2xl font-pbold">Quản lý đơn hàng</Text>
+    <SafeAreaView className="flex-1 bg-general-500">
+      <View className="p-4 bg-white">
+        <Text className="text-2xl font-pbold mb-4">Quản lý đơn hàng</Text>
+        <SelectList
+          setSelected={setStatusFilter}
+          data={statusOptions}
+          save="key"
+          placeholder="Lọc theo trạng thái"
+          search={false}
+          boxStyles={{
+            borderRadius: 8,
+            borderColor: "#E5E7EB",
+          }}
+          inputStyles={{
+            fontSize: 16,
+            fontFamily: "Poppins_500Medium",
+          }}
+        />
       </View>
 
-      {/* Tab Navigation */}
-      <View className="bg-white">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="border-b border-gray-200"
-        >
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              onPress={() => setSelectedTab(tab.id)}
-              className={`px-4 py-3 border-b-2 ${
-                selectedTab === tab.id
-                  ? "border-primary-500"
-                  : "border-transparent"
-              }`}
-            >
-              <Text
-                className={`font-pmedium ${
-                  selectedTab === tab.id ? "text-primary-500" : "text-gray-600"
-                }`}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Order List */}
       <FlatList
-        data={filteredOrders}
+        data={orders}
         renderItem={({ item }) => (
-          <OrderCard order={item} onOrderUpdate={handleOrderUpdate} />
+          <OrderCard
+            order={item}
+            onOrderUpdate={() => fetchOrders(statusFilter)}
+          />
         )}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerClassName="p-4"
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => fetchOrders(statusFilter)}
+          />
         }
         ListEmptyComponent={
-          <View className="flex-1 justify-center items-center py-20">
-            <Ionicons name="receipt-outline" size={48} color="gray" />
-            <Text className="text-gray-500 text-lg mt-4 text-center">
-              Không có đơn hàng nào
+          <View className="items-center justify-center py-8">
+            <MaterialIcons name="inbox" size={48} color="gray" />
+            <Text className="text-gray-500 mt-2 font-pmedium">
+              Chưa có đơn hàng nào
             </Text>
           </View>
         }
       />
     </SafeAreaView>
   );
-};
-
-export default OrdersScreen;
+}

@@ -209,3 +209,29 @@ export type UserSettingType = {
   is_notification: number;
   deleted_at: string | null;
 } & TimeStampType;
+
+export interface ProviderStatistics {
+  total_services: number;
+  order_statistics: {
+    total_orders: number;
+    completed_orders: number;
+    cancelled_orders: number;
+    pending_orders: number;
+    total_revenue: number;
+  };
+  monthly_revenue: Array<{
+    month: number;
+    year: number;
+    revenue: number;
+  }>;
+}
+
+export interface ProviderService extends ServiceType {
+  provider_id: number;
+  status: "active" | "inactive" | "pending";
+}
+
+export interface ProviderOrder extends OrderType {
+  provider_id: number;
+  service: ProviderService;
+}

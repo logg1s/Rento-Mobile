@@ -12,7 +12,14 @@ import { router } from "expo-router";
 import useRentoData from "@/stores/dataStore";
 import { OrderCard } from "@/components/OrderCard";
 
-const DashboardScreen = () => {
+interface StatCardProps {
+  title: string;
+  value: number | string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}
+
+export default function DashboardScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const user = useRentoData((state) => state.user);
   const [stats, setStats] = useState({
@@ -28,7 +35,7 @@ const DashboardScreen = () => {
     setIsRefreshing(false);
   };
 
-  const StatCard = ({ title, value, icon, color }) => (
+  const StatCard = ({ title, value, icon, color }: StatCardProps) => (
     <View className="bg-white p-4 rounded-xl flex-1 mx-2">
       <View
         className={`w-10 h-10 rounded-full ${color} items-center justify-center mb-2`}
@@ -112,7 +119,7 @@ const DashboardScreen = () => {
           <Text className="text-xl font-pbold mb-4">Thao tác nhanh</Text>
           <View className="flex-row flex-wrap gap-4">
             <TouchableOpacity
-              onPress={() => router.push("/provider/services/new")}
+              onPress={() => router.push("/provider/services")}
               className="bg-white p-4 rounded-xl flex-row items-center flex-1"
             >
               <Ionicons name="add-circle-outline" size={24} color="#0286FF" />
@@ -130,6 +137,4 @@ const DashboardScreen = () => {
       </ScrollView>
     </SafeAreaView>
   );
-};
-
-export default DashboardScreen;
+}
