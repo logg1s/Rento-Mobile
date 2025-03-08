@@ -34,6 +34,12 @@ type AuthState = {
   verifyEmailCode: (email: string, code: string) => Promise<any>;
   resendVerificationCode: (email: string) => Promise<any>;
   setTempPassword: (password: string) => void;
+  forgotPassword: (email: string) => Promise<boolean>;
+  verifyForgotPassword: (
+    email: string,
+    code: string,
+    newPassword: string
+  ) => Promise<boolean>;
 };
 const key = "jwtToken";
 
@@ -235,6 +241,37 @@ const useAuthStore = create<AuthState>((set, get) => ({
       return result;
     } catch (error: any) {
       console.error("Lỗi khi gửi lại mã xác thực:", error?.response?.data);
+      throw error;
+    }
+  },
+  forgotPassword: async (email: string) => {
+    try {
+      const result = await axiosFetch("/auth/forgot-password", "POST", {
+        email,
+      });
+      return result?.status === 200;
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi gửi yêu cầu quên mật khẩu:",
+        error?.response?.data
+      );
+      throw error;
+    }
+  },
+  verifyForgotPassword: async (
+    email: string,
+    code: string,
+    newPassword: string
+  ) => {
+    try {
+      const result = await axiosFetch("/auth/verify-forgot-password", "POST", {
+        email,
+        code,
+        new_password: newPassword,
+      });
+      return result?.status === 200;
+    } catch (error: any) {
+      console.error("Lỗi khi xác thực quên mật khẩu:", error?.response?.data);
       throw error;
     }
   },
