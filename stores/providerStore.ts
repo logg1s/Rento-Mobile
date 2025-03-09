@@ -30,13 +30,29 @@ interface ProviderStore {
   addServicePrice: (
     serviceId: number,
     data: { price_name: string; price_value: number }
-  ) => Promise<void>;
+  ) => Promise<any>;
   updateServicePrice: (
     serviceId: number,
     priceId: number,
     data: { price_name: string; price_value: number }
   ) => Promise<void>;
   deleteServicePrice: (serviceId: number, priceId: number) => Promise<void>;
+  addServiceBenefit: (
+    serviceId: number,
+    data: { benefit_name: string; price_id: number[] }
+  ) => Promise<void>;
+  updateServiceBenefit: (
+    serviceId: number,
+    benefitId: number,
+    data: { benefit_name: string; price_id: number[] }
+  ) => Promise<void>;
+  deleteServiceBenefit: (serviceId: number, benefitId: number) => Promise<void>;
+  getIndependentBenefits: (serviceId: number) => Promise<any>;
+  attachBenefitsToPrice: (
+    priceId: number,
+    benefitIds: number[]
+  ) => Promise<void>;
+  detachBenefitFromPrice: (benefitId: number, priceId: number) => Promise<void>;
 }
 
 const useProviderStore = create<ProviderStore>((set, get) => ({
@@ -221,8 +237,13 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
   ) => {
     try {
       set({ isLoading: true, error: null });
-      await axiosFetch(`/provider/services/${serviceId}/prices`, "post", data);
+      const response = await axiosFetch(
+        `/provider/services/${serviceId}/prices`,
+        "post",
+        data
+      );
       set({ isLoading: false });
+      return response;
     } catch (error: any) {
       console.error(
         "Lỗi khi thêm gói dịch vụ:",
@@ -267,6 +288,158 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     } catch (error: any) {
       console.error("Lỗi khi xóa gói dịch vụ:", error?.response?.data || error);
       set({ error: "Không thể xóa gói dịch vụ", isLoading: false });
+      throw error;
+    }
+  },
+
+  addServiceBenefit: async (
+    serviceId: number,
+    data: { benefit_name: string; price_id: number[] }
+  ) => {
+    try {
+      set({ isLoading: true, error: null });
+      // Sử dụng API từ BenefitController
+      const payload = {
+        benefit_name: data.benefit_name,
+        service_id: serviceId,
+      };
+      // API create trong BenefitController không chấp nhận price_id
+      const response = await axiosFetch(`/benefits`, "post", payload);
+
+      // Sau khi tạo benefit, cập nhật liên kết với prices nếu có
+      if (response?.data?.id) {
+        const benefitId = response.data.id;
+
+        // Chỉ liên kết với prices nếu có price_id được chọn
+        if (data.price_id && data.price_id.length > 0) {
+          // Nếu có price_id được chọn, liên kết từng price_id với benefit
+          for (const priceId of data.price_id) {
+            await axiosFetch(`/benefits/${benefitId}`, "put", {
+              price_id: priceId,
+            });
+          }
+        }
+        // Không cần thêm else case vì chúng ta muốn benefit độc lập
+        // không liên kết với bất kỳ price nào
+      }
+
+      set({ isLoading: false });
+    } catch (error: any) {
+      console.error("Lỗi khi thêm lợi ích:", error?.response?.data || error);
+      set({ error: "Không thể thêm lợi ích", isLoading: false });
+      throw error;
+    }
+  },
+
+  updateServiceBenefit: async (
+    serviceId: number,
+    benefitId: number,
+    data: { benefit_name: string; price_id: number[] }
+  ) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // Cập nhật tên benefit và phải kèm theo ít nhất một price_id
+      // Nếu không có price_id nào được chọn trong form, lấy thông tin service để có danh sách prices
+      if (!data.price_id || data.price_id.length === 0) {
+        // Trước tiên lấy thông tin service để có danh sách prices
+        const service = await axiosFetch(`/provider/services/${serviceId}`);
+        if (service?.data?.price && service.data.price.length > 0) {
+          // Lấy price_id đầu tiên từ service, để đảm bảo có giá trị gửi đi
+          const firstPriceId = service.data.price[0].id;
+          // Cập nhật với price_id đầu tiên
+          await axiosFetch(`/benefits/${benefitId}`, "put", {
+            benefit_name: data.benefit_name,
+            price_id: firstPriceId,
+          });
+        } else {
+          // Nếu service không có price nào, chỉ gửi một request cập nhật tên
+          // Gửi một giá trị giả cho price_id để tránh lỗi
+          await axiosFetch(`/benefits/${benefitId}`, "put", {
+            benefit_name: data.benefit_name,
+            price_id: 0, // Giá trị này sẽ không tồn tại trong DB, nhưng sẽ tránh lỗi undefined key
+          });
+        }
+      } else {
+        // Nếu có price_id được chọn, cập nhật từng price_id với benefit
+        for (const priceId of data.price_id) {
+          await axiosFetch(`/benefits/${benefitId}`, "put", {
+            benefit_name: data.benefit_name,
+            price_id: priceId,
+          });
+        }
+      }
+
+      set({ isLoading: false });
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật lợi ích:",
+        error?.response?.data || error
+      );
+      set({ error: "Không thể cập nhật lợi ích", isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteServiceBenefit: async (serviceId: number, benefitId: number) => {
+    try {
+      set({ isLoading: true, error: null });
+      // API delete trong BenefitController
+      await axiosFetch(`/benefits/${benefitId}`, "delete");
+      set({ isLoading: false });
+    } catch (error: any) {
+      console.error("Lỗi khi xóa lợi ích:", error?.response?.data || error);
+      set({ error: "Không thể xóa lợi ích", isLoading: false });
+      throw error;
+    }
+  },
+
+  getIndependentBenefits: async (serviceId: number) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await axiosFetch(`/benefits/independent/${serviceId}`);
+      set({ isLoading: false });
+      return response?.data || [];
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi lấy lợi ích độc lập:",
+        error?.response?.data || error
+      );
+      set({ error: "Không thể lấy lợi ích độc lập", isLoading: false });
+      return [];
+    }
+  },
+
+  attachBenefitsToPrice: async (priceId: number, benefitIds: number[]) => {
+    try {
+      set({ isLoading: true, error: null });
+      await axiosFetch(`/benefits/attach-to-price/${priceId}`, "post", {
+        benefit_ids: benefitIds,
+      });
+      set({ isLoading: false });
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi gán lợi ích cho gói giá:",
+        error?.response?.data || error
+      );
+      set({ error: "Không thể gán lợi ích cho gói giá", isLoading: false });
+      throw error;
+    }
+  },
+
+  detachBenefitFromPrice: async (benefitId: number, priceId: number) => {
+    try {
+      set({ isLoading: true, error: null });
+      await axiosFetch(`/benefits/${benefitId}/detach-price`, "post", {
+        price_id: priceId,
+      });
+      set({ isLoading: false });
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi xóa liên kết lợi ích:",
+        error?.response?.data || error
+      );
+      set({ error: "Không thể xóa liên kết lợi ích", isLoading: false });
       throw error;
     }
   },

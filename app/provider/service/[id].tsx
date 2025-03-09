@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
-import { Ionicons, FontAwesome, Entypo } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, Entypo, Octicons } from "@expo/vector-icons";
 import useProviderStore from "@/stores/providerStore";
-import { ServiceType, PriceType, CommentType } from "@/types/type";
+import { ServiceType, PriceType, CommentType, BenefitType } from "@/types/type";
 import {
   getImageSource,
   formatToVND,
@@ -78,6 +78,23 @@ const ProviderServiceDetail = () => {
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [serviceComments, setServiceComments] = useState<CommentType[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [showAddBenefitModal, setShowAddBenefitModal] = useState(false);
+  const [showEditBenefitModal, setShowEditBenefitModal] = useState(false);
+  const [selectedBenefit, setSelectedBenefit] = useState<BenefitType | null>(
+    null
+  );
+  const [benefitForm, setBenefitForm] = useState({
+    benefit_name: "",
+    price_id: [] as number[],
+  });
+  const [selectedBenefitsForPrice, setSelectedBenefitsForPrice] = useState<
+    number[]
+  >([]);
+  const [linkedBenefits, setLinkedBenefits] = useState<number[]>([]);
+  const [benefitsToDetach, setBenefitsToDetach] = useState<number[]>([]);
+  const [independentBenefits, setIndependentBenefits] = useState<BenefitType[]>(
+    []
+  );
   const {
     fetchServiceById,
     updateService,
@@ -85,6 +102,12 @@ const ProviderServiceDetail = () => {
     addServicePrice,
     updateServicePrice,
     deleteServicePrice,
+    addServiceBenefit,
+    updateServiceBenefit,
+    deleteServiceBenefit,
+    getIndependentBenefits,
+    attachBenefitsToPrice,
+    detachBenefitFromPrice,
   } = useProviderStore();
   const categories = useRentoStore((state) => state.categories);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -185,6 +208,36 @@ const ProviderServiceDetail = () => {
           setImages(imageUrls);
         } else {
           setImages([]);
+        }
+
+        // Nếu có benefits, đảm bảo chúng được hiển thị
+        if (!data.benefit || data.benefit.length === 0) {
+          // Nếu không có benefit trong response, có thể cần gọi API riêng để lấy benefits
+          try {
+            const benefitResponse = await axiosFetch(`/benefits/service/${id}`);
+            if (benefitResponse?.data) {
+              data.benefit = benefitResponse.data;
+              setService({ ...data });
+            }
+          } catch (benefitError) {
+            console.error("Lỗi khi tải benefits:", benefitError);
+          }
+        }
+
+        // Lấy danh sách benefits độc lập
+        try {
+          const independentBenefitsResponse = await getIndependentBenefits(
+            Number(id)
+          );
+          if (
+            independentBenefitsResponse &&
+            typeof independentBenefitsResponse === "object" &&
+            "data" in independentBenefitsResponse
+          ) {
+            setIndependentBenefits(independentBenefitsResponse.data || []);
+          }
+        } catch (error) {
+          console.error("Lỗi khi lấy benefits độc lập:", error);
         }
       }
     } catch (error: any) {
@@ -404,13 +457,45 @@ const ProviderServiceDetail = () => {
         return;
       }
 
-      await addServicePrice(service.id, {
+      // Thêm giá
+      const priceData = {
         price_name: priceForm.price_name,
         price_value: priceValue,
-      });
+      };
+
+      // Gọi API và xử lý response
+      try {
+        const response = await addServicePrice(service.id, priceData);
+
+        // Xử lý response an toàn
+        let newPriceId = null;
+        if (
+          response &&
+          typeof response === "object" &&
+          "data" in response &&
+          response.data &&
+          response.data.id
+        ) {
+          newPriceId = response.data.id;
+
+          // Nếu có benefits được chọn và tạo giá thành công
+          if (selectedBenefitsForPrice.length > 0 && newPriceId) {
+            // Sử dụng API mới để liên kết hàng loạt
+            try {
+              await attachBenefitsToPrice(newPriceId, selectedBenefitsForPrice);
+            } catch (linkError) {
+              console.error("Lỗi khi liên kết benefits với price:", linkError);
+            }
+          }
+        }
+      } catch (apiError) {
+        console.error("Lỗi API khi thêm giá:", apiError);
+        throw apiError;
+      }
 
       setShowAddPriceModal(false);
       setPriceForm({ price_name: "", price_value: "" });
+      setSelectedBenefitsForPrice([]);
       Alert.alert("Thành công", "Thêm gói dịch vụ thành công");
       fetchData();
     } catch (error: any) {
@@ -432,14 +517,41 @@ const ProviderServiceDetail = () => {
         return;
       }
 
+      // Cập nhật thông tin giá
       await updateServicePrice(service.id, selectedPrice.id, {
         price_name: priceForm.price_name,
         price_value: priceValue,
       });
 
+      // Xử lý các benefits đã bỏ chọn (cần detach)
+      if (benefitsToDetach.length > 0) {
+        for (const benefitId of benefitsToDetach) {
+          try {
+            await detachBenefitFromPrice(benefitId, selectedPrice.id);
+          } catch (detachError) {
+            console.error("Lỗi khi xóa liên kết benefit:", detachError);
+          }
+        }
+      }
+
+      // Liên kết các benefits mới được chọn với price
+      if (selectedBenefitsForPrice.length > 0) {
+        try {
+          await attachBenefitsToPrice(
+            selectedPrice.id,
+            selectedBenefitsForPrice
+          );
+        } catch (linkError) {
+          console.error("Lỗi khi liên kết benefits với price:", linkError);
+        }
+      }
+
       setShowEditPriceModal(false);
       setSelectedPrice(null);
       setPriceForm({ price_name: "", price_value: "" });
+      setSelectedBenefitsForPrice([]);
+      setLinkedBenefits([]);
+      setBenefitsToDetach([]);
       Alert.alert("Thành công", "Cập nhật gói dịch vụ thành công");
       fetchData();
     } catch (error: any) {
@@ -551,6 +663,203 @@ const ProviderServiceDetail = () => {
       newImageFiles.splice(newImageIndex, 1);
       setImageFiles(newImageFiles);
     }
+  };
+
+  // Các ví dụ về benefit nên được hiển thị
+  const benefitExamples = [
+    "Bảo hành 12 tháng",
+    "Hỗ trợ 24/7",
+    "Giao hàng tận nơi",
+    "Tư vấn trực tiếp",
+    "Hướng dẫn sử dụng",
+  ];
+
+  // Hàm lấy ví dụ ngẫu nhiên
+  const getRandomBenefitExample = () => {
+    const randomIndex = Math.floor(Math.random() * benefitExamples.length);
+    return benefitExamples[randomIndex];
+  };
+
+  // Functions for benefits
+  const handleAddBenefit = async () => {
+    if (!service) return;
+
+    try {
+      if (!benefitForm.benefit_name) {
+        Alert.alert("Lỗi", "Vui lòng nhập tên lợi ích");
+        return;
+      }
+
+      await addServiceBenefit(service.id, {
+        benefit_name: benefitForm.benefit_name,
+        price_id: benefitForm.price_id,
+      });
+
+      setShowAddBenefitModal(false);
+      setBenefitForm({ benefit_name: "", price_id: [] });
+      Alert.alert("Thành công", "Thêm lợi ích thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error("Lỗi khi thêm lợi ích:", error?.response?.data || error);
+      let errorMessage = "Không thể thêm lợi ích. Vui lòng thử lại sau.";
+
+      if (error?.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        const errorDetails = Object.keys(errors)
+          .map((key) => `${key}: ${errors[key].join(", ")}`)
+          .join("\n");
+
+        errorMessage = `Lỗi dữ liệu:\n${errorDetails}`;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      Alert.alert("Lỗi", errorMessage);
+    }
+  };
+
+  const handleUpdateBenefit = async () => {
+    if (!service || !selectedBenefit) return;
+
+    try {
+      if (!benefitForm.benefit_name) {
+        Alert.alert("Lỗi", "Vui lòng nhập tên lợi ích");
+        return;
+      }
+
+      await updateServiceBenefit(service.id, selectedBenefit.id, {
+        benefit_name: benefitForm.benefit_name,
+        price_id: benefitForm.price_id,
+      });
+
+      setShowEditBenefitModal(false);
+      setSelectedBenefit(null);
+      setBenefitForm({ benefit_name: "", price_id: [] });
+      Alert.alert("Thành công", "Cập nhật lợi ích thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật lợi ích:",
+        error?.response?.data || error
+      );
+      let errorMessage = "Không thể cập nhật lợi ích. Vui lòng thử lại sau.";
+
+      if (error?.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        const errorDetails = Object.keys(errors)
+          .map((key) => `${key}: ${errors[key].join(", ")}`)
+          .join("\n");
+
+        errorMessage = `Lỗi dữ liệu:\n${errorDetails}`;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      Alert.alert("Lỗi", errorMessage);
+    }
+  };
+
+  const handleDeleteBenefit = async (benefitId: number) => {
+    if (!service) return;
+
+    try {
+      await deleteServiceBenefit(service.id, benefitId);
+
+      Alert.alert("Thành công", "Xóa lợi ích thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error("Lỗi khi xóa lợi ích:", error?.response?.data || error);
+      Alert.alert("Lỗi", "Không thể xóa lợi ích. Vui lòng thử lại sau.");
+    }
+  };
+
+  const togglePriceSelection = (priceId: number) => {
+    setBenefitForm((prev) => {
+      const newPriceIds = [...prev.price_id];
+      const index = newPriceIds.indexOf(priceId);
+
+      if (index > -1) {
+        newPriceIds.splice(index, 1); // Remove price if already selected
+      } else {
+        newPriceIds.push(priceId); // Add price if not selected
+      }
+
+      return { ...prev, price_id: newPriceIds };
+    });
+  };
+
+  // Hàm chuyển đổi trạng thái chọn benefit trong modal price
+  const toggleBenefitForPrice = (benefitId: number) => {
+    setSelectedBenefitsForPrice((prev) => {
+      if (prev.includes(benefitId)) {
+        return prev.filter((id) => id !== benefitId);
+      } else {
+        return [...prev, benefitId];
+      }
+    });
+  };
+
+  // Hàm xử lý khi bỏ chọn một benefit đã liên kết
+  const toggleLinkedBenefit = (benefitId: number) => {
+    // Nếu benefit đã có trong danh sách cần bỏ, xóa nó ra
+    if (benefitsToDetach.includes(benefitId)) {
+      setBenefitsToDetach((prev) => prev.filter((id) => id !== benefitId));
+    } else {
+      // Thêm vào danh sách cần bỏ
+      setBenefitsToDetach((prev) => [...prev, benefitId]);
+    }
+  };
+
+  // Hàm để chọn tất cả hoặc bỏ chọn tất cả benefits
+  const selectAllBenefits = (select: boolean) => {
+    if (select) {
+      if (service?.benefit) {
+        // Nếu đang ở modal sửa giá, chỉ chọn các benefit chưa liên kết
+        if (showEditPriceModal) {
+          const unlinkedBenefits = service.benefit
+            .filter((benefit) => !linkedBenefits.includes(benefit.id))
+            .map((benefit) => benefit.id);
+          setSelectedBenefitsForPrice(unlinkedBenefits);
+        } else if (showAddPriceModal) {
+          // Nếu đang ở modal thêm giá, chọn tất cả
+          const allBenefitIds = service.benefit.map((benefit) => benefit.id);
+          setSelectedBenefitsForPrice(allBenefitIds);
+        } else if (showAddBenefitModal || showEditBenefitModal) {
+          // Nếu đang ở modal thêm/sửa benefit, chọn tất cả price
+          if (service.price) {
+            const allPriceIds = service.price.map((price) => price.id);
+            setBenefitForm((prev) => ({
+              ...prev,
+              price_id: allPriceIds,
+            }));
+          }
+        }
+      }
+    } else {
+      // Bỏ chọn tất cả
+      if (showAddBenefitModal || showEditBenefitModal) {
+        // Nếu đang ở modal thêm/sửa benefit, bỏ chọn tất cả price
+        setBenefitForm((prev) => ({
+          ...prev,
+          price_id: [],
+        }));
+      } else {
+        // Nếu đang ở modal thêm/sửa giá, bỏ chọn tất cả benefit
+        setSelectedBenefitsForPrice([]);
+      }
+    }
+  };
+
+  // Hàm để bỏ chọn tất cả benefits đã liên kết
+  const detachAllBenefits = () => {
+    if (service?.benefit && linkedBenefits.length > 0) {
+      setBenefitsToDetach(linkedBenefits);
+    }
+  };
+
+  // Hàm để khôi phục tất cả benefits đã bỏ chọn
+  const restoreAllBenefits = () => {
+    setBenefitsToDetach([]);
   };
 
   service?.images?.map((image) => {});
@@ -669,8 +978,10 @@ const ProviderServiceDetail = () => {
                 key={price.id}
                 className="bg-gray-100 p-4 rounded-lg mb-3 flex-row justify-between items-center"
               >
-                <View>
-                  <Text className="font-pmedium">{price.price_name}</Text>
+                <View className="flex-1">
+                  <Text className="font-pmedium" numberOfLines={2}>
+                    {price.price_name}
+                  </Text>
                   <Text className="font-pbold text-primary-500">
                     {formatToVND(price.price_value)}
                   </Text>
@@ -685,6 +996,24 @@ const ProviderServiceDetail = () => {
                           price.price_value.toString()
                         ),
                       });
+
+                      // Lấy danh sách benefits đã liên kết với price này
+                      const linkedBenefitIds: number[] = [];
+                      if (service?.benefit) {
+                        service.benefit.forEach((benefit) => {
+                          if (
+                            Array.isArray(benefit.price_id) &&
+                            benefit.price_id.includes(price.id)
+                          ) {
+                            linkedBenefitIds.push(benefit.id);
+                          }
+                        });
+                      }
+                      setLinkedBenefits(linkedBenefitIds);
+                      setBenefitsToDetach([]);
+
+                      // Reset selected benefits cho price
+                      setSelectedBenefitsForPrice([]);
                       setShowEditPriceModal(true);
                     }}
                     className="mr-3"
@@ -715,6 +1044,101 @@ const ProviderServiceDetail = () => {
           ) : (
             <Text className="text-center text-gray-500 py-4">
               Chưa có gói dịch vụ nào
+            </Text>
+          )}
+        </View>
+
+        {/* Lợi ích dịch vụ */}
+        <View className="p-5 bg-white mt-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="font-pbold text-xl">Lợi ích dịch vụ</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setBenefitForm({ benefit_name: "", price_id: [] });
+                setShowAddBenefitModal(true);
+              }}
+              className="bg-primary-500 px-3 py-1 rounded-full"
+            >
+              <Text className="text-white font-pmedium">Thêm lợi ích</Text>
+            </TouchableOpacity>
+          </View>
+
+          {service?.benefit && service.benefit.length > 0 ? (
+            service.benefit.map((benefit) => (
+              <View
+                key={benefit.id}
+                className="bg-gray-100 p-4 rounded-lg mb-3"
+              >
+                <View className="flex-row justify-between items-center">
+                  <Text className="font-pmedium flex-1 mr-2">
+                    {benefit.benefit_name}
+                  </Text>
+                  <View className="flex-row">
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedBenefit(benefit);
+                        setBenefitForm({
+                          benefit_name: benefit.benefit_name,
+                          price_id: benefit.price_id || [],
+                        });
+                        setShowEditBenefitModal(true);
+                      }}
+                      className="mr-3"
+                    >
+                      <Ionicons name="create-outline" size={20} color="black" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        Alert.alert(
+                          "Xác nhận",
+                          "Bạn có chắc chắn muốn xóa lợi ích này?",
+                          [
+                            { text: "Hủy", style: "cancel" },
+                            {
+                              text: "Xóa",
+                              style: "destructive",
+                              onPress: () => handleDeleteBenefit(benefit.id),
+                            },
+                          ]
+                        );
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="red" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {benefit.price_id && benefit.price_id.length > 0 ? (
+                  <View className="mt-2">
+                    <View className="flex-row flex-wrap mt-1">
+                      {service.price
+                        ?.filter(
+                          (price) =>
+                            Array.isArray(benefit.price_id) &&
+                            benefit.price_id.includes(price.id)
+                        )
+                        .map((price) => (
+                          <View
+                            key={price.id}
+                            className="px-3 py-1 rounded-full mr-2 mt-1 bg-gray-200"
+                          >
+                            <Text className="text-sm text-gray-600">
+                              {price.price_name}
+                            </Text>
+                          </View>
+                        ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text className="text-gray-500 mt-1 italic text-sm">
+                    Lợi ích độc lập - Chưa gắn với gói nào
+                  </Text>
+                )}
+              </View>
+            ))
+          ) : (
+            <Text className="text-center text-gray-500 py-4">
+              Chưa có lợi ích nào được thêm
             </Text>
           )}
         </View>
@@ -951,7 +1375,7 @@ const ProviderServiceDetail = () => {
             <Text className="font-pbold text-xl">Thêm gói dịch vụ</Text>
           </View>
 
-          <View className="p-4">
+          <ScrollView className="p-4">
             <View className="mb-4">
               <Text className="font-pmedium mb-2">Tên gói</Text>
               <TextInput
@@ -977,72 +1401,77 @@ const ProviderServiceDetail = () => {
                 className="bg-white p-3 rounded-lg border border-gray-300"
               />
             </View>
-          </View>
 
-          <View className="p-4 mt-auto bg-white">
-            <CustomButton
-              title="Thêm gói dịch vụ"
-              onPress={handleAddPrice}
-              containerStyles="bg-primary-500"
-              isDisabled={!priceForm.price_name || !priceForm.price_value}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
+            {/* Phần chọn benefits */}
+            {service?.benefit && service.benefit.length > 0 && (
+              <View className="mb-4">
+                <Text className="font-pmedium mb-2">Các lợi ích áp dụng:</Text>
 
-      {/* Modal chỉnh sửa gói dịch vụ */}
-      <Modal
-        visible={showEditPriceModal}
-        animationType="slide"
-        onRequestClose={() => setShowEditPriceModal(false)}
-      >
-        <SafeAreaView className="flex-1 bg-gray-100">
-          <View className="flex-row items-center bg-white p-4">
-            <TouchableOpacity
-              onPress={() => setShowEditPriceModal(false)}
-              className="mr-4"
-            >
-              <Ionicons name="close" size={24} color="black" />
-            </TouchableOpacity>
-            <Text className="font-pbold text-xl">Chỉnh sửa gói dịch vụ</Text>
-          </View>
+                {/* Nút chọn/bỏ chọn tất cả */}
+                <View className="flex-row justify-between mb-2">
+                  <TouchableOpacity
+                    onPress={() => selectAllBenefits(true)}
+                    className="bg-blue-500 px-3 py-1 rounded"
+                  >
+                    <Text className="text-white font-pmedium">Chọn tất cả</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => selectAllBenefits(false)}
+                    className="bg-gray-500 px-3 py-1 rounded"
+                  >
+                    <Text className="text-white font-pmedium">
+                      Bỏ chọn tất cả
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-          <View className="p-4">
-            <View className="mb-4">
-              <Text className="font-pmedium mb-2">Tên gói</Text>
-              <TextInput
-                value={priceForm.price_name}
-                onChangeText={(text) =>
-                  setPriceForm({ ...priceForm, price_name: text })
-                }
-                placeholder="Ví dụ: Gói cơ bản, Gói cao cấp..."
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                <View className="bg-white p-3 rounded-lg border border-gray-300">
+                  {service.benefit.map((benefit) => (
+                    <TouchableOpacity
+                      key={benefit.id}
+                      onPress={() => toggleBenefitForPrice(benefit.id)}
+                      className="flex-row items-center py-2 border-b border-gray-100"
+                    >
+                      <View
+                        className={`w-6 h-6 rounded-md border mr-2 items-center justify-center ${
+                          selectedBenefitsForPrice.includes(benefit.id)
+                            ? "bg-primary-500 border-primary-500"
+                            : "border-gray-400"
+                        }`}
+                      >
+                        {selectedBenefitsForPrice.includes(benefit.id) && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </View>
+                      <Text className="font-pmedium">
+                        {benefit.benefit_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View className="mt-2 flex-row justify-end">
+                  <TouchableOpacity
+                    onPress={() => setShowAddBenefitModal(true)}
+                    className="bg-gray-200 py-1 px-3 rounded-full"
+                  >
+                    <Text className="font-pmedium text-gray-700">
+                      + Thêm lợi ích mới
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Nút thao tác đặt ở đây, sau các mục nhập */}
+            <View className="mt-4 mb-10">
+              <CustomButton
+                title="Thêm gói dịch vụ"
+                onPress={handleAddPrice}
+                containerStyles="bg-primary-500"
+                isDisabled={!priceForm.price_name || !priceForm.price_value}
               />
             </View>
-
-            <View className="mb-4">
-              <Text className="font-pmedium mb-2">Giá (VNĐ)</Text>
-              <TextInput
-                value={priceForm.price_value}
-                onChangeText={(text) => {
-                  const formattedValue = formatPriceInput(text);
-                  setPriceForm({ ...priceForm, price_value: formattedValue });
-                }}
-                placeholder="Nhập giá dịch vụ"
-                keyboardType="numeric"
-                className="bg-white p-3 rounded-lg border border-gray-300"
-              />
-            </View>
-          </View>
-
-          <View className="p-4 mt-auto bg-white">
-            <CustomButton
-              title="Cập nhật gói dịch vụ"
-              onPress={handleUpdatePrice}
-              containerStyles="bg-primary-500"
-              isDisabled={!priceForm.price_name || !priceForm.price_value}
-            />
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
 
@@ -1127,6 +1556,454 @@ const ProviderServiceDetail = () => {
               }
             />
           )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal thêm lợi ích */}
+      <Modal
+        visible={showAddBenefitModal}
+        animationType="slide"
+        onRequestClose={() => setShowAddBenefitModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowAddBenefitModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Thêm lợi ích dịch vụ</Text>
+          </View>
+
+          <ScrollView className="p-4">
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Tên lợi ích</Text>
+              <TextInput
+                value={benefitForm.benefit_name}
+                onChangeText={(text) =>
+                  setBenefitForm({ ...benefitForm, benefit_name: text })
+                }
+                placeholder={`Ví dụ: ${getRandomBenefitExample()}`}
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+
+            {service?.price && service.price.length > 0 && (
+              <View className="mb-4">
+                <Text className="font-pmedium mb-2">Áp dụng cho các gói:</Text>
+
+                {/* Nút chọn/bỏ chọn tất cả */}
+                <View className="flex-row justify-between mb-2">
+                  <TouchableOpacity
+                    onPress={() => selectAllBenefits(true)}
+                    className="bg-blue-500 px-3 py-1 rounded"
+                  >
+                    <Text className="text-white font-pmedium">Chọn tất cả</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => selectAllBenefits(false)}
+                    className="bg-gray-500 px-3 py-1 rounded"
+                  >
+                    <Text className="text-white font-pmedium">
+                      Bỏ chọn tất cả
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View className="bg-white p-3 rounded-lg border border-gray-300 mb-2">
+                  {service.price.map((price) => (
+                    <TouchableOpacity
+                      key={price.id}
+                      onPress={() => togglePriceSelection(price.id)}
+                      className="flex-row items-center py-2 border-b border-gray-100"
+                    >
+                      <View
+                        className={`w-6 h-6 rounded-md border mr-2 items-center justify-center ${
+                          benefitForm.price_id.includes(price.id)
+                            ? "bg-primary-500 border-primary-500"
+                            : "border-gray-400"
+                        }`}
+                      >
+                        {benefitForm.price_id.includes(price.id) && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </View>
+                      <Text className="font-pmedium">{price.price_name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View className="bg-blue-100 p-2 rounded-lg mb-2">
+                  <Text className="text-blue-800 font-pmedium text-sm">
+                    Nếu không chọn gói nào, lợi ích sẽ được tạo dưới dạng "lợi
+                    ích độc lập" và không áp dụng cho gói cụ thể nào. Bạn có thể
+                    gán lợi ích này cho các gói dịch vụ sau.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View className="bg-blue-100 p-3 rounded-lg mb-4">
+              <Text className="text-blue-800 font-pmedium">
+                Ví dụ về lợi ích dịch vụ:
+              </Text>
+              <View className="ml-2 mt-1">
+                {benefitExamples.map((example, index) => (
+                  <Text key={index} className="text-blue-700 text-sm">
+                    • {example}
+                  </Text>
+                ))}
+              </View>
+            </View>
+
+            {/* Nút thao tác đặt ở đây, sau các mục nhập */}
+            <View className="mt-4 mb-10">
+              <CustomButton
+                title="Thêm lợi ích"
+                onPress={handleAddBenefit}
+                containerStyles="bg-primary-500"
+                isDisabled={!benefitForm.benefit_name}
+              />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal chỉnh sửa lợi ích */}
+      <Modal
+        visible={showEditBenefitModal}
+        animationType="slide"
+        onRequestClose={() => setShowEditBenefitModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowEditBenefitModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Chỉnh sửa lợi ích</Text>
+          </View>
+
+          <ScrollView className="p-4">
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Tên lợi ích</Text>
+              <TextInput
+                value={benefitForm.benefit_name}
+                onChangeText={(text) =>
+                  setBenefitForm({ ...benefitForm, benefit_name: text })
+                }
+                placeholder={`Ví dụ: ${getRandomBenefitExample()}`}
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+
+            {service?.price && service.price.length > 0 && (
+              <View className="mb-4">
+                <Text className="font-pmedium mb-2">Áp dụng cho các gói:</Text>
+
+                {/* Nút chọn/bỏ chọn tất cả */}
+                <View className="flex-row justify-between mb-2">
+                  <TouchableOpacity
+                    onPress={() => selectAllBenefits(true)}
+                    className="bg-blue-500 px-3 py-1 rounded"
+                  >
+                    <Text className="text-white font-pmedium">Chọn tất cả</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => selectAllBenefits(false)}
+                    className="bg-gray-500 px-3 py-1 rounded"
+                  >
+                    <Text className="text-white font-pmedium">
+                      Bỏ chọn tất cả
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View className="bg-white p-3 rounded-lg border border-gray-300 mb-2">
+                  {service.price.map((price) => (
+                    <TouchableOpacity
+                      key={price.id}
+                      onPress={() => togglePriceSelection(price.id)}
+                      className="flex-row items-center py-2 border-b border-gray-100"
+                    >
+                      <View
+                        className={`w-6 h-6 rounded-md border mr-2 items-center justify-center ${
+                          benefitForm.price_id.includes(price.id)
+                            ? "bg-primary-500 border-primary-500"
+                            : "border-gray-400"
+                        }`}
+                      >
+                        {benefitForm.price_id.includes(price.id) && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </View>
+                      <View className="flex-1">
+                        <Text className="font-pmedium">{price.price_name}</Text>
+                        {benefitForm.price_id.includes(price.id) && (
+                          <Text className="text-green-600 text-xs">
+                            Đã áp dụng
+                          </Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View className="bg-blue-100 p-2 rounded-lg mb-2">
+                  <Text className="text-blue-800 font-pmedium text-sm">
+                    Chọn thêm gói mới sẽ áp dụng lợi ích cho các gói đó. Hiện
+                    tại, hệ thống chỉ hỗ trợ thêm liên kết mới, không thể xóa
+                    các liên kết đã tạo từ trước thông qua chức năng này.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View className="bg-blue-100 p-3 rounded-lg mb-4">
+              <Text className="text-blue-800 font-pmedium">Thông tin:</Text>
+              <Text className="text-blue-700 text-sm mt-1">
+                • Lợi ích độc lập: không liên kết với gói nào, có thể gán cho
+                các gói sau này.
+              </Text>
+              <Text className="text-blue-700 text-sm mt-1">
+                • Lợi ích đã liên kết: đã áp dụng cho một hoặc nhiều gói dịch
+                vụ.
+              </Text>
+            </View>
+
+            {/* Nút thao tác đặt ở đây, sau các mục nhập */}
+            <View className="mt-4 mb-10">
+              <CustomButton
+                title="Cập nhật lợi ích"
+                onPress={handleUpdateBenefit}
+                containerStyles="bg-primary-500"
+                isDisabled={!benefitForm.benefit_name}
+              />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal chỉnh sửa gói dịch vụ */}
+      <Modal
+        visible={showEditPriceModal}
+        animationType="slide"
+        onRequestClose={() => setShowEditPriceModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowEditPriceModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Chỉnh sửa gói dịch vụ</Text>
+          </View>
+
+          <ScrollView className="p-4">
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Tên gói</Text>
+              <TextInput
+                value={priceForm.price_name}
+                onChangeText={(text) =>
+                  setPriceForm({ ...priceForm, price_name: text })
+                }
+                placeholder="Ví dụ: Gói cơ bản, Gói cao cấp..."
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Giá (VNĐ)</Text>
+              <TextInput
+                value={priceForm.price_value}
+                onChangeText={(text) => {
+                  const formattedValue = formatPriceInput(text);
+                  setPriceForm({ ...priceForm, price_value: formattedValue });
+                }}
+                placeholder="Nhập giá dịch vụ"
+                keyboardType="numeric"
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+
+            {/* Phần chọn benefits */}
+            {service?.benefit && service.benefit.length > 0 && (
+              <View className="mb-4">
+                <Text className="font-pmedium mb-2">Các lợi ích áp dụng:</Text>
+
+                {/* Các benefits đã liên kết */}
+                {linkedBenefits.length > 0 && (
+                  <View className="mb-2">
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-sm font-pmedium text-gray-700">
+                        Lợi ích đã liên kết:
+                      </Text>
+                      {/* Nút bỏ chọn/khôi phục tất cả */}
+                      <View className="flex-row">
+                        <TouchableOpacity
+                          onPress={detachAllBenefits}
+                          className="bg-red-500 px-2 py-1 rounded mr-1"
+                        >
+                          <Text className="text-white text-xs">Bỏ tất cả</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={restoreAllBenefits}
+                          className="bg-green-500 px-2 py-1 rounded"
+                        >
+                          <Text className="text-white text-xs">Khôi phục</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View className="bg-white p-3 rounded-lg border border-gray-300">
+                      {service.benefit
+                        .filter((benefit) =>
+                          linkedBenefits.includes(benefit.id)
+                        )
+                        .map((benefit) => (
+                          <TouchableOpacity
+                            key={benefit.id}
+                            onPress={() => toggleLinkedBenefit(benefit.id)}
+                            className="flex-row items-center py-2 border-b border-gray-100"
+                          >
+                            <View
+                              className={`w-6 h-6 rounded-md border mr-2 items-center justify-center ${
+                                benefitsToDetach.includes(benefit.id)
+                                  ? "bg-red-500 border-red-500"
+                                  : "bg-green-500 border-green-500"
+                              }`}
+                            >
+                              {!benefitsToDetach.includes(benefit.id) ? (
+                                <Ionicons
+                                  name="checkmark"
+                                  size={16}
+                                  color="white"
+                                />
+                              ) : (
+                                <Ionicons
+                                  name="close"
+                                  size={16}
+                                  color="white"
+                                />
+                              )}
+                            </View>
+                            <View className="flex-1">
+                              <Text className="font-pmedium">
+                                {benefit.benefit_name}
+                              </Text>
+                              {benefitsToDetach.includes(benefit.id) ? (
+                                <Text className="text-red-600 text-xs">
+                                  Huỷ liên kết với lợi ích này
+                                </Text>
+                              ) : (
+                                <Text className="text-green-600 text-xs">
+                                  Đã liên kết
+                                </Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Các benefits có thể thêm */}
+
+                {service.benefit.filter(
+                  (benefit) => !linkedBenefits.includes(benefit.id)
+                ).length > 0 && (
+                  <View>
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-sm font-pmedium text-gray-700">
+                        Thêm lợi ích mới:
+                      </Text>
+                      {/* Nút chọn/bỏ chọn tất cả benefits mới */}
+                      <View className="flex-row">
+                        <TouchableOpacity
+                          onPress={() => selectAllBenefits(true)}
+                          className="bg-blue-500 px-2 py-1 rounded mr-1"
+                        >
+                          <Text className="text-white text-xs">
+                            Chọn tất cả
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => selectAllBenefits(false)}
+                          className="bg-gray-500 px-2 py-1 rounded"
+                        >
+                          <Text className="text-white text-xs">Bỏ chọn</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View className="bg-white p-3 rounded-lg border border-gray-300">
+                      {service.benefit
+                        .filter(
+                          (benefit) => !linkedBenefits.includes(benefit.id)
+                        )
+                        .map((benefit) => (
+                          <TouchableOpacity
+                            key={benefit.id}
+                            onPress={() => toggleBenefitForPrice(benefit.id)}
+                            className="flex-row items-center py-2 border-b border-gray-100"
+                          >
+                            <View
+                              className={`w-6 h-6 rounded-md border mr-2 items-center justify-center ${
+                                selectedBenefitsForPrice.includes(benefit.id)
+                                  ? "bg-primary-500 border-primary-500"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {selectedBenefitsForPrice.includes(
+                                benefit.id
+                              ) && (
+                                <Ionicons
+                                  name="checkmark"
+                                  size={16}
+                                  color="white"
+                                />
+                              )}
+                            </View>
+                            <Text className="font-pmedium">
+                              {benefit.benefit_name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  </View>
+                )}
+
+                <View className="mt-2 flex-row justify-end">
+                  <TouchableOpacity
+                    onPress={() => setShowAddBenefitModal(true)}
+                    className="bg-gray-200 py-1 px-3 rounded-full"
+                  >
+                    <Text className="font-pmedium text-gray-700">
+                      + Thêm lợi ích mới
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View className="bg-blue-100 p-2 rounded-lg mt-2">
+                  <Text className="text-blue-800 font-pmedium text-sm">
+                    Bạn có thể bỏ chọn lợi ích đã liên kết hoặc thêm lợi ích mới
+                    cho gói dịch vụ này. Sử dụng các nút "Chọn tất cả" và "Bỏ
+                    tất cả" để quản lý nhanh.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Nút thao tác đặt ở đây, sau các mục nhập */}
+            <View className="mt-4 mb-10">
+              <CustomButton
+                title="Cập nhật gói dịch vụ"
+                onPress={handleUpdatePrice}
+                containerStyles="bg-primary-500"
+                isDisabled={!priceForm.price_name || !priceForm.price_value}
+              />
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
