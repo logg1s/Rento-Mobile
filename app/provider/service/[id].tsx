@@ -99,8 +99,6 @@ const ProviderServiceDetail = () => {
     fetchServiceById,
     updateService,
     deleteService,
-    addServicePrice,
-    updateServicePrice,
     deleteServicePrice,
     addServiceBenefit,
     updateServiceBenefit,
@@ -108,6 +106,10 @@ const ProviderServiceDetail = () => {
     getIndependentBenefits,
     attachBenefitsToPrice,
     detachBenefitFromPrice,
+    bulkUpdateBenefits,
+    addServicePriceWithBenefits,
+    updateServicePriceWithBenefits,
+    bulkUpdatePrices,
   } = useProviderStore();
   const categories = useRentoStore((state) => state.categories);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -181,6 +183,28 @@ const ProviderServiceDetail = () => {
             id: img.id,
             image_url: img.path || "",
           }));
+        }
+
+        // Đảm bảo price và benefit đã được sắp xếp theo ngày giảm dần
+        // (dự phòng trường hợp API chưa sắp xếp)
+        if (data.price) {
+          data.price = data.price.sort((a, b) => {
+            if (!a.created_at || !b.created_at) return 0;
+            return (
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+            );
+          });
+        }
+
+        if (data.benefit) {
+          data.benefit = data.benefit.sort((a, b) => {
+            if (!a.created_at || !b.created_at) return 0;
+            return (
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+            );
+          });
         }
 
         setService(data);
@@ -457,41 +481,15 @@ const ProviderServiceDetail = () => {
         return;
       }
 
-      // Thêm giá
-      const priceData = {
+      // Sử dụng API mới để thêm giá và liên kết benefits trong một lần
+      await addServicePriceWithBenefits(service.id, {
         price_name: priceForm.price_name,
         price_value: priceValue,
-      };
-
-      // Gọi API và xử lý response
-      try {
-        const response = await addServicePrice(service.id, priceData);
-
-        // Xử lý response an toàn
-        let newPriceId = null;
-        if (
-          response &&
-          typeof response === "object" &&
-          "data" in response &&
-          response.data &&
-          response.data.id
-        ) {
-          newPriceId = response.data.id;
-
-          // Nếu có benefits được chọn và tạo giá thành công
-          if (selectedBenefitsForPrice.length > 0 && newPriceId) {
-            // Sử dụng API mới để liên kết hàng loạt
-            try {
-              await attachBenefitsToPrice(newPriceId, selectedBenefitsForPrice);
-            } catch (linkError) {
-              console.error("Lỗi khi liên kết benefits với price:", linkError);
-            }
-          }
-        }
-      } catch (apiError) {
-        console.error("Lỗi API khi thêm giá:", apiError);
-        throw apiError;
-      }
+        benefit_ids:
+          selectedBenefitsForPrice.length > 0
+            ? selectedBenefitsForPrice
+            : undefined,
+      });
 
       setShowAddPriceModal(false);
       setPriceForm({ price_name: "", price_value: "" });
@@ -517,34 +515,21 @@ const ProviderServiceDetail = () => {
         return;
       }
 
-      // Cập nhật thông tin giá
-      await updateServicePrice(service.id, selectedPrice.id, {
+      // Xác định danh sách benefits cần liên kết
+      // Benefits đã liên kết trừ đi những benefits bị detach + thêm vào những benefits mới được chọn
+      const finalLinkedBenefits = [
+        ...linkedBenefits.filter((id) => !benefitsToDetach.includes(id)),
+        ...selectedBenefitsForPrice,
+      ];
+      // Loại bỏ các ID trùng lặp
+      const uniqueLinkedBenefits = [...new Set(finalLinkedBenefits)];
+
+      // Sử dụng API mới để cập nhật giá và liên kết benefits trong một lần
+      await updateServicePriceWithBenefits(selectedPrice.id, {
         price_name: priceForm.price_name,
         price_value: priceValue,
+        benefit_ids: uniqueLinkedBenefits,
       });
-
-      // Xử lý các benefits đã bỏ chọn (cần detach)
-      if (benefitsToDetach.length > 0) {
-        for (const benefitId of benefitsToDetach) {
-          try {
-            await detachBenefitFromPrice(benefitId, selectedPrice.id);
-          } catch (detachError) {
-            console.error("Lỗi khi xóa liên kết benefit:", detachError);
-          }
-        }
-      }
-
-      // Liên kết các benefits mới được chọn với price
-      if (selectedBenefitsForPrice.length > 0) {
-        try {
-          await attachBenefitsToPrice(
-            selectedPrice.id,
-            selectedBenefitsForPrice
-          );
-        } catch (linkError) {
-          console.error("Lỗi khi liên kết benefits với price:", linkError);
-        }
-      }
 
       setShowEditPriceModal(false);
       setSelectedPrice(null);
@@ -690,6 +675,7 @@ const ProviderServiceDetail = () => {
         return;
       }
 
+      // Sử dụng API mới cho thêm benefit
       await addServiceBenefit(service.id, {
         benefit_name: benefitForm.benefit_name,
         price_id: benefitForm.price_id,
@@ -727,6 +713,7 @@ const ProviderServiceDetail = () => {
         return;
       }
 
+      // Sử dụng API mới cho cập nhật benefit
       await updateServiceBenefit(service.id, selectedBenefit.id, {
         benefit_name: benefitForm.benefit_name,
         price_id: benefitForm.price_id,
@@ -756,6 +743,32 @@ const ProviderServiceDetail = () => {
       }
 
       Alert.alert("Lỗi", errorMessage);
+    }
+  };
+
+  // Hàm mới để cập nhật nhiều benefits cùng lúc
+  const handleBulkUpdateBenefits = async (
+    benefitsToUpdate: {
+      id: number;
+      benefit_name: string;
+      price_ids: number[];
+    }[]
+  ) => {
+    if (!service) return;
+
+    try {
+      await bulkUpdateBenefits(benefitsToUpdate);
+      Alert.alert("Thành công", "Cập nhật các lợi ích thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật hàng loạt lợi ích:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        "Không thể cập nhật các lợi ích. Vui lòng thử lại sau."
+      );
     }
   };
 
@@ -863,6 +876,33 @@ const ProviderServiceDetail = () => {
   };
 
   service?.images?.map((image) => {});
+
+  // Hàm mới để cập nhật nhiều prices cùng lúc
+  const handleBulkUpdatePrices = async (
+    pricesToUpdate: {
+      id: number;
+      price_name: string;
+      price_value: number;
+      benefit_ids?: number[];
+    }[]
+  ) => {
+    if (!service) return;
+
+    try {
+      await bulkUpdatePrices(pricesToUpdate);
+      Alert.alert("Thành công", "Cập nhật các gói dịch vụ thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật hàng loạt gói dịch vụ:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        "Không thể cập nhật các gói dịch vụ. Vui lòng thử lại sau."
+      );
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
