@@ -75,7 +75,7 @@ export const useLocation = () => {
           [
             {
               text: "Để sau",
-              onPress: () => console.log("Permission denied"),
+              onPress: () => {},
               style: "cancel",
             },
             {
@@ -133,7 +133,7 @@ export const useLocation = () => {
           [
             {
               text: "Để sau",
-              onPress: () => console.log("Location services denied"),
+              onPress: () => {},
               style: "cancel",
             },
             {
@@ -160,7 +160,8 @@ export const useLocation = () => {
       // Lấy vị trí hiện tại với timeout
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Highest,
-        timeInterval: 1000,
+        timeInterval: 10,
+        distanceInterval: 10,
       });
 
       const { latitude, longitude } = location.coords;
@@ -181,7 +182,6 @@ export const useLocation = () => {
       }
 
       const geocode = geocodeResults[0];
-      console.log("Geocode result:", JSON.stringify(geocode, null, 2));
 
       // Tạo địa chỉ đầy đủ
       const address = formatAddress(geocode);

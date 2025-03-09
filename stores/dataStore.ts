@@ -40,7 +40,8 @@ type DataState = {
           role?: string | null;
           lat?: number | null;
           lng?: number | null;
-          real_address?: string | null;
+          real_location_name?: string | null;
+          province_id?: number | null;
         }
       | {
           old_password: string;
@@ -79,7 +80,6 @@ export const axiosFetch = async (
       data,
     });
   } catch (error: any) {
-    console.error("Lỗi fetch", url, error?.response?.data);
     const refreshResult = await useAuthStore.getState().refreshAccessToken();
     if (refreshResult) {
       return axiosFetch(url, method, data, isUpload);
@@ -217,7 +217,8 @@ const useRentoData = create<DataState>((set, get) => ({
           role?: string | null;
           lat?: number | null;
           lng?: number | null;
-          real_address?: string | null;
+          real_location_name?: string | null;
+          province_id?: number | null;
         }
       | {
           old_password: string;

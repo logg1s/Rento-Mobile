@@ -13,7 +13,7 @@ import LocationInputField from "@/components/LocationInputField";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import CustomButton from "@/components/CustomButton";
-import { Role, Rules } from "@/types/type";
+import { Role, Rules, Province } from "@/types/type";
 import useRentoData from "@/stores/dataStore";
 import { twMerge } from "tailwind-merge";
 
@@ -25,7 +25,18 @@ const CompleteProfile = () => {
     role: "user" as Role,
     lat: null as number | null,
     lng: null as number | null,
-    real_address: "",
+    real_location_name: "",
+    province_id: null as number | null,
+  });
+
+  // Theo dõi dữ liệu vị trí đầy đủ
+  const [locationData, setLocationData] = useState({
+    lat: null as number | null,
+    lng: null as number | null,
+    province: null as Province | null,
+    detailedAddress: "",
+    real_location_name: "",
+    province_id: null as number | null,
   });
 
   const update = useRentoData((state) => state.update);
@@ -58,11 +69,43 @@ const CompleteProfile = () => {
     rule.every((r) => r.isValid)
   );
 
+  // Xử lý khi vị trí thay đổi từ LocationInputField
+  const handleLocationChange = (data: {
+    province: any | null;
+    detailedAddress: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    formattedAddress?: string | null;
+    province_id?: number | null;
+    address?: string | null;
+  }) => {
+    setLocationData({
+      lat: data.latitude,
+      lng: data.longitude,
+      province: data.province,
+      detailedAddress: data.detailedAddress || data.address || "",
+      real_location_name: data.formattedAddress || "",
+      province_id: data.province_id || null,
+    });
+
+    // Cập nhật form với dữ liệu vị trí mới
+    setFormData((prev) => ({
+      ...prev,
+      lat: data.latitude,
+      lng: data.longitude,
+      address: data.detailedAddress || data.address || "",
+      real_location_name:
+        data.formattedAddress || data.detailedAddress || data.address || "",
+      province_id: data.province_id || null,
+    }));
+  };
+
   const handleLocationSelected = (data: {
     lat: number;
     lng: number;
     address: string;
     formattedAddress?: string;
+    province_id?: number | null;
   }) => {
     setFormData(
       (prev) =>
@@ -71,7 +114,8 @@ const CompleteProfile = () => {
           lat: data.lat,
           lng: data.lng,
           address: data.address,
-          real_address: data.formattedAddress || data.address,
+          real_location_name: data.formattedAddress || data.address,
+          province_id: data.province_id || null,
         }) as typeof prev
     );
   };
@@ -89,7 +133,8 @@ const CompleteProfile = () => {
         role: selectedRole,
         lat: formData.lat,
         lng: formData.lng,
-        real_address: formData.real_address,
+        real_location_name: formData.real_location_name,
+        province_id: formData.province_id,
       });
 
       if (success) {
@@ -145,6 +190,7 @@ const CompleteProfile = () => {
                 setFormData((prev) => ({ ...prev, address: e }))
               }
               onLocationSelected={handleLocationSelected}
+              onLocationChange={handleLocationChange}
             />
             <Text className="font-psemibold text-xl">
               Vai trò bạn mong muốn

@@ -46,6 +46,7 @@ export interface LocationState {
     address: string | null;
     province: Province | null;
     detailedAddress: string | null;
+    formattedAddress?: string | null;
   } | null>;
 
   // Tiện ích
@@ -79,14 +80,12 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   fetchProvinces: async () => {
     try {
       set({ loadingProvinces: true });
-      console.log("Đang gọi API lấy danh sách tỉnh thành...");
 
       const response = await axiosFetch(endpoints.provinces);
 
       if (response?.data?.status === "success") {
         const provinces = response.data.data;
         set({ provinces, loadingProvinces: false });
-        console.log(`Đã lấy thành công ${provinces.length} tỉnh thành`);
         return provinces;
       }
 
@@ -109,7 +108,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         { id: 10, name: "Bạc Liêu", code: "BL" },
       ];
 
-      console.log("Sử dụng danh sách tỉnh thành mặc định");
       set({ provinces: defaultProvinces, loadingProvinces: false });
       return defaultProvinces;
     }
@@ -272,7 +270,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       }
 
       const geocode = geocodeResults[0];
-      console.log("Geocode result:", JSON.stringify(geocode, null, 2));
 
       // Tạo địa chỉ đầy đủ
       const formatAddress = get().formatAddress;
@@ -328,6 +325,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         address,
         province,
         detailedAddress,
+        formattedAddress: geocode.formattedAddress || null,
       };
     } catch (error) {
       console.error("Lỗi khi lấy vị trí:", error);
@@ -341,6 +339,12 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
   // Hàm định dạng địa chỉ từ kết quả geocode
   formatAddress: (geocode: Location.LocationGeocodedAddress) => {
+    // Ưu tiên sử dụng formattedAddress nếu có
+    if (geocode.formattedAddress) {
+      return geocode.formattedAddress;
+    }
+
+    // Tạo địa chỉ từ các thành phần nếu không có formattedAddress
     const components = [
       geocode.name,
       geocode.street,

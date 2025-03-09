@@ -105,6 +105,7 @@ export default function ProviderServices() {
     lat: null,
     lng: null,
     real_location_name: "",
+    province_id: null,
   });
   const [isValid, setIsValid] = useState(false);
 
@@ -214,6 +215,7 @@ export default function ProviderServices() {
     lng: number;
     address: string;
     formattedAddress?: string;
+    province_id?: number | null;
   }) => {
     setFormData(
       (prev) =>
@@ -223,6 +225,7 @@ export default function ProviderServices() {
           lng: data.lng,
           location_name: data.address,
           real_location_name: data.formattedAddress || data.address,
+          province_id: data.province_id || null,
         }) as typeof prev
     );
   };
@@ -263,6 +266,11 @@ export default function ProviderServices() {
           "real_location_name",
           formData.real_location_name
         );
+      }
+
+      // Thêm province_id nếu có
+      if (formData.province_id) {
+        formDataToSend.append("province_id", String(formData.province_id));
       }
 
       // Xử lý hình ảnh
@@ -309,6 +317,7 @@ export default function ProviderServices() {
       lat: null,
       lng: null,
       real_location_name: "",
+      province_id: null,
     });
     setSelectedCategory(null);
     setImages([]);

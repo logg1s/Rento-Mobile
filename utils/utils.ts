@@ -66,38 +66,33 @@ export const getImagePath = (path: string | null | undefined) => {
 };
 
 export const getServiceImageSource = (imageUrl: string | null | undefined) => {
-  if (!imageUrl) return { uri: "" };
+  if (!imageUrl) return require("@/assets/images/avatar_placeholder_icon.png");
 
-  console.log("Processing image URL:", imageUrl);
-  console.log("API host:", process.env.EXPO_PUBLIC_API_HOST);
+  try {
+    // Kiểm tra nếu đường dẫn đã có http hoặc https
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      return { uri: imageUrl };
+    }
 
-  // Kiểm tra nếu đường dẫn đã có http hoặc https
-  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-    console.log("URL has http/https prefix, returning as is");
-    return { uri: imageUrl };
-  }
+    // Kiểm tra nếu đường dẫn bắt đầu bằng /storage/
+    if (imageUrl.startsWith("/storage/")) {
+      const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}${imageUrl}`;
+      return { uri: fullUrl };
+    }
 
-  // Kiểm tra nếu đường dẫn bắt đầu bằng /storage/
-  if (imageUrl.startsWith("/storage/")) {
-    const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}${imageUrl}`;
-    console.log("URL starts with /storage/, returning:", fullUrl);
-    return { uri: fullUrl };
-  }
+    // Trường hợp đường dẫn không có /storage/ nhưng bắt đầu bằng services/
+    if (imageUrl.startsWith("services/")) {
+      const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
+      return { uri: fullUrl };
+    }
 
-  // Trường hợp đường dẫn không có /storage/ nhưng bắt đầu bằng services/
-  if (imageUrl.startsWith("services/")) {
+    // Trường hợp khác, thêm /storage/
     const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
-    console.log("URL starts with services/, returning:", fullUrl);
     return { uri: fullUrl };
+  } catch (error) {
+    console.error("Lỗi xử lý URL ảnh:", error);
+    return require("@/assets/images/avatar_placeholder_icon.png");
   }
-
-  // Trường hợp khác, thêm /storage/
-  const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
-  console.log(
-    "URL has no specific prefix, adding /storage/, returning:",
-    fullUrl
-  );
-  return { uri: fullUrl };
 };
 
 export const getImageSource = (

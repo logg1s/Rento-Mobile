@@ -80,7 +80,6 @@ function handleNotification(notification: Notifications.Notification) {
       }
       break;
     case "order":
-      console.log("order");
       break;
   }
 }
@@ -132,9 +131,6 @@ export async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
     if (finalStatus !== "granted") {
-      console.log(
-        "Vui lòng cho phép quyền thông báo để ứng dụng hoạt động hiệu quả"
-      );
       return;
     }
     const projectId =
@@ -149,7 +145,6 @@ export async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-      console.log(pushTokenString);
       return pushTokenString;
     } catch (e: unknown) {
       console.error(`${e}`);

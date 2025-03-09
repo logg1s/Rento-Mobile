@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { View, Text, TouchableOpacity, Alert, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,20 +8,63 @@ import { router } from "expo-router";
 import useRentoData from "@/stores/dataStore";
 import InputField from "@/components/InputField";
 import LocationInputField from "@/components/LocationInputField";
-import { Rules } from "@/types/type";
+import { Rules, Province } from "@/types/type";
+import { useLocationStore } from "@/stores/locationStore";
 
 const EditProfileScreen = () => {
   const user = useRentoData((state) => state.user);
   const updateProfile = useRentoData((state) => state.update);
+  const { provinces } = useLocationStore();
 
   const [form, setForm] = useState({
     name: user?.name ?? "",
     phone_number: user?.phone_number ?? "",
     address: user?.address ?? "",
-    lat: null,
-    lng: null,
-    real_address: "",
+    lat: user?.location?.lat ?? null,
+    lng: user?.location?.lng ?? null,
+    real_location_name: user?.location?.real_location_name ?? "",
+    province_id: user?.location?.province_id ?? null,
   });
+
+  // Theo dõi dữ liệu vị trí đầy đủ
+  const [locationData, setLocationData] = useState({
+    lat: user?.location?.lat ?? null,
+    lng: user?.location?.lng ?? null,
+    province: null as Province | null,
+    detailedAddress: user?.address ?? "",
+    real_location_name: user?.location?.real_location_name ?? "",
+    province_id: user?.location?.province_id ?? null,
+  });
+
+  // Log dữ liệu người dùng để debug
+  useEffect(() => {
+    // Xử lý khi user thay đổi
+  }, [user]);
+
+  // Chuẩn bị initialProvince từ user.location và danh sách provinces
+  const initialProvince = useMemo(() => {
+    if (!user?.location?.province_id) return null;
+
+    // Tìm tỉnh chính xác từ danh sách provinces dựa vào province_id
+    const provinceFromList = provinces.find(
+      (p: Province) => p.id === user.location?.province_id
+    );
+
+    if (provinceFromList) {
+      // Nếu tìm thấy, sử dụng thông tin từ danh sách provinces
+      return provinceFromList;
+    }
+
+    // Fallback: Tạo đối tượng Province từ dữ liệu có sẵn nếu không tìm thấy trong danh sách
+    const province: Province = {
+      id: user.location.province_id,
+      // Sử dụng location_name nếu không tìm được tên chính xác
+      name: user.location.location_name || "",
+      code: "UNKNOWN", // Giá trị mặc định vì backend không trả về code
+    };
+
+    return province;
+  }, [user, provinces]);
 
   const rules: Rules = {
     name: [
@@ -48,22 +91,97 @@ const EditProfileScreen = () => {
     rule.every((r) => r.isValid)
   );
 
+  // Xử lý khi vị trí thay đổi từ LocationInputField
+  const handleLocationChange = (data: {
+    province: any | null;
+    detailedAddress: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    formattedAddress?: string | null;
+    province_id?: number | null;
+    address?: string | null;
+  }) => {
+    // Đảm bảo province_id được cập nhật từ province nếu có
+    const province_id =
+      data.province_id !== undefined
+        ? data.province_id
+        : data.province?.id || null;
+
+    // Tìm tỉnh chính xác từ danh sách provinces nếu có province_id
+    let provinceName = "";
+    if (province_id) {
+      const foundProvince = provinces.find(
+        (p: Province) => p.id === province_id
+      );
+      if (foundProvince) {
+        provinceName = foundProvince.name;
+      }
+    }
+
+    // Nếu không tìm thấy tên tỉnh từ danh sách, sử dụng tên từ data hoặc location_name
+    if (!provinceName) {
+      if (data.province?.name) {
+        provinceName = data.province.name;
+      } else if (data.detailedAddress) {
+        provinceName = data.detailedAddress;
+      }
+    }
+
+    setLocationData({
+      lat: data.latitude,
+      lng: data.longitude,
+      province: data.province,
+      detailedAddress: data.detailedAddress || data.address || "",
+      real_location_name: data.formattedAddress || provinceName || "",
+      province_id: province_id,
+    });
+
+    // Cập nhật form với dữ liệu vị trí mới
+    setForm((prev) => ({
+      ...prev,
+      lat: data.latitude,
+      lng: data.longitude,
+      address: data.detailedAddress || data.address || "",
+      real_location_name:
+        data.formattedAddress ||
+        provinceName ||
+        data.detailedAddress ||
+        data.address ||
+        "",
+      province_id: province_id,
+    }));
+  };
+
   const handleLocationSelected = (data: {
     lat: number;
     lng: number;
     address: string;
     formattedAddress?: string;
+    province_id?: number | null;
   }) => {
-    setForm(
-      (prev) =>
-        ({
-          ...prev,
-          lat: data.lat,
-          lng: data.lng,
-          address: data.address,
-          real_address: data.formattedAddress || data.address,
-        }) as typeof prev
-    );
+    // Đảm bảo province_id từ dữ liệu được sử dụng
+    const province_id =
+      data.province_id !== undefined ? data.province_id : null;
+
+    // Tìm tên tỉnh chính xác từ danh sách provinces nếu có province_id
+    let provinceName = "";
+    if (province_id) {
+      const foundProvince = provinces.find(
+        (p: Province) => p.id === province_id
+      );
+      if (foundProvince) {
+        provinceName = foundProvince.name;
+      }
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      lat: data.lat,
+      lng: data.lng,
+      address: data.address,
+      real_location_name: data.formattedAddress || provinceName || data.address,
+      province_id: province_id,
+    }));
   };
 
   const handleSubmit = async () => {
@@ -75,7 +193,8 @@ const EditProfileScreen = () => {
       address: form.address.trim(),
       lat: form.lat,
       lng: form.lng,
-      real_address: form.real_address,
+      real_location_name: form.real_location_name,
+      province_id: form.province_id,
     });
 
     if (success) {
@@ -129,6 +248,9 @@ const EditProfileScreen = () => {
             setForm((prev) => ({ ...prev, address: text }))
           }
           onLocationSelected={handleLocationSelected}
+          onLocationChange={handleLocationChange}
+          initialAddress={user?.address || null}
+          initialProvince={initialProvince}
         />
         <View className="flex-row justify-around">
           <TouchableOpacity

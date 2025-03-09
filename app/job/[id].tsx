@@ -74,9 +74,6 @@ const DetailJob = () => {
     }
 
     setData(service);
-
-    // Log để debug
-    console.log("Service data:", JSON.stringify(service, null, 2));
   };
 
   useEffect(() => {
@@ -257,13 +254,14 @@ const DetailJob = () => {
                     source={getServiceImageSource(image.image_url)}
                     className="h-full w-full"
                     resizeMode="cover"
-                    onError={(e) =>
-                      console.log(
+                    onError={(e) => {
+                      console.error(
                         "Lỗi tải ảnh:",
                         image.image_url,
                         e.nativeEvent.error
-                      )
-                    }
+                      );
+                    }}
+                    defaultSource={require("@/assets/images/avatar_placeholder_icon.png")}
                   />
                 ))
               ) : (

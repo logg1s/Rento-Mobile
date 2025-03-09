@@ -27,6 +27,7 @@ export type UserType = {
   user_setting?: UserSettingType;
   viewed_service_log?: { service_id: number }[];
   notification?: NotificationType[];
+  location?: LocationType;
 } & TimeStampType;
 
 export type ImageType = {
@@ -35,11 +36,21 @@ export type ImageType = {
   deleted_at: string | null;
 } & TimeStampType;
 
+export type Province = {
+  id: number;
+  name: string;
+  code: string;
+};
+
 export type LocationType = {
   id: number;
   lng: number;
   lat: number;
   location_name: string;
+  real_location_name?: string;
+  province_id?: number;
+  province?: Province;
+  address?: string;
   deleted_at: string | null;
 } & TimeStampType;
 

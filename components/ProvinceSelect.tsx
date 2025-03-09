@@ -13,7 +13,7 @@ import {
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { twMerge } from "tailwind-merge";
-import { Province } from "../hooks/useLocation";
+import { Province } from "@/types/type";
 
 interface ProvinceSelectProps {
   nameField?: string;
@@ -42,6 +42,12 @@ const ProvinceSelect = ({
     useState<Province[]>(provinces);
 
   useEffect(() => {
+    setFilteredProvinces(provinces);
+  }, [provinces]);
+
+  useEffect(() => {}, [value]);
+
+  useEffect(() => {
     if (searchQuery.trim() === "") {
       setFilteredProvinces(provinces);
     } else {
@@ -61,6 +67,23 @@ const ProvinceSelect = ({
 
   const clearSelection = () => {
     onSelect(null);
+  };
+
+  // Helper để kiểm tra xem province có được chọn không
+  const isSelected = (provinceItem: Province) => {
+    if (!value) return false;
+
+    // So sánh bằng id để đảm bảo chính xác
+    return value.id === provinceItem.id;
+  };
+
+  // Hiển thị tên tỉnh
+  const displayProvinceName = () => {
+    if (isLoading) return "Đang tải...";
+    if (!value) return placeholder;
+
+    // Hiển thị tên từ value
+    return value.name;
   };
 
   return (
@@ -85,7 +108,7 @@ const ProvinceSelect = ({
                 value ? "text-secondary-800" : "text-gray-400"
               } font-pmedium text-lg`}
             >
-              {isLoading ? "Đang tải..." : value ? value.name : placeholder}
+              {displayProvinceName()}
             </Text>
             <View className="flex-row items-center">
               {value && (
@@ -138,13 +161,13 @@ const ProvinceSelect = ({
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       className={`p-4 border-b border-gray-100 ${
-                        value?.id === item.id ? "bg-primary-50" : ""
+                        isSelected(item) ? "bg-primary-50" : ""
                       }`}
                       onPress={() => handleSelect(item)}
                     >
                       <Text
                         className={`text-base font-pmedium ${
-                          value?.id === item.id
+                          isSelected(item)
                             ? "text-primary-500"
                             : "text-secondary-800"
                         }`}

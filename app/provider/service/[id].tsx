@@ -95,9 +95,10 @@ const ProviderServiceDetail = () => {
     service_name: "",
     service_description: "",
     location_name: "",
-    lat: null,
-    lng: null,
+    lat: null as number | null,
+    lng: null as number | null,
     real_location_name: "",
+    province_id: null as number | null,
   });
 
   // Form state cho thêm/sửa giá
@@ -149,7 +150,6 @@ const ProviderServiceDetail = () => {
 
     try {
       const data = await fetchServiceById(Number(id));
-      console.log("Data service:", JSON.stringify(data, null, 2));
       if (data) {
         // Xử lý dữ liệu trả về từ API
         // Nếu có image mà không có images, chuyển đổi định dạng
@@ -158,7 +158,6 @@ const ProviderServiceDetail = () => {
             id: img.id,
             image_url: img.path || "",
           }));
-          console.log("Đã chuyển đổi image thành images:", data.images);
         }
 
         setService(data);
@@ -169,6 +168,7 @@ const ProviderServiceDetail = () => {
           lat: data.location?.lat || null,
           lng: data.location?.lng || null,
           real_location_name: data.location?.real_location_name || "",
+          province_id: data.location?.province_id || null,
         });
         setSelectedCategory(data.category?.id || null);
 
@@ -177,19 +177,13 @@ const ProviderServiceDetail = () => {
 
         // Lấy danh sách hình ảnh hiện tại
         if (data.images && data.images.length > 0) {
-          console.log("Images from API:", data.images);
           const imageUrls = data.images.map((img) => {
-            console.log("Image data:", img);
             const imageUrl = img.image_url || "";
-            console.log("Image URL:", imageUrl);
             const source = getServiceImageSource(imageUrl);
-            console.log("Source after process:", source);
             return typeof source === "string" ? source : source.uri;
           });
-          console.log("Image URLs after process:", imageUrls);
           setImages(imageUrls);
         } else {
-          console.log("Không có hình ảnh từ API");
           setImages([]);
         }
       }
@@ -217,17 +211,16 @@ const ProviderServiceDetail = () => {
     lng: number;
     address: string;
     formattedAddress?: string;
+    province_id?: number | null;
   }) => {
-    setFormData(
-      (prev) =>
-        ({
-          ...prev,
-          lat: data.lat,
-          lng: data.lng,
-          location_name: data.address,
-          real_location_name: data.formattedAddress || data.address,
-        }) as typeof prev
-    );
+    setFormData((prev) => ({
+      ...prev,
+      lat: data.lat,
+      lng: data.lng,
+      location_name: data.address,
+      real_location_name: data.formattedAddress || data.address,
+      province_id: data.province_id || null,
+    }));
   };
 
   const handleUpdateService = async () => {
@@ -266,7 +259,6 @@ const ProviderServiceDetail = () => {
 
     try {
       setIsUploading(true);
-      console.log("Bắt đầu cập nhật dịch vụ...");
 
       // Tạo FormData để gửi dữ liệu và hình ảnh
       const formDataToSend = new FormData();
@@ -294,40 +286,24 @@ const ProviderServiceDetail = () => {
         );
       }
 
+      // Thêm province_id nếu có
+      if (formData.province_id) {
+        formDataToSend.append("province_id", String(formData.province_id));
+      }
+
       // Thêm trường _method để Laravel hiểu đây là PUT request
       formDataToSend.append("_method", "PUT");
 
-      console.log("Thông tin cơ bản:", {
-        service_name: formData.service_name.trim(),
-        service_description: formData.service_description.trim(),
-        location_name: formData.location_name.trim(),
-        category_id: selectedCategory,
-      });
-
-      // Xử lý hình ảnh
-      console.log("Thông tin hình ảnh hiện tại:");
-      console.log("- Số lượng hình ảnh gốc:", service.images?.length || 0);
-      console.log("- Số lượng hình ảnh hiển thị hiện tại:", images.length);
-      console.log("- Số lượng hình ảnh mới sẽ tải lên:", imageFiles.length);
-
-      // Thêm các hình ảnh mới vào FormData
       if (imageFiles.length > 0) {
-        console.log("Đang thêm hình ảnh mới vào FormData");
         imageFiles.forEach((file, index) => {
-          console.log(`Hình ảnh mới #${index + 1}:`, file.name);
           formDataToSend.append(`images[]`, file);
         });
       }
 
-      // Xử lý các hình ảnh cũ
       if (service.images && service.images.length > 0) {
         const keptImageIds = [];
 
-        // So sánh số lượng hình ảnh để xem có bị xóa không
         if (images.length < service.images.length) {
-          console.log("Phát hiện có hình ảnh đã bị xóa");
-
-          // Xử lý từng hình ảnh gốc để xem còn trong danh sách hiện tại không
           for (let i = 0; i < service.images.length; i++) {
             const originalImg = service.images[i];
             const originalImgUrl = getServiceImageSource(originalImg.image_url);
@@ -346,21 +322,16 @@ const ProviderServiceDetail = () => {
             }
 
             if (isImageKept) {
-              console.log(`Giữ lại hình ảnh ID: ${originalImg.id}`);
               keptImageIds.push(originalImg.id);
             } else {
-              console.log(`Đánh dấu xóa hình ảnh ID: ${originalImg.id}`);
             }
           }
         } else {
           // Nếu không xóa hình ảnh nào, giữ lại tất cả ID
-          console.log("Không phát hiện hình ảnh bị xóa, giữ lại tất cả");
           for (let i = 0; i < service.images.length; i++) {
             keptImageIds.push(service.images[i].id);
           }
         }
-
-        console.log("Danh sách ID hình ảnh cần giữ lại:", keptImageIds);
 
         if (keptImageIds.length > 0) {
           // Nếu còn ảnh cần giữ lại, thêm vào FormData
@@ -368,29 +339,16 @@ const ProviderServiceDetail = () => {
             formDataToSend.append(`kept_image_ids[]`, id.toString());
           });
         } else if (service.images.length > 0 && keptImageIds.length === 0) {
-          // Nếu tất cả hình ảnh gốc đã bị xóa, thêm tham số để backend biết
-          console.log("Tất cả hình ảnh gốc đã bị xóa");
           formDataToSend.append("remove_all_images", "1");
         }
       }
 
-      // In ra toàn bộ dữ liệu sẽ gửi lên để debug
-      console.log("FormData sẽ gửi lên server:");
-      for (let pair of (formDataToSend as any).entries()) {
-        console.log(pair[0] + ": " + pair[1]);
-      }
-
-      // Gửi request cập nhật dịch vụ
-      console.log("Gửi request cập nhật dịch vụ...");
       await updateService(service.id, formDataToSend);
 
-      // Xử lý kết quả thành công
       setShowEditModal(false);
       setIsUploading(false);
       Alert.alert("Thành công", "Cập nhật thông tin dịch vụ thành công");
 
-      // Tải lại dữ liệu dịch vụ
-      console.log("Tải lại dữ liệu dịch vụ...");
       fetchData();
     } catch (error: any) {
       setIsUploading(false);
@@ -399,7 +357,6 @@ const ProviderServiceDetail = () => {
         error?.response?.data || error
       );
 
-      // Hiển thị thông báo lỗi chi tiết hơn
       let errorMessage = "Không thể cập nhật dịch vụ. Vui lòng thử lại sau.";
 
       if (error?.response?.data?.errors) {
@@ -584,30 +541,19 @@ const ProviderServiceDetail = () => {
 
   // Hàm xóa hình ảnh
   const removeImage = (index: number) => {
-    console.log(`Xóa hình ảnh tại vị trí ${index}`);
-    console.log("Hình ảnh hiện tại:", images);
-
-    // Lưu URI của hình ảnh đã xóa để debug
-    const removedImageUri = images[index];
-    console.log("Hình ảnh đã xóa:", removedImageUri);
-
     const newImages = [...images];
     newImages.splice(index, 1);
     setImages(newImages);
 
-    // Nếu là hình ảnh mới thêm vào, cũng xóa khỏi danh sách file
     if (index >= (service?.images?.length || 0)) {
-      console.log("Xóa hình ảnh mới từ imageFiles");
       const newImageIndex = index - (service?.images?.length || 0);
       const newImageFiles = [...imageFiles];
       newImageFiles.splice(newImageIndex, 1);
       setImageFiles(newImageFiles);
-    } else {
-      console.log("Đánh dấu xóa hình ảnh gốc tại vị trí", index);
     }
-
-    console.log("Hình ảnh còn lại sau khi xóa:", newImages);
   };
+
+  service?.images?.map((image) => {});
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
@@ -654,17 +600,18 @@ const ProviderServiceDetail = () => {
           >
             {service.images.map((image, index) => (
               <Image
-                key={index}
+                key={service.id}
                 source={getServiceImageSource(image.image_url)}
                 className="h-full w-full"
                 resizeMode="cover"
                 onError={(e) => {
-                  console.log(
+                  console.error(
                     "Lỗi tải ảnh:",
                     image.image_url,
                     e.nativeEvent.error
                   );
                 }}
+                defaultSource={require("@/assets/images/avatar_placeholder_icon.png")}
               />
             ))}
           </Swiper>
