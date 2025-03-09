@@ -9,6 +9,7 @@ import {
 import React, { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
+import LocationInputField from "@/components/LocationInputField";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import CustomButton from "@/components/CustomButton";
@@ -22,6 +23,9 @@ const CompleteProfile = () => {
     phone_number: "",
     address: "",
     role: "user" as Role,
+    lat: null as number | null,
+    lng: null as number | null,
+    real_address: "",
   });
 
   const update = useRentoData((state) => state.update);
@@ -54,6 +58,24 @@ const CompleteProfile = () => {
     rule.every((r) => r.isValid)
   );
 
+  const handleLocationSelected = (data: {
+    lat: number;
+    lng: number;
+    address: string;
+    formattedAddress?: string;
+  }) => {
+    setFormData(
+      (prev) =>
+        ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          address: data.address,
+          real_address: data.formattedAddress || data.address,
+        }) as typeof prev
+    );
+  };
+
   const handleSelectRole = (role: Role) => {
     setSelectedRole(role);
     setFormData((prev) => ({ ...prev, role }));
@@ -65,6 +87,9 @@ const CompleteProfile = () => {
         phone_number: formData.phone_number.trim(),
         address: formData.address.trim(),
         role: selectedRole,
+        lat: formData.lat,
+        lng: formData.lng,
+        real_address: formData.real_address,
       });
 
       if (success) {
@@ -108,8 +133,9 @@ const CompleteProfile = () => {
               onChangeText={(e) =>
                 setFormData((prev) => ({ ...prev, phone_number: e }))
               }
+              keyBoardType="number-pad"
             />
-            <InputField
+            <LocationInputField
               nameField="Địa chỉ"
               placeholder="Nhập địa chỉ"
               iconLeft={<Ionicons name="location" size={20} color="gray" />}
@@ -118,7 +144,7 @@ const CompleteProfile = () => {
               onChangeText={(e) =>
                 setFormData((prev) => ({ ...prev, address: e }))
               }
-              canEmpty={false}
+              onLocationSelected={handleLocationSelected}
             />
             <Text className="font-psemibold text-xl">
               Vai trò bạn mong muốn

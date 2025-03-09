@@ -1,0 +1,1189 @@
+import React, { useEffect, useState, useRef } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+  Modal,
+  TextInput,
+  FlatList,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, router } from "expo-router";
+import { Ionicons, FontAwesome, Entypo } from "@expo/vector-icons";
+import useProviderStore from "@/stores/providerStore";
+import { ServiceType, PriceType, CommentType } from "@/types/type";
+import {
+  getImageSource,
+  formatToVND,
+  getServiceImageSource,
+} from "@/utils/utils";
+import CustomButton from "@/components/CustomButton";
+import InputField from "@/components/InputField";
+import LocationInputField from "@/components/LocationInputField";
+import * as ImagePicker from "expo-image-picker";
+import useRentoStore from "@/stores/dataStore";
+import CommentCard from "@/components/CommentCard";
+import { axiosFetch } from "@/stores/dataStore";
+import RatingStar from "@/components/RatingStar";
+import Swiper from "react-native-swiper";
+
+// Định nghĩa rules cho validation
+type ValidationRule = {
+  isValid: boolean;
+  message: string;
+}[];
+
+const rules: Record<string, ValidationRule> = {
+  service_name: [
+    {
+      isValid: true,
+      message: "Tên dịch vụ không được để trống",
+    },
+    {
+      isValid: true,
+      message: "Tên dịch vụ phải có ít nhất 5 ký tự",
+    },
+  ],
+  service_description: [
+    {
+      isValid: true,
+      message: "Mô tả dịch vụ không được để trống",
+    },
+    {
+      isValid: true,
+      message: "Mô tả dịch vụ phải có ít nhất 20 ký tự",
+    },
+  ],
+  location_name: [
+    {
+      isValid: true,
+      message: "Địa chỉ không được để trống",
+    },
+  ],
+};
+
+const ProviderServiceDetail = () => {
+  const { id } = useLocalSearchParams();
+  const [service, setService] = useState<ServiceType | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddPriceModal, setShowAddPriceModal] = useState(false);
+  const [showEditPriceModal, setShowEditPriceModal] = useState(false);
+  const [selectedPrice, setSelectedPrice] = useState<PriceType | null>(null);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [serviceComments, setServiceComments] = useState<CommentType[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const {
+    fetchServiceById,
+    updateService,
+    deleteService,
+    addServicePrice,
+    updateServicePrice,
+    deleteServicePrice,
+  } = useProviderStore();
+  const categories = useRentoStore((state) => state.categories);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [isValid, setIsValid] = useState(false);
+
+  // Form state cho chỉnh sửa dịch vụ
+  const [formData, setFormData] = useState({
+    service_name: "",
+    service_description: "",
+    location_name: "",
+    lat: null,
+    lng: null,
+    real_location_name: "",
+  });
+
+  // Form state cho thêm/sửa giá
+  const [priceForm, setPriceForm] = useState({
+    price_name: "",
+    price_value: "",
+  });
+
+  // State cho hình ảnh
+  const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Cập nhật validation rules khi formData thay đổi
+  useEffect(() => {
+    // Kiểm tra tên dịch vụ
+    rules.service_name[0].isValid = formData.service_name.trim() !== "";
+    rules.service_name[1].isValid = formData.service_name.trim().length >= 5;
+
+    // Kiểm tra mô tả dịch vụ
+    rules.service_description[0].isValid =
+      formData.service_description.trim() !== "";
+    rules.service_description[1].isValid =
+      formData.service_description.trim().length >= 20;
+
+    // Kiểm tra địa chỉ
+    rules.location_name[0].isValid = formData.location_name.trim() !== "";
+
+    // Kiểm tra tất cả các rules
+    let isFormValid = true;
+    for (const field in rules) {
+      const fieldRules = rules[field];
+      for (const rule of fieldRules) {
+        if (!rule.isValid) {
+          isFormValid = false;
+          break;
+        }
+      }
+    }
+
+    // Kiểm tra danh mục
+    isFormValid = isFormValid && selectedCategory !== null;
+
+    setIsValid(isFormValid);
+  }, [formData, selectedCategory]);
+
+  const fetchData = async () => {
+    if (!id) return;
+
+    try {
+      const data = await fetchServiceById(Number(id));
+      console.log("Data service:", JSON.stringify(data, null, 2));
+      if (data) {
+        // Xử lý dữ liệu trả về từ API
+        // Nếu có image mà không có images, chuyển đổi định dạng
+        if ((data as any).image && (!data.images || data.images.length === 0)) {
+          data.images = (data as any).image.map((img: any) => ({
+            id: img.id,
+            image_url: img.path || "",
+          }));
+          console.log("Đã chuyển đổi image thành images:", data.images);
+        }
+
+        setService(data);
+        setFormData({
+          service_name: data.service_name || "",
+          service_description: data.service_description || "",
+          location_name: data.location?.location_name || "",
+          lat: data.location?.lat || null,
+          lng: data.location?.lng || null,
+          real_location_name: data.location?.real_location_name || "",
+        });
+        setSelectedCategory(data.category?.id || null);
+
+        // Reset imageFiles khi tải lại dữ liệu
+        setImageFiles([]);
+
+        // Lấy danh sách hình ảnh hiện tại
+        if (data.images && data.images.length > 0) {
+          console.log("Images from API:", data.images);
+          const imageUrls = data.images.map((img) => {
+            console.log("Image data:", img);
+            const imageUrl = img.image_url || "";
+            console.log("Image URL:", imageUrl);
+            const source = getServiceImageSource(imageUrl);
+            console.log("Source after process:", source);
+            return typeof source === "string" ? source : source.uri;
+          });
+          console.log("Image URLs after process:", imageUrls);
+          setImages(imageUrls);
+        } else {
+          console.log("Không có hình ảnh từ API");
+          setImages([]);
+        }
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi tải dịch vụ:", error?.response?.data || error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể tải thông tin dịch vụ. Vui lòng thử lại sau."
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [id]);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+  };
+
+  const handleLocationSelected = (data: {
+    lat: number;
+    lng: number;
+    address: string;
+    formattedAddress?: string;
+  }) => {
+    setFormData(
+      (prev) =>
+        ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          location_name: data.address,
+          real_location_name: data.formattedAddress || data.address,
+        }) as typeof prev
+    );
+  };
+
+  const handleUpdateService = async () => {
+    // Kiểm tra validation trước khi gửi
+    let errorMessages = [];
+
+    if (!formData.service_name.trim()) {
+      errorMessages.push("Tên dịch vụ không được để trống");
+    } else if (formData.service_name.trim().length < 5) {
+      errorMessages.push("Tên dịch vụ phải có ít nhất 5 ký tự");
+    }
+
+    if (!formData.service_description.trim()) {
+      errorMessages.push("Mô tả dịch vụ không được để trống");
+    } else if (formData.service_description.trim().length < 20) {
+      errorMessages.push("Mô tả dịch vụ phải có ít nhất 20 ký tự");
+    }
+
+    if (!formData.location_name.trim()) {
+      errorMessages.push("Địa chỉ không được để trống");
+    }
+
+    if (!selectedCategory) {
+      errorMessages.push("Vui lòng chọn danh mục dịch vụ");
+    }
+
+    if (errorMessages.length > 0) {
+      Alert.alert("Lỗi", errorMessages.join("\n"));
+      return;
+    }
+
+    if (!service) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin dịch vụ");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      console.log("Bắt đầu cập nhật dịch vụ...");
+
+      // Tạo FormData để gửi dữ liệu và hình ảnh
+      const formDataToSend = new FormData();
+      formDataToSend.append("service_name", formData.service_name.trim());
+      formDataToSend.append(
+        "service_description",
+        formData.service_description.trim()
+      );
+      formDataToSend.append("location_name", formData.location_name.trim());
+      formDataToSend.append("category_id", selectedCategory!.toString());
+
+      // Thêm kinh độ, vĩ độ và địa chỉ thật nếu có
+      if (formData.lat !== null) {
+        formDataToSend.append("lat", String(formData.lat));
+      }
+
+      if (formData.lng !== null) {
+        formDataToSend.append("lng", String(formData.lng));
+      }
+
+      if (formData.real_location_name) {
+        formDataToSend.append(
+          "real_location_name",
+          formData.real_location_name
+        );
+      }
+
+      // Thêm trường _method để Laravel hiểu đây là PUT request
+      formDataToSend.append("_method", "PUT");
+
+      console.log("Thông tin cơ bản:", {
+        service_name: formData.service_name.trim(),
+        service_description: formData.service_description.trim(),
+        location_name: formData.location_name.trim(),
+        category_id: selectedCategory,
+      });
+
+      // Xử lý hình ảnh
+      console.log("Thông tin hình ảnh hiện tại:");
+      console.log("- Số lượng hình ảnh gốc:", service.images?.length || 0);
+      console.log("- Số lượng hình ảnh hiển thị hiện tại:", images.length);
+      console.log("- Số lượng hình ảnh mới sẽ tải lên:", imageFiles.length);
+
+      // Thêm các hình ảnh mới vào FormData
+      if (imageFiles.length > 0) {
+        console.log("Đang thêm hình ảnh mới vào FormData");
+        imageFiles.forEach((file, index) => {
+          console.log(`Hình ảnh mới #${index + 1}:`, file.name);
+          formDataToSend.append(`images[]`, file);
+        });
+      }
+
+      // Xử lý các hình ảnh cũ
+      if (service.images && service.images.length > 0) {
+        const keptImageIds = [];
+
+        // So sánh số lượng hình ảnh để xem có bị xóa không
+        if (images.length < service.images.length) {
+          console.log("Phát hiện có hình ảnh đã bị xóa");
+
+          // Xử lý từng hình ảnh gốc để xem còn trong danh sách hiện tại không
+          for (let i = 0; i < service.images.length; i++) {
+            const originalImg = service.images[i];
+            const originalImgUrl = getServiceImageSource(originalImg.image_url);
+            const imgUri =
+              typeof originalImgUrl === "string"
+                ? originalImgUrl
+                : originalImgUrl.uri;
+
+            // Kiểm tra xem hình ảnh này có còn trong danh sách hiện tại không
+            let isImageKept = false;
+            for (let j = 0; j < images.length; j++) {
+              if (images[j] === imgUri) {
+                isImageKept = true;
+                break;
+              }
+            }
+
+            if (isImageKept) {
+              console.log(`Giữ lại hình ảnh ID: ${originalImg.id}`);
+              keptImageIds.push(originalImg.id);
+            } else {
+              console.log(`Đánh dấu xóa hình ảnh ID: ${originalImg.id}`);
+            }
+          }
+        } else {
+          // Nếu không xóa hình ảnh nào, giữ lại tất cả ID
+          console.log("Không phát hiện hình ảnh bị xóa, giữ lại tất cả");
+          for (let i = 0; i < service.images.length; i++) {
+            keptImageIds.push(service.images[i].id);
+          }
+        }
+
+        console.log("Danh sách ID hình ảnh cần giữ lại:", keptImageIds);
+
+        if (keptImageIds.length > 0) {
+          // Nếu còn ảnh cần giữ lại, thêm vào FormData
+          keptImageIds.forEach((id) => {
+            formDataToSend.append(`kept_image_ids[]`, id.toString());
+          });
+        } else if (service.images.length > 0 && keptImageIds.length === 0) {
+          // Nếu tất cả hình ảnh gốc đã bị xóa, thêm tham số để backend biết
+          console.log("Tất cả hình ảnh gốc đã bị xóa");
+          formDataToSend.append("remove_all_images", "1");
+        }
+      }
+
+      // In ra toàn bộ dữ liệu sẽ gửi lên để debug
+      console.log("FormData sẽ gửi lên server:");
+      for (let pair of (formDataToSend as any).entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
+
+      // Gửi request cập nhật dịch vụ
+      console.log("Gửi request cập nhật dịch vụ...");
+      await updateService(service.id, formDataToSend);
+
+      // Xử lý kết quả thành công
+      setShowEditModal(false);
+      setIsUploading(false);
+      Alert.alert("Thành công", "Cập nhật thông tin dịch vụ thành công");
+
+      // Tải lại dữ liệu dịch vụ
+      console.log("Tải lại dữ liệu dịch vụ...");
+      fetchData();
+    } catch (error: any) {
+      setIsUploading(false);
+      console.error(
+        "Lỗi khi cập nhật dịch vụ:",
+        error?.response?.data || error
+      );
+
+      // Hiển thị thông báo lỗi chi tiết hơn
+      let errorMessage = "Không thể cập nhật dịch vụ. Vui lòng thử lại sau.";
+
+      if (error?.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        const errorDetails = Object.keys(errors)
+          .map((key) => `${key}: ${errors[key].join(", ")}`)
+          .join("\n");
+
+        errorMessage = `Lỗi dữ liệu:\n${errorDetails}`;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert("Lỗi", errorMessage);
+    }
+  };
+
+  const handleDeleteService = async () => {
+    if (!service) return;
+
+    try {
+      await deleteService(service.id);
+      Alert.alert("Thành công", "Xóa dịch vụ thành công");
+      router.back();
+    } catch (error: any) {
+      console.error("Lỗi khi xóa dịch vụ:", error?.response?.data || error);
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message ||
+          "Không thể xóa dịch vụ. Vui lòng thử lại sau."
+      );
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleAddPrice = async () => {
+    if (!service) return;
+
+    try {
+      const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
+      if (isNaN(priceValue) || priceValue <= 0) {
+        Alert.alert("Lỗi", "Vui lòng nhập giá hợp lệ");
+        return;
+      }
+
+      await addServicePrice(service.id, {
+        price_name: priceForm.price_name,
+        price_value: priceValue,
+      });
+
+      setShowAddPriceModal(false);
+      setPriceForm({ price_name: "", price_value: "" });
+      Alert.alert("Thành công", "Thêm gói dịch vụ thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi thêm gói dịch vụ:",
+        error?.response?.data || error
+      );
+      Alert.alert("Lỗi", "Không thể thêm gói dịch vụ. Vui lòng thử lại sau.");
+    }
+  };
+
+  const handleUpdatePrice = async () => {
+    if (!service || !selectedPrice) return;
+
+    try {
+      const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
+      if (isNaN(priceValue) || priceValue <= 0) {
+        Alert.alert("Lỗi", "Vui lòng nhập giá hợp lệ");
+        return;
+      }
+
+      await updateServicePrice(service.id, selectedPrice.id, {
+        price_name: priceForm.price_name,
+        price_value: priceValue,
+      });
+
+      setShowEditPriceModal(false);
+      setSelectedPrice(null);
+      setPriceForm({ price_name: "", price_value: "" });
+      Alert.alert("Thành công", "Cập nhật gói dịch vụ thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật gói dịch vụ:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        "Không thể cập nhật gói dịch vụ. Vui lòng thử lại sau."
+      );
+    }
+  };
+
+  const handleDeletePrice = async (priceId: number) => {
+    if (!service) return;
+
+    try {
+      await deleteServicePrice(service.id, priceId);
+      Alert.alert("Thành công", "Xóa gói dịch vụ thành công");
+      fetchData();
+    } catch (error: any) {
+      console.error("Lỗi khi xóa gói dịch vụ:", error?.response?.data || error);
+      Alert.alert("Lỗi", "Không thể xóa gói dịch vụ. Vui lòng thử lại sau.");
+    }
+  };
+
+  const formatPriceInput = (text: string) => {
+    // Chỉ giữ lại số
+    const numericValue = text.replace(/\D/g, "");
+    // Format với dấu phân cách hàng nghìn
+    const formattedValue = new Intl.NumberFormat("vi-VN").format(
+      parseInt(numericValue || "0")
+    );
+    return formattedValue;
+  };
+
+  const fetchComments = async () => {
+    if (!id) return;
+    setIsLoadingComments(true);
+    try {
+      const response = await axiosFetch(`/provider/services/${id}`);
+      if (response?.data?.comment) {
+        setServiceComments(response.data.comment);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải bình luận:", error);
+      Alert.alert("Lỗi", "Không thể tải bình luận. Vui lòng thử lại sau.");
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await axiosFetch(`/comments/${commentId}`, "delete");
+      Alert.alert("Thành công", "Xóa bình luận thành công");
+      fetchComments();
+    } catch (error) {
+      console.error("Lỗi khi xóa bình luận:", error);
+      Alert.alert("Lỗi", "Không thể xóa bình luận. Vui lòng thử lại sau.");
+    }
+  };
+
+  // Hàm chọn hình ảnh từ thư viện
+  const pickImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        // Thêm hình ảnh mới vào danh sách hiển thị
+        const newImages = result.assets.map((asset) => asset.uri);
+        setImages([...images, ...newImages]);
+
+        // Chuẩn bị hình ảnh để tải lên
+        const newImageFiles = result.assets.map((asset) => {
+          const fileName =
+            asset.uri.split("/").pop() || `image-${Date.now()}.jpg`;
+          const fileType = fileName.split(".").pop();
+
+          return {
+            uri: asset.uri,
+            name: fileName,
+            type: `image/${fileType || "jpeg"}`,
+          };
+        });
+
+        setImageFiles([...imageFiles, ...newImageFiles]);
+      }
+    } catch (error) {
+      console.error("Lỗi khi chọn hình ảnh:", error);
+      Alert.alert("Lỗi", "Không thể chọn hình ảnh. Vui lòng thử lại sau.");
+    }
+  };
+
+  // Hàm xóa hình ảnh
+  const removeImage = (index: number) => {
+    console.log(`Xóa hình ảnh tại vị trí ${index}`);
+    console.log("Hình ảnh hiện tại:", images);
+
+    // Lưu URI của hình ảnh đã xóa để debug
+    const removedImageUri = images[index];
+    console.log("Hình ảnh đã xóa:", removedImageUri);
+
+    const newImages = [...images];
+    newImages.splice(index, 1);
+    setImages(newImages);
+
+    // Nếu là hình ảnh mới thêm vào, cũng xóa khỏi danh sách file
+    if (index >= (service?.images?.length || 0)) {
+      console.log("Xóa hình ảnh mới từ imageFiles");
+      const newImageIndex = index - (service?.images?.length || 0);
+      const newImageFiles = [...imageFiles];
+      newImageFiles.splice(newImageIndex, 1);
+      setImageFiles(newImageFiles);
+    } else {
+      console.log("Đánh dấu xóa hình ảnh gốc tại vị trí", index);
+    }
+
+    console.log("Hình ảnh còn lại sau khi xóa:", newImages);
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-general-500">
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Header */}
+        <View className="bg-white p-5 flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="mr-4">
+              <Ionicons name="arrow-back" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Chi tiết dịch vụ</Text>
+          </View>
+          <View className="flex-row">
+            <TouchableOpacity
+              onPress={() => setShowEditModal(true)}
+              className="mr-4"
+            >
+              <Ionicons name="create-outline" size={24} color="black" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowDeleteConfirm(true)}>
+              <Ionicons name="trash-outline" size={24} color="red" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Hình ảnh dịch vụ */}
+        {service?.images && service.images.length > 0 ? (
+          <Swiper
+            className="h-64 w-full"
+            renderPagination={(index, total) => (
+              <View className="rounded-2xl pt-[3px] w-auto px-3 h-[25px] bg-neutral-900 justify-center items-center absolute bottom-5 right-5">
+                <Text
+                  className="font-pmedium text-white text-center"
+                  numberOfLines={1}
+                >
+                  {index + 1}/{total}
+                </Text>
+              </View>
+            )}
+          >
+            {service.images.map((image, index) => (
+              <Image
+                key={index}
+                source={getServiceImageSource(image.image_url)}
+                className="h-full w-full"
+                resizeMode="cover"
+                onError={(e) => {
+                  console.log(
+                    "Lỗi tải ảnh:",
+                    image.image_url,
+                    e.nativeEvent.error
+                  );
+                }}
+              />
+            ))}
+          </Swiper>
+        ) : (
+          <View className="bg-white h-64 justify-center items-center">
+            <Ionicons name="image-outline" size={64} color="gray" />
+            <Text className="text-gray-500 mt-2">Không có hình ảnh</Text>
+          </View>
+        )}
+
+        {/* Thông tin dịch vụ */}
+        <View className="p-5 bg-white mt-2">
+          <Text className="font-pbold text-2xl">{service?.service_name}</Text>
+          <View className="flex-row items-center mt-2">
+            <FontAwesome name="star" size={16} color="#FFD700" />
+            <Text className="ml-1 font-pmedium">
+              {service?.average_rate?.toFixed(1) || "0.0"}
+            </Text>
+            <Text className="ml-2 font-pregular text-gray-600">
+              ({service?.comment_count || 0} đánh giá)
+            </Text>
+          </View>
+          <View className="flex-row items-center mt-2">
+            <Ionicons name="location-outline" size={16} color="gray" />
+            <Text className="ml-1 font-pmedium text-gray-600">
+              {service?.location?.location_name || "Chưa có địa chỉ"}
+            </Text>
+          </View>
+          <View className="mt-4">
+            <Text className="font-pmedium text-lg">Mô tả dịch vụ</Text>
+            <Text className="font-pregular mt-2">
+              {service?.service_description || "Chưa có mô tả"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Gói dịch vụ */}
+        <View className="p-5 bg-white mt-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="font-pbold text-xl">Gói dịch vụ</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setPriceForm({ price_name: "", price_value: "" });
+                setShowAddPriceModal(true);
+              }}
+              className="bg-primary-500 px-3 py-1 rounded-full"
+            >
+              <Text className="text-white font-pmedium">Thêm gói</Text>
+            </TouchableOpacity>
+          </View>
+
+          {service?.price && service.price.length > 0 ? (
+            service.price.map((price) => (
+              <View
+                key={price.id}
+                className="bg-gray-100 p-4 rounded-lg mb-3 flex-row justify-between items-center"
+              >
+                <View>
+                  <Text className="font-pmedium">{price.price_name}</Text>
+                  <Text className="font-pbold text-primary-500">
+                    {formatToVND(price.price_value)}
+                  </Text>
+                </View>
+                <View className="flex-row">
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedPrice(price);
+                      setPriceForm({
+                        price_name: price.price_name,
+                        price_value: formatPriceInput(
+                          price.price_value.toString()
+                        ),
+                      });
+                      setShowEditPriceModal(true);
+                    }}
+                    className="mr-3"
+                  >
+                    <Ionicons name="create-outline" size={20} color="black" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        "Xác nhận",
+                        "Bạn có chắc chắn muốn xóa gói dịch vụ này?",
+                        [
+                          { text: "Hủy", style: "cancel" },
+                          {
+                            text: "Xóa",
+                            style: "destructive",
+                            onPress: () => handleDeletePrice(price.id),
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="red" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text className="text-center text-gray-500 py-4">
+              Chưa có gói dịch vụ nào
+            </Text>
+          )}
+        </View>
+
+        {/* Thống kê */}
+        <View className="p-5 bg-white mt-2">
+          <Text className="font-pbold text-xl mb-4">Thống kê</Text>
+          <View className="flex-row justify-between">
+            <View className="items-center bg-gray-100 p-4 rounded-lg flex-1 mr-2">
+              <Text className="font-pmedium text-gray-600">Lượt xem</Text>
+              <Text className="font-pbold text-xl mt-1">
+                {service?.view_count || 0}
+              </Text>
+            </View>
+            <View className="items-center bg-gray-100 p-4 rounded-lg flex-1 ml-2">
+              <Text className="font-pmedium text-gray-600">Lượt đặt</Text>
+              <Text className="font-pbold text-xl mt-1">
+                {service?.order_count || 0}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Bình luận */}
+        <View className="p-5 bg-white mt-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <View>
+              <Text className="font-pbold text-xl">Bình luận</Text>
+              <RatingStar
+                rating={service?.average_rate ?? 0}
+                showRateNumber
+                maxStar={5}
+                isAverage={true}
+              />
+              <Text className="font-pregular">
+                {service?.comment_count || 0} đánh giá
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setShowCommentsModal(true);
+                fetchComments();
+              }}
+              className="bg-primary-500 px-3 py-1 rounded-full"
+            >
+              <Text className="text-white font-pmedium">Xem tất cả</Text>
+            </TouchableOpacity>
+          </View>
+
+          {service?.comment && service.comment.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerClassName="gap-4"
+            >
+              {service.comment.slice(0, 3).map((comment) => (
+                <CommentCard
+                  key={comment.id}
+                  data={comment}
+                  user={comment.user}
+                  containerStyles="w-72"
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View className="items-center py-8">
+              <Ionicons name="chatbubble-outline" size={48} color="gray" />
+              <Text className="text-gray-500 mt-2 font-pmedium">
+                Chưa có bình luận nào
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Modal chỉnh sửa dịch vụ */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowEditModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Chỉnh sửa dịch vụ</Text>
+          </View>
+
+          <ScrollView className="p-4">
+            <View className="gap-4">
+              <InputField
+                nameField="Tên dịch vụ"
+                placeholder="Nhập tên dịch vụ"
+                value={formData.service_name}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, service_name: text })
+                }
+                rules={rules.service_name}
+                required
+              />
+
+              <InputField
+                nameField="Mô tả dịch vụ"
+                placeholder="Nhập mô tả chi tiết về dịch vụ"
+                value={formData.service_description}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, service_description: text })
+                }
+                rules={rules.service_description}
+                multiline
+                required
+              />
+
+              <LocationInputField
+                nameField="Địa chỉ"
+                placeholder="Nhập địa chỉ cung cấp dịch vụ"
+                value={formData.location_name}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, location_name: text })
+                }
+                rules={rules.location_name}
+                required
+                onLocationSelected={handleLocationSelected}
+              />
+
+              <View>
+                <Text className="font-pmedium text-base mb-2">
+                  Danh mục dịch vụ
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="flex-row gap-2"
+                >
+                  {categories?.map((category) => (
+                    <TouchableOpacity
+                      key={category.id}
+                      onPress={() => setSelectedCategory(category.id)}
+                      className={`px-4 py-2 rounded-full border ${
+                        selectedCategory === category.id
+                          ? "bg-primary-500 border-primary-500"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      <Text
+                        className={`font-pmedium ${
+                          selectedCategory === category.id
+                            ? "text-white"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {category.category_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Phần quản lý hình ảnh */}
+              <View>
+                <Text className="font-pmedium text-base mb-2">
+                  Hình ảnh dịch vụ
+                </Text>
+
+                {/* Hiển thị hình ảnh đã chọn */}
+                {images.length > 0 ? (
+                  <View className="flex-row flex-wrap">
+                    {images.map((image, index) => (
+                      <View key={index} className="w-1/3 p-1 relative">
+                        <Image
+                          source={{ uri: image }}
+                          className="w-full h-24 rounded-md"
+                          resizeMode="cover"
+                        />
+                        <TouchableOpacity
+                          onPress={() => removeImage(index)}
+                          className="absolute top-2 right-2 bg-black/50 rounded-full p-1"
+                        >
+                          <Ionicons name="close" size={16} color="white" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="items-center justify-center py-4 bg-gray-100 rounded-lg">
+                    <Ionicons name="image-outline" size={48} color="gray" />
+                    <Text className="text-gray-500 mt-2">Chưa có hình ảnh</Text>
+                  </View>
+                )}
+
+                {/* Nút thêm hình ảnh */}
+                <TouchableOpacity
+                  onPress={pickImages}
+                  className="mt-3 bg-primary-500 py-2 px-4 rounded-lg flex-row justify-center items-center"
+                >
+                  <Ionicons name="add" size={20} color="white" />
+                  <Text className="text-white font-pmedium ml-2">
+                    Thêm hình ảnh
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View className="p-4 bg-white">
+            <CustomButton
+              title={isUploading ? "Đang cập nhật..." : "Cập nhật dịch vụ"}
+              onPress={handleUpdateService}
+              containerStyles={`${isValid && !isUploading ? "bg-primary-500" : "bg-primary-400"}`}
+              isDisabled={!isValid || isUploading}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal thêm gói dịch vụ */}
+      <Modal
+        visible={showAddPriceModal}
+        animationType="slide"
+        onRequestClose={() => setShowAddPriceModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowAddPriceModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Thêm gói dịch vụ</Text>
+          </View>
+
+          <View className="p-4">
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Tên gói</Text>
+              <TextInput
+                value={priceForm.price_name}
+                onChangeText={(text) =>
+                  setPriceForm({ ...priceForm, price_name: text })
+                }
+                placeholder="Ví dụ: Gói cơ bản, Gói cao cấp..."
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Giá (VNĐ)</Text>
+              <TextInput
+                value={priceForm.price_value}
+                onChangeText={(text) => {
+                  const formattedValue = formatPriceInput(text);
+                  setPriceForm({ ...priceForm, price_value: formattedValue });
+                }}
+                placeholder="Nhập giá dịch vụ"
+                keyboardType="numeric"
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+          </View>
+
+          <View className="p-4 mt-auto bg-white">
+            <CustomButton
+              title="Thêm gói dịch vụ"
+              onPress={handleAddPrice}
+              containerStyles="bg-primary-500"
+              isDisabled={!priceForm.price_name || !priceForm.price_value}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal chỉnh sửa gói dịch vụ */}
+      <Modal
+        visible={showEditPriceModal}
+        animationType="slide"
+        onRequestClose={() => setShowEditPriceModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowEditPriceModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Chỉnh sửa gói dịch vụ</Text>
+          </View>
+
+          <View className="p-4">
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Tên gói</Text>
+              <TextInput
+                value={priceForm.price_name}
+                onChangeText={(text) =>
+                  setPriceForm({ ...priceForm, price_name: text })
+                }
+                placeholder="Ví dụ: Gói cơ bản, Gói cao cấp..."
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="font-pmedium mb-2">Giá (VNĐ)</Text>
+              <TextInput
+                value={priceForm.price_value}
+                onChangeText={(text) => {
+                  const formattedValue = formatPriceInput(text);
+                  setPriceForm({ ...priceForm, price_value: formattedValue });
+                }}
+                placeholder="Nhập giá dịch vụ"
+                keyboardType="numeric"
+                className="bg-white p-3 rounded-lg border border-gray-300"
+              />
+            </View>
+          </View>
+
+          <View className="p-4 mt-auto bg-white">
+            <CustomButton
+              title="Cập nhật gói dịch vụ"
+              onPress={handleUpdatePrice}
+              containerStyles="bg-primary-500"
+              isDisabled={!priceForm.price_name || !priceForm.price_value}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal xác nhận xóa dịch vụ */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center p-4">
+          <View className="bg-white rounded-xl p-5 w-full max-w-sm">
+            <Text className="font-pbold text-xl text-center">Xác nhận xóa</Text>
+            <Text className="text-center my-4">
+              Bạn có chắc chắn muốn xóa dịch vụ này? Hành động này không thể
+              hoàn tác.
+            </Text>
+            <View className="flex-row justify-between mt-2">
+              <TouchableOpacity
+                onPress={() => setShowDeleteConfirm(false)}
+                className="bg-gray-200 py-2 px-4 rounded-lg flex-1 mr-2"
+              >
+                <Text className="text-center font-pmedium">Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDeleteService}
+                className="bg-red-500 py-2 px-4 rounded-lg flex-1 ml-2"
+              >
+                <Text className="text-center font-pmedium text-white">Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal xem tất cả bình luận */}
+      <Modal
+        visible={showCommentsModal}
+        animationType="slide"
+        onRequestClose={() => setShowCommentsModal(false)}
+      >
+        <SafeAreaView className="flex-1 bg-gray-100">
+          <View className="flex-row items-center bg-white p-4">
+            <TouchableOpacity
+              onPress={() => setShowCommentsModal(false)}
+              className="mr-4"
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+            <Text className="font-pbold text-xl">Bình luận</Text>
+          </View>
+
+          {isLoadingComments ? (
+            <View className="flex-1 justify-center items-center">
+              <Text className="font-pmedium text-gray-600">
+                Đang tải bình luận...
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={serviceComments}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <View className="px-4 py-2">
+                  <CommentCard
+                    data={item}
+                    user={item.user}
+                    containerStyles="w-full"
+                    enableOption
+                    handleDeleteComment={handleDeleteComment}
+                  />
+                </View>
+              )}
+              contentContainerClassName="py-4"
+              ListEmptyComponent={
+                <View className="items-center justify-center py-8">
+                  <Ionicons name="chatbubble-outline" size={48} color="gray" />
+                  <Text className="text-gray-500 mt-2 font-pmedium">
+                    Chưa có bình luận nào
+                  </Text>
+                </View>
+              }
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+export default ProviderServiceDetail;

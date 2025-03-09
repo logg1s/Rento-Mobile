@@ -23,7 +23,12 @@ import { ServiceType } from "@/types/type";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import InputField from "@/components/InputField";
 import * as ImagePicker from "expo-image-picker";
-import { convertedPrice, formatToVND, getImageSource } from "@/utils/utils";
+import {
+  convertedPrice,
+  formatToVND,
+  getImageSource,
+  getServiceImageSource,
+} from "@/utils/utils";
 
 const DetailJob = () => {
   const { id, user_name, category_name } = useLocalSearchParams();
@@ -57,7 +62,21 @@ const DetailJob = () => {
       favorites?.some((item) => item.id === service.id) ?? false;
     setComment(service?.comment_by_you?.comment_body ?? "");
     setSelectedRating(service?.comment_by_you?.rate ?? 0);
+
+    // Xử lý dữ liệu ảnh
+    if (service?.image && Array.isArray(service.image)) {
+      service.images = service.image.map(
+        (img: { id: number; path: string }) => ({
+          id: img.id,
+          image_url: img.path,
+        })
+      );
+    }
+
     setData(service);
+
+    // Log để debug
+    console.log("Service data:", JSON.stringify(service, null, 2));
   };
 
   useEffect(() => {
@@ -81,7 +100,11 @@ const DetailJob = () => {
       headerTitle: `${user_name} - ${category_name}` || "Thông tin dịch vụ",
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => onPressFavorite(data?.id, !data?.is_liked)}
+          onPress={() => {
+            if (data?.id) {
+              onPressFavorite(data.id, !data?.is_liked);
+            }
+          }}
         >
           {data ? (
             <FontAwesome
@@ -101,10 +124,12 @@ const DetailJob = () => {
     }
   };
 
-  const onPressFavorite = async (id: number, action: boolean) => {
-    if (id) {
-      setData((prev) => ({ ...prev!, is_liked: !prev?.is_liked }));
-      await updateFavorite(id, action);
+  const onPressFavorite = async (
+    serviceId: number | undefined,
+    action: boolean
+  ) => {
+    if (serviceId) {
+      await updateFavorite(serviceId, action);
     }
   };
 
@@ -165,7 +190,7 @@ const DetailJob = () => {
   };
   const [hasScrolledHalfway, setHasScrolledHalfway] = useState(false);
   const screenHeight = Dimensions.get("window").height;
-  const handleScroll = (event) => {
+  const handleScroll = (event: any) => {
     const scrollY = event.nativeEvent.contentOffset.y;
     if (scrollY > screenHeight / 2) {
       setHasScrolledHalfway(true);
@@ -173,10 +198,10 @@ const DetailJob = () => {
       setHasScrolledHalfway(false);
     }
   };
-  const goToMessage = (userId: number) => {
+  const goToMessage = (userId: number | undefined) => {
     if (userId) {
       router.push({
-        pathname: "/(tabs)/message",
+        pathname: "/message",
         params: {
           chatWithId: userId,
         },
@@ -225,18 +250,28 @@ const DetailJob = () => {
                 </View>
               )}
             >
-              <Image
-                source={require("@/assets/images/picsum_1.jpg")}
-                className="h-full w-full"
-              />
-              <Image
-                source={require("@/assets/images/picsum_1.jpg")}
-                className="h-full w-full"
-              />
-              <Image
-                source={require("@/assets/images/picsum_1.jpg")}
-                className="h-full w-full"
-              />
+              {data?.images && data.images.length > 0 ? (
+                data.images.map((image, index) => (
+                  <Image
+                    key={index}
+                    source={getServiceImageSource(image.image_url)}
+                    className="h-full w-full"
+                    resizeMode="cover"
+                    onError={(e) =>
+                      console.log(
+                        "Lỗi tải ảnh:",
+                        image.image_url,
+                        e.nativeEvent.error
+                      )
+                    }
+                  />
+                ))
+              ) : (
+                <Image
+                  source={require("@/assets/images/picsum_1.jpg")}
+                  className="h-full w-full"
+                />
+              )}
             </Swiper>
             <View className="p-5 bg-white flex-row justify-between items-center">
               <TouchableOpacity
@@ -249,8 +284,8 @@ const DetailJob = () => {
                         id: data.user.id,
                         name: data.user.name,
                         email: data.user.email,
-                        average_rate: data.user.average_rate,
-                        comment_count: data.user.comment_count,
+                        average_rate: data.user.average_rate as any,
+                        comment_count: data.user.comment_count as any,
                       },
                     });
                   } else {
@@ -305,9 +340,11 @@ const DetailJob = () => {
                     key={item?.id || index}
                     price_name={item?.price_name || ""}
                     price_value={item?.price_value || 0}
-                    isActive={index === selectedPricing}
+                    isActive={selectedPricing === index}
                     onPress={() => onPressCardPrice(index)}
                     ref={(el) => (priceRef.current[index] = el)}
+                    id={item?.id || 0}
+                    deleted_at={item?.deleted_at || null}
                   />
                 ))}
               </ScrollView>
@@ -469,7 +506,7 @@ const DetailJob = () => {
                   <SmallerServiceCard
                     key={item.id}
                     data={item}
-                    onPressFavorite={() => onPressFavorite(item.id)}
+                    onPressFavorite={() => onPressFavorite(item.id, true)}
                   />
                 ))}
               </ScrollView>
@@ -487,7 +524,7 @@ const DetailJob = () => {
                   <SmallerServiceCard
                     key={item.id}
                     data={item}
-                    onPressFavorite={() => onPressFavorite(item.id)}
+                    onPressFavorite={() => onPressFavorite(item.id, true)}
                   />
                 ))}
               </ScrollView>

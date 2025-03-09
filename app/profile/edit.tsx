@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import useRentoData from "@/stores/dataStore";
 import InputField from "@/components/InputField";
+import LocationInputField from "@/components/LocationInputField";
 import { Rules } from "@/types/type";
 
 const EditProfileScreen = () => {
@@ -17,6 +18,9 @@ const EditProfileScreen = () => {
     name: user?.name ?? "",
     phone_number: user?.phone_number ?? "",
     address: user?.address ?? "",
+    lat: null,
+    lng: null,
+    real_address: "",
   });
 
   const rules: Rules = {
@@ -44,6 +48,24 @@ const EditProfileScreen = () => {
     rule.every((r) => r.isValid)
   );
 
+  const handleLocationSelected = (data: {
+    lat: number;
+    lng: number;
+    address: string;
+    formattedAddress?: string;
+  }) => {
+    setForm(
+      (prev) =>
+        ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          address: data.address,
+          real_address: data.formattedAddress || data.address,
+        }) as typeof prev
+    );
+  };
+
   const handleSubmit = async () => {
     if (!isValidate) return;
 
@@ -51,6 +73,9 @@ const EditProfileScreen = () => {
       name: form.name.trim(),
       phone_number: form.phone_number.trim(),
       address: form.address.trim(),
+      lat: form.lat,
+      lng: form.lng,
+      real_address: form.real_address,
     });
 
     if (success) {
@@ -94,7 +119,7 @@ const EditProfileScreen = () => {
           canEmpty={false}
         />
 
-        <InputField
+        <LocationInputField
           nameField="Địa chỉ"
           placeholder="Nhập địa chỉ"
           iconLeft={<Ionicons name="location" size={20} color="gray" />}
@@ -103,7 +128,7 @@ const EditProfileScreen = () => {
           onChangeText={(text) =>
             setForm((prev) => ({ ...prev, address: text }))
           }
-          canEmpty={false}
+          onLocationSelected={handleLocationSelected}
         />
         <View className="flex-row justify-around">
           <TouchableOpacity

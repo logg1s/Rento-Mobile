@@ -38,6 +38,9 @@ type DataState = {
           phone_number?: string | null;
           address?: string | null;
           role?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          real_address?: string | null;
         }
       | {
           old_password: string;
@@ -75,12 +78,13 @@ export const axiosFetch = async (
       method,
       data,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Lỗi fetch", url, error?.response?.data);
     const refreshResult = await useAuthStore.getState().refreshAccessToken();
     if (refreshResult) {
-      return axiosFetch(url, method, data);
+      return axiosFetch(url, method, data, isUpload);
     }
+    throw error;
   }
 };
 
@@ -98,11 +102,11 @@ const useRentoData = create<DataState>((set, get) => ({
       const updatedServices =
         response?.data?.data?.map((s: ServiceType) => ({
           ...s,
-          is_liked: currentFavorites.some((f: ServiceType) => f.id === s.id),
+          is_liked: currentFavorites.some((f) => f.id === s.id),
         })) || [];
       set({ services: updatedServices });
-    } catch (error) {
-      console.error("Error fetching services:", error?.response?.data);
+    } catch (error: any) {
+      console.error("Lỗi khi tải dịch vụ:", error?.response?.data || error);
     }
   },
 
@@ -110,8 +114,8 @@ const useRentoData = create<DataState>((set, get) => ({
     try {
       const response = await axiosFetch(`/categories`);
       set({ categories: response?.data?.data || [] });
-    } catch (error) {
-      console.error("Error fetching categories:", error?.response?.data);
+    } catch (error: any) {
+      console.error("Lỗi khi tải danh mục:", error?.response?.data || error);
     }
   },
 
@@ -119,20 +123,20 @@ const useRentoData = create<DataState>((set, get) => ({
     try {
       const response = await axiosFetch(`/users/me`);
       set({ user: response?.data || null });
-    } catch (error) {
-      console.error("Error fetching user:", error?.response?.data);
-      // useAuthStore.getState().logout();
-      // router.replace("/");
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi tải thông tin người dùng:",
+        error?.response?.data || error
+      );
     }
   },
 
   fetchNotifications: async () => {
     try {
       const response = await axiosFetch(`/notifications`);
-
       set({ notifications: response?.data?.data || [] });
-    } catch (error) {
-      console.error("Error fetching notifications:", error?.response?.data);
+    } catch (error: any) {
+      console.error("Lỗi khi tải thông báo:", error?.response?.data || error);
     }
   },
 
@@ -140,90 +144,105 @@ const useRentoData = create<DataState>((set, get) => ({
     try {
       const response = await axiosFetch(`/favorites`);
       set({ favorites: response?.data || [] });
-    } catch (error) {
-      console.error("Error fetching favorites:", error?.response?.data);
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi tải dịch vụ yêu thích:",
+        error?.response?.data || error
+      );
     }
   },
 
   fetchData: async () => {
     try {
       await Promise.all([
-        get().fetchFavorites(),
         get().fetchCategories(),
         get().fetchUser(),
         get().fetchNotifications(),
+        get().fetchFavorites(),
       ]);
       await get().fetchServices();
-    } catch (error) {
-      console.error("Error fetching data:", error?.response?.data);
+    } catch (error: any) {
+      console.error("Lỗi khi tải dữ liệu:", error?.response?.data || error);
     }
   },
 
   updateFavorite: async (serviceId: number, action: boolean) => {
-    const previousServices = get().services;
     try {
-      set({
-        services: previousServices.map((service) =>
-          service.id === serviceId ? { ...service, is_liked: action } : service
-        ),
-      });
-      await axiosFetch(`/favorites/${serviceId}`, "post", {
+      const response = await axiosFetch(`/favorites/${serviceId}`, "post", {
         action,
       });
       await get().fetchFavorites();
       await get().fetchServices();
-    } catch (error) {
-      set({ services: previousServices });
+      return response?.data;
+    } catch (error: any) {
       console.error(
-        "Lỗi khi thay đổi trạng thái yêu thích:",
-        error?.response?.data
+        "Lỗi khi cập nhật yêu thích:",
+        error?.response?.data || error
       );
+      throw error;
     }
   },
 
   markNotificationAsRead: async (id: number) => {
     try {
-      await axiosFetch(`/notifications/readed/${id}`, "put");
-      const currentNotifications = get().notifications;
-      set({
-        notifications: currentNotifications.map((notif) =>
-          notif.id === id ? { ...notif, is_read: true } : notif
-        ),
-      });
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
+      const response = await axiosFetch(`/notifications/readed/${id}`, "put");
+      await get().fetchNotifications();
+      return response?.data;
+    } catch (error: any) {
+      console.error("Lỗi khi đánh dấu đã đọc:", error?.response?.data || error);
+      throw error;
     }
   },
 
   markAllNotificationsAsRead: async () => {
     try {
-      await axiosFetch(`/notifications/read/all`, "put");
-      const currentNotifications = get().notifications;
-      set({
-        notifications: currentNotifications.map((notif) => ({
-          ...notif,
-          is_read: true,
-        })),
-      });
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
+      const response = await axiosFetch(`/notifications/read/all`, "put");
+      await get().fetchNotifications();
+      return response?.data;
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi đánh dấu tất cả đã đọc:",
+        error?.response?.data || error
+      );
+      throw error;
     }
   },
 
-  update: async (data, isUpdatePassword: boolean = false) => {
+  update: async (
+    data:
+      | {
+          name?: string | null;
+          phone_number?: string | null;
+          address?: string | null;
+          role?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          real_address?: string | null;
+        }
+      | {
+          old_password: string;
+          new_password: string;
+        },
+    isUpdatePassword = false
+  ) => {
     try {
-      const response = await axiosFetch(
-        `/users/update${isUpdatePassword ? "Password" : ""}`,
-        "put",
-        data
-      );
-      if (isUpdatePassword) {
-        await useAuthStore.getState().refreshAccessToken();
+      const endpoint = isUpdatePassword
+        ? "/users/updatePassword"
+        : "/users/update";
+      const response = await axiosFetch(endpoint, "put", data);
+      if (!isUpdatePassword) {
+        await get().fetchUser();
       }
-      await get().fetchUser();
       return true;
-    } catch (error) {
-      console.error("Error updating profile:", error?.response?.data);
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật thông tin:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message || "Không thể cập nhật thông tin"
+      );
       return false;
     }
   },
@@ -231,11 +250,15 @@ const useRentoData = create<DataState>((set, get) => ({
   uploadAvatar: async (imageUri: string) => {
     try {
       const formData = new FormData();
+      const fileName = imageUri.split("/").pop();
+      const fileType = fileName?.split(".").pop();
+
       formData.append("avatar", {
         uri: imageUri,
-        type: "image/jpeg",
-        name: "avatar.jpg",
+        name: fileName,
+        type: `image/${fileType}`,
       } as any);
+
       const response = await axiosFetch(
         "/users/uploadAvatar",
         "post",
@@ -244,8 +267,15 @@ const useRentoData = create<DataState>((set, get) => ({
       );
       await get().fetchUser();
       return true;
-    } catch (error) {
-      console.error("Error uploading avatar:", error?.response?.data);
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi tải lên ảnh đại diện:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message || "Không thể tải lên ảnh đại diện"
+      );
       return false;
     }
   },
@@ -253,32 +283,55 @@ const useRentoData = create<DataState>((set, get) => ({
   uploadImage: async (imageUri: string) => {
     try {
       const formData = new FormData();
+      const fileName = imageUri.split("/").pop();
+      const fileType = fileName?.split(".").pop();
+
       formData.append("image", {
         uri: imageUri,
-        type: "image/jpeg",
-        name: "image.jpg",
+        name: fileName,
+        type: `image/${fileType}`,
       } as any);
+
       const response = await axiosFetch(
         "/users/uploadImage",
         "post",
         formData,
         true
       );
-      return (response?.data as ImageType)?.path ?? "";
-    } catch (error) {
-      console.error("Error uploading avatar:", error?.response?.data);
+      return response?.data?.path || "";
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi tải lên hình ảnh:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message || "Không thể tải lên hình ảnh"
+      );
       return "";
     }
   },
 
-  updateStatusOrder: async (orderId: number, status: OrderStatus) => {
+  updateStatusOrder: async (orderId: number, status: number) => {
     try {
-      await axiosFetch(`/users/orders/${orderId}/update-status`, "put", {
-        status: status,
-      });
+      const response = await axiosFetch(
+        `/users/orders/${orderId}/update-status`,
+        "put",
+        {
+          status,
+        }
+      );
       return true;
-    } catch (error) {
-      console.error("Error canceling order:", error?.response?.data);
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật trạng thái đơn hàng:",
+        error?.response?.data || error
+      );
+      Alert.alert(
+        "Lỗi",
+        error?.response?.data?.message ||
+          "Không thể cập nhật trạng thái đơn hàng"
+      );
       return false;
     }
   },

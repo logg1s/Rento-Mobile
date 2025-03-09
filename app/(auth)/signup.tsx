@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
 import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
+import LocationInputField from "@/components/LocationInputField";
 import { SelectList } from "react-native-dropdown-select-list";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -27,6 +28,9 @@ const SignUp = () => {
     phone_number: "",
     address: "",
     role: "user",
+    lat: null,
+    lng: null,
+    real_address: "",
   });
   const rules1: Rules = {
     name: [
@@ -134,6 +138,25 @@ const SignUp = () => {
     setSelectedRole(role);
     setFormSignUp((prev) => ({ ...prev, role }));
   };
+
+  const handleLocationSelected = (data: {
+    lat: number;
+    lng: number;
+    address: string;
+    formattedAddress?: string;
+  }) => {
+    setFormSignUp(
+      (prev) =>
+        ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          address: data.address,
+          real_address: data.formattedAddress || data.address,
+        }) as typeof prev
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <ScrollView className="p-5">
@@ -210,7 +233,7 @@ const SignUp = () => {
                     setFormSignUp((prev) => ({ ...prev, phone_number: e }))
                   }
                 />
-                <InputField
+                <LocationInputField
                   nameField="Địa chỉ"
                   placeholder="Nhập địa chỉ"
                   iconLeft={<Ionicons name="location" size={20} color="gray" />}
@@ -219,7 +242,7 @@ const SignUp = () => {
                   onChangeText={(e) =>
                     setFormSignUp((prev) => ({ ...prev, address: e }))
                   }
-                  canEmpty={false}
+                  onLocationSelected={handleLocationSelected}
                 />
                 <Text className="font-psemibold text-xl">
                   Vai trò bạn mong muốn

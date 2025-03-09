@@ -96,6 +96,9 @@ export type ServiceType = {
   benefit?: BenefitType[];
   comment_by_you?: CommentType;
   suggested_services?: number[];
+  images?: { id: number; image_url: string }[];
+  view_count?: number;
+  order_count?: number;
 } & TimeStampType;
 
 export type NotificationType = {

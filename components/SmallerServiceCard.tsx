@@ -4,7 +4,7 @@ import Fontisto from "@expo/vector-icons/Fontisto";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
-import { convertedPrice } from "@/utils/utils";
+import { convertedPrice, getServiceImageSource } from "@/utils/utils";
 import { twMerge } from "tailwind-merge";
 
 const SmallerServiceCard: React.FC<ServiceCardProps> = ({
@@ -21,6 +21,7 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
     deleted_at,
     is_liked,
     comment_count,
+    images,
   },
   containerStyles,
   onPressFavorite,
@@ -43,13 +44,17 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
     <TouchableOpacity
       className={twMerge(
         `w-48 rounded-xl gap-3 border border-general-100 bg-white shadow-md shadow-gray-500 `,
-        containerStyles,
+        containerStyles
       )}
       onPress={onPressServiceCard}
       onLongPress={onLongPressServiceCard}
     >
       <Image
-        source={require("@/assets/images/picsum_1.jpg")}
+        source={
+          service_name && images && images.length > 0
+            ? getServiceImageSource(images[0].image_url)
+            : require("@/assets/images/picsum_1.jpg")
+        }
         className="w-full h-40"
         resizeMode="cover"
       />

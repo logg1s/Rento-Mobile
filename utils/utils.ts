@@ -4,7 +4,7 @@ import { ImageSourcePropType } from "react-native";
 export const convertedPrice = (
   price?: PriceType[],
   short = false,
-  single: "no" | "lowest" | "highest" = "no",
+  single: "no" | "lowest" | "highest" = "no"
 ) => {
   if (!price?.length) return formatToVND(0);
   const minPrice = Math.min(...price.map((p) => p.price_value));
@@ -65,20 +65,57 @@ export const getImagePath = (path: string | null | undefined) => {
   return null;
 };
 
+export const getServiceImageSource = (imageUrl: string | null | undefined) => {
+  if (!imageUrl) return { uri: "" };
+
+  console.log("Processing image URL:", imageUrl);
+  console.log("API host:", process.env.EXPO_PUBLIC_API_HOST);
+
+  // Kiểm tra nếu đường dẫn đã có http hoặc https
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    console.log("URL has http/https prefix, returning as is");
+    return { uri: imageUrl };
+  }
+
+  // Kiểm tra nếu đường dẫn bắt đầu bằng /storage/
+  if (imageUrl.startsWith("/storage/")) {
+    const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}${imageUrl}`;
+    console.log("URL starts with /storage/, returning:", fullUrl);
+    return { uri: fullUrl };
+  }
+
+  // Trường hợp đường dẫn không có /storage/ nhưng bắt đầu bằng services/
+  if (imageUrl.startsWith("services/")) {
+    const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
+    console.log("URL starts with services/, returning:", fullUrl);
+    return { uri: fullUrl };
+  }
+
+  // Trường hợp khác, thêm /storage/
+  const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
+  console.log(
+    "URL has no specific prefix, adding /storage/, returning:",
+    fullUrl
+  );
+  return { uri: fullUrl };
+};
+
 export const getImageSource = (
-  user: UserType | null | undefined,
+  user: UserType | null | undefined
 ): ImageSourcePropType => {
   const path = getImagePath(user?.image?.path);
   return path
     ? { uri: path }
     : require("@/assets/images/avatar_placeholder_icon.png");
 };
+
 export const normalizeVietnamese = (str: string) => {
   return str
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 };
+
 export const searchFilter = (itemName: string, searchQuery: string) => {
   if (!itemName) return false;
   if (!searchQuery) return true;

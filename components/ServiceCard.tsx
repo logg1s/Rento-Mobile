@@ -24,23 +24,28 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   },
   containerStyles,
   onPressFavorite,
+  onPress,
 }) => {
   const onPressServiceCard = () => {
-    router.push({
-      pathname: "/job/[id]",
-      params: {
-        id,
-        user_name: user?.name,
-        category_name: category?.category_name,
-      },
-    });
+    if (onPress) {
+      onPress();
+    } else {
+      router.push({
+        pathname: "/job/[id]",
+        params: {
+          id,
+          user_name: user?.name,
+          category_name: category?.category_name,
+        },
+      });
+    }
   };
 
   return (
     <TouchableOpacity
       className={twMerge(
         `rounded-xl p-4 gap-3 border border-general-100 bg-white shadow-md shadow-gray-500`,
-        containerStyles,
+        containerStyles
       )}
       onPress={onPressServiceCard}
     >
