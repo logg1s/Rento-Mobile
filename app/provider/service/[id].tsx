@@ -30,6 +30,7 @@ import CommentCard from "@/components/CommentCard";
 import { axiosFetch } from "@/stores/dataStore";
 import RatingStar from "@/components/RatingStar";
 import Swiper from "react-native-swiper";
+import CustomModal from "@/app/components/CustomModal";
 
 // Định nghĩa rules cho validation
 type ValidationRule = {
@@ -83,9 +84,12 @@ const ProviderServiceDetail = () => {
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitType | null>(
     null
   );
-  const [benefitForm, setBenefitForm] = useState({
+  const [benefitForm, setBenefitForm] = useState<{
+    benefit_name: string;
+    price_id: number[];
+  }>({
     benefit_name: "",
-    price_id: [] as number[],
+    price_id: [],
   });
   const [selectedBenefitsForPrice, setSelectedBenefitsForPrice] = useState<
     number[]
@@ -132,10 +136,34 @@ const ProviderServiceDetail = () => {
     price_value: "",
   });
 
+  // Thêm validation state cho price form
+  const [priceErrors, setPriceErrors] = useState({
+    price_name: "",
+    price_value: "",
+  });
+
+  // Thêm validation state cho benefit form
+  const [benefitErrors, setBenefitErrors] = useState({
+    benefit_name: "",
+  });
+
   // State cho hình ảnh
   const [images, setImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Thêm state cho modal thông báo
+  const [modal, setModal] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info" as "success" | "error" | "confirm" | "info",
+    onConfirm: () => {},
+  });
+
+  // Thêm state để theo dõi tính hợp lệ của form
+  const [isPriceFormValid, setIsPriceFormValid] = useState(false);
+  const [isBenefitFormValid, setIsBenefitFormValid] = useState(false);
 
   // Cập nhật validation rules khi formData thay đổi
   useEffect(() => {
@@ -456,30 +484,97 @@ const ProviderServiceDetail = () => {
   const handleDeleteService = async () => {
     if (!service) return;
 
-    try {
-      await deleteService(service.id);
-      Alert.alert("Thành công", "Xóa dịch vụ thành công");
-      router.back();
-    } catch (error: any) {
-      console.error("Lỗi khi xóa dịch vụ:", error?.response?.data || error);
-      Alert.alert(
-        "Lỗi",
-        error?.response?.data?.message ||
-          "Không thể xóa dịch vụ. Vui lòng thử lại sau."
-      );
-      setShowDeleteConfirm(false);
+    showModal(
+      "Xác nhận xóa dịch vụ",
+      "Bạn có chắc chắn muốn xóa dịch vụ này? Hành động này không thể hoàn tác.",
+      "confirm",
+      async () => {
+        try {
+          await deleteService(Number(id));
+          router.replace("/provider/services");
+          showModal("Thành công", "Dịch vụ đã được xóa thành công", "success");
+        } catch (error: any) {
+          console.error("Lỗi khi xóa dịch vụ:", error?.response?.data || error);
+          showModal(
+            "Lỗi",
+            "Không thể xóa dịch vụ. Vui lòng thử lại sau.",
+            "error"
+          );
+        }
+      }
+    );
+  };
+
+  // Validate price form
+  const validatePriceForm = () => {
+    let isValid = true;
+    const errors = {
+      price_name: "",
+      price_value: "",
+    };
+
+    // Validate price name
+    if (!priceForm.price_name.trim()) {
+      errors.price_name = "Tên gói dịch vụ không được để trống";
+      isValid = false;
+    } else if (priceForm.price_name.trim().length < 3) {
+      errors.price_name = "Tên gói dịch vụ phải có ít nhất 3 ký tự";
+      isValid = false;
     }
+
+    // Validate price value
+    if (!priceForm.price_value.trim()) {
+      errors.price_value = "Giá gói dịch vụ không được để trống";
+      isValid = false;
+    } else {
+      const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
+      if (isNaN(priceValue) || priceValue <= 0) {
+        errors.price_value = "Giá gói dịch vụ phải là số dương";
+        isValid = false;
+      } else if (priceValue < 1000) {
+        errors.price_value = "Giá gói dịch vụ phải lớn hơn hoặc bằng 1.000 VND";
+        isValid = false;
+      }
+    }
+
+    setPriceErrors(errors);
+    setIsPriceFormValid(isValid);
+    return isValid;
+  };
+
+  // Validate benefit form
+  const validateBenefitForm = () => {
+    let isValid = true;
+    const errors = {
+      benefit_name: "",
+    };
+
+    // Validate benefit name
+    if (!benefitForm.benefit_name.trim()) {
+      errors.benefit_name = "Tên lợi ích không được để trống";
+      isValid = false;
+    } else if (benefitForm.benefit_name.trim().length < 3) {
+      errors.benefit_name = "Tên lợi ích phải có ít nhất 3 ký tự";
+      isValid = false;
+    } else if (benefitForm.benefit_name.trim().length > 50) {
+      errors.benefit_name = "Tên lợi ích không được vượt quá 50 ký tự";
+      isValid = false;
+    }
+
+    setBenefitErrors(errors);
+    setIsBenefitFormValid(isValid);
+    return isValid;
   };
 
   const handleAddPrice = async () => {
     if (!service) return;
 
+    if (!validatePriceForm()) {
+      return;
+    }
+
     try {
       const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
-      if (isNaN(priceValue) || priceValue <= 0) {
-        Alert.alert("Lỗi", "Vui lòng nhập giá hợp lệ");
-        return;
-      }
 
       // Sử dụng API mới để thêm giá và liên kết benefits trong một lần
       await addServicePriceWithBenefits(service.id, {
@@ -493,27 +588,32 @@ const ProviderServiceDetail = () => {
 
       setShowAddPriceModal(false);
       setPriceForm({ price_name: "", price_value: "" });
+      setPriceErrors({ price_name: "", price_value: "" });
       setSelectedBenefitsForPrice([]);
-      Alert.alert("Thành công", "Thêm gói dịch vụ thành công");
+      showModal("Thành công", "Thêm gói dịch vụ thành công", "success");
       fetchData();
     } catch (error: any) {
       console.error(
         "Lỗi khi thêm gói dịch vụ:",
         error?.response?.data || error
       );
-      Alert.alert("Lỗi", "Không thể thêm gói dịch vụ. Vui lòng thử lại sau.");
+      showModal(
+        "Lỗi",
+        "Không thể thêm gói dịch vụ. Vui lòng thử lại sau.",
+        "error"
+      );
     }
   };
 
   const handleUpdatePrice = async () => {
     if (!service || !selectedPrice) return;
 
+    if (!validatePriceForm()) {
+      return;
+    }
+
     try {
       const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
-      if (isNaN(priceValue) || priceValue <= 0) {
-        Alert.alert("Lỗi", "Vui lòng nhập giá hợp lệ");
-        return;
-      }
 
       // Xác định danh sách benefits cần liên kết
       // Benefits đã liên kết trừ đi những benefits bị detach + thêm vào những benefits mới được chọn
@@ -534,19 +634,21 @@ const ProviderServiceDetail = () => {
       setShowEditPriceModal(false);
       setSelectedPrice(null);
       setPriceForm({ price_name: "", price_value: "" });
+      setPriceErrors({ price_name: "", price_value: "" });
       setSelectedBenefitsForPrice([]);
       setLinkedBenefits([]);
       setBenefitsToDetach([]);
-      Alert.alert("Thành công", "Cập nhật gói dịch vụ thành công");
+      showModal("Thành công", "Cập nhật gói dịch vụ thành công", "success");
       fetchData();
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật gói dịch vụ:",
         error?.response?.data || error
       );
-      Alert.alert(
+      showModal(
         "Lỗi",
-        "Không thể cập nhật gói dịch vụ. Vui lòng thử lại sau."
+        "Không thể cập nhật gói dịch vụ. Vui lòng thử lại sau.",
+        "error"
       );
     }
   };
@@ -554,14 +656,28 @@ const ProviderServiceDetail = () => {
   const handleDeletePrice = async (priceId: number) => {
     if (!service) return;
 
-    try {
-      await deleteServicePrice(service.id, priceId);
-      Alert.alert("Thành công", "Xóa gói dịch vụ thành công");
-      fetchData();
-    } catch (error: any) {
-      console.error("Lỗi khi xóa gói dịch vụ:", error?.response?.data || error);
-      Alert.alert("Lỗi", "Không thể xóa gói dịch vụ. Vui lòng thử lại sau.");
-    }
+    showModal(
+      "Xác nhận",
+      "Bạn có chắc chắn muốn xóa gói dịch vụ này không?",
+      "confirm",
+      async () => {
+        try {
+          await deleteServicePrice(service.id, priceId);
+          showModal("Thành công", "Xóa gói dịch vụ thành công", "success");
+          fetchData();
+        } catch (error: any) {
+          console.error(
+            "Lỗi khi xóa gói dịch vụ:",
+            error?.response?.data || error
+          );
+          showModal(
+            "Lỗi",
+            "Không thể xóa gói dịch vụ. Vui lòng thử lại sau.",
+            "error"
+          );
+        }
+      }
+    );
   };
 
   const formatPriceInput = (text: string) => {
@@ -591,14 +707,28 @@ const ProviderServiceDetail = () => {
   };
 
   const handleDeleteComment = async (commentId: number) => {
-    try {
-      await axiosFetch(`/comments/${commentId}`, "delete");
-      Alert.alert("Thành công", "Xóa bình luận thành công");
-      fetchComments();
-    } catch (error) {
-      console.error("Lỗi khi xóa bình luận:", error);
-      Alert.alert("Lỗi", "Không thể xóa bình luận. Vui lòng thử lại sau.");
-    }
+    showModal(
+      "Xác nhận",
+      "Bạn có chắc chắn muốn xóa bình luận này?",
+      "confirm",
+      async () => {
+        try {
+          await axiosFetch(`/comments/${commentId}`, "delete");
+          fetchComments();
+          showModal("Thành công", "Xóa bình luận thành công", "success");
+        } catch (error: any) {
+          console.error(
+            "Lỗi khi xóa bình luận:",
+            error?.response?.data || error
+          );
+          showModal(
+            "Lỗi",
+            "Không thể xóa bình luận. Vui lòng thử lại sau.",
+            "error"
+          );
+        }
+      }
+    );
   };
 
   // Hàm chọn hình ảnh từ thư viện
@@ -665,16 +795,14 @@ const ProviderServiceDetail = () => {
     return benefitExamples[randomIndex];
   };
 
-  // Functions for benefits
   const handleAddBenefit = async () => {
     if (!service) return;
 
-    try {
-      if (!benefitForm.benefit_name) {
-        Alert.alert("Lỗi", "Vui lòng nhập tên lợi ích");
-        return;
-      }
+    if (!validateBenefitForm()) {
+      return;
+    }
 
+    try {
       // Sử dụng API mới cho thêm benefit
       await addServiceBenefit(service.id, {
         benefit_name: benefitForm.benefit_name,
@@ -683,7 +811,8 @@ const ProviderServiceDetail = () => {
 
       setShowAddBenefitModal(false);
       setBenefitForm({ benefit_name: "", price_id: [] });
-      Alert.alert("Thành công", "Thêm lợi ích thành công");
+      setBenefitErrors({ benefit_name: "" });
+      showModal("Thành công", "Thêm lợi ích thành công", "success");
       fetchData();
     } catch (error: any) {
       console.error("Lỗi khi thêm lợi ích:", error?.response?.data || error);
@@ -700,19 +829,18 @@ const ProviderServiceDetail = () => {
         errorMessage = error.response.data.message;
       }
 
-      Alert.alert("Lỗi", errorMessage);
+      showModal("Lỗi", errorMessage, "error");
     }
   };
 
   const handleUpdateBenefit = async () => {
     if (!service || !selectedBenefit) return;
 
-    try {
-      if (!benefitForm.benefit_name) {
-        Alert.alert("Lỗi", "Vui lòng nhập tên lợi ích");
-        return;
-      }
+    if (!validateBenefitForm()) {
+      return;
+    }
 
+    try {
       // Sử dụng API mới cho cập nhật benefit
       await updateServiceBenefit(service.id, selectedBenefit.id, {
         benefit_name: benefitForm.benefit_name,
@@ -722,7 +850,8 @@ const ProviderServiceDetail = () => {
       setShowEditBenefitModal(false);
       setSelectedBenefit(null);
       setBenefitForm({ benefit_name: "", price_id: [] });
-      Alert.alert("Thành công", "Cập nhật lợi ích thành công");
+      setBenefitErrors({ benefit_name: "" });
+      showModal("Thành công", "Cập nhật lợi ích thành công", "success");
       fetchData();
     } catch (error: any) {
       console.error(
@@ -742,7 +871,7 @@ const ProviderServiceDetail = () => {
         errorMessage = error.response.data.message;
       }
 
-      Alert.alert("Lỗi", errorMessage);
+      showModal("Lỗi", errorMessage, "error");
     }
   };
 
@@ -775,15 +904,25 @@ const ProviderServiceDetail = () => {
   const handleDeleteBenefit = async (benefitId: number) => {
     if (!service) return;
 
-    try {
-      await deleteServiceBenefit(service.id, benefitId);
-
-      Alert.alert("Thành công", "Xóa lợi ích thành công");
-      fetchData();
-    } catch (error: any) {
-      console.error("Lỗi khi xóa lợi ích:", error?.response?.data || error);
-      Alert.alert("Lỗi", "Không thể xóa lợi ích. Vui lòng thử lại sau.");
-    }
+    showModal(
+      "Xác nhận",
+      "Bạn có chắc chắn muốn xóa lợi ích này?",
+      "confirm",
+      async () => {
+        try {
+          await deleteServiceBenefit(service.id, benefitId);
+          showModal("Thành công", "Xóa lợi ích thành công", "success");
+          fetchData();
+        } catch (error: any) {
+          console.error("Lỗi khi xóa lợi ích:", error?.response?.data || error);
+          showModal(
+            "Lỗi",
+            "Không thể xóa lợi ích. Vui lòng thử lại sau.",
+            "error"
+          );
+        }
+      }
+    );
   };
 
   const togglePriceSelection = (priceId: number) => {
@@ -903,6 +1042,36 @@ const ProviderServiceDetail = () => {
       );
     }
   };
+
+  // Hàm hiển thị modal thông báo
+  const showModal = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "confirm" | "info",
+    onConfirm?: () => void
+  ) => {
+    setModal({
+      visible: true,
+      title,
+      message,
+      type,
+      onConfirm: onConfirm || (() => {}),
+    });
+  };
+
+  // Hàm đóng modal
+  const closeModal = () => {
+    setModal((prev) => ({ ...prev, visible: false }));
+  };
+
+  // Thêm useEffect để chạy validate mỗi khi form thay đổi
+  useEffect(() => {
+    validatePriceForm();
+  }, [priceForm]);
+
+  useEffect(() => {
+    validateBenefitForm();
+  }, [benefitForm]);
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
@@ -1062,18 +1231,7 @@ const ProviderServiceDetail = () => {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
-                      Alert.alert(
-                        "Xác nhận",
-                        "Bạn có chắc chắn muốn xóa gói dịch vụ này?",
-                        [
-                          { text: "Hủy", style: "cancel" },
-                          {
-                            text: "Xóa",
-                            style: "destructive",
-                            onPress: () => handleDeletePrice(price.id),
-                          },
-                        ]
-                      );
+                      handleDeletePrice(price.id);
                     }}
                   >
                     <Ionicons name="trash-outline" size={20} color="red" />
@@ -1129,18 +1287,7 @@ const ProviderServiceDetail = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => {
-                        Alert.alert(
-                          "Xác nhận",
-                          "Bạn có chắc chắn muốn xóa lợi ích này?",
-                          [
-                            { text: "Hủy", style: "cancel" },
-                            {
-                              text: "Xóa",
-                              style: "destructive",
-                              onPress: () => handleDeleteBenefit(benefit.id),
-                            },
-                          ]
-                        );
+                        handleDeleteBenefit(benefit.id);
                       }}
                     >
                       <Ionicons name="trash-outline" size={20} color="red" />
@@ -1417,28 +1564,84 @@ const ProviderServiceDetail = () => {
 
           <ScrollView className="p-4">
             <View className="mb-4">
-              <Text className="font-pmedium mb-2">Tên gói</Text>
-              <TextInput
+              <InputField
+                nameField="Tên gói dịch vụ"
+                placeholder="Nhập tên gói dịch vụ"
                 value={priceForm.price_name}
-                onChangeText={(text) =>
-                  setPriceForm({ ...priceForm, price_name: text })
-                }
-                placeholder="Ví dụ: Gói cơ bản, Gói cao cấp..."
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                onChangeText={(text) => {
+                  setPriceForm((prev) => ({ ...prev, price_name: text }));
+
+                  // Validate realtime
+                  if (!text.trim()) {
+                    setPriceErrors((prev) => ({
+                      ...prev,
+                      price_name: "Tên gói dịch vụ không được để trống",
+                    }));
+                  } else if (text.trim().length < 3) {
+                    setPriceErrors((prev) => ({
+                      ...prev,
+                      price_name: "Tên gói dịch vụ phải có ít nhất 3 ký tự",
+                    }));
+                  } else {
+                    setPriceErrors((prev) => ({ ...prev, price_name: "" }));
+                  }
+                }}
+                rules={[
+                  {
+                    isValid: !priceErrors.price_name,
+                    message: priceErrors.price_name,
+                  },
+                ]}
+                required
               />
             </View>
 
             <View className="mb-4">
-              <Text className="font-pmedium mb-2">Giá (VNĐ)</Text>
-              <TextInput
+              <InputField
+                nameField="Giá gói dịch vụ (VNĐ)"
+                placeholder="Nhập giá gói dịch vụ"
                 value={priceForm.price_value}
                 onChangeText={(text) => {
-                  const formattedValue = formatPriceInput(text);
-                  setPriceForm({ ...priceForm, price_value: formattedValue });
+                  const formattedText = formatPriceInput(text);
+                  setPriceForm((prev) => ({
+                    ...prev,
+                    price_value: formattedText,
+                  }));
+
+                  // Validate realtime
+                  if (!formattedText.trim()) {
+                    setPriceErrors((prev) => ({
+                      ...prev,
+                      price_value: "Giá gói dịch vụ không được để trống",
+                    }));
+                  } else {
+                    const priceValue = parseInt(
+                      formattedText.replace(/\D/g, "")
+                    );
+                    if (isNaN(priceValue) || priceValue <= 0) {
+                      setPriceErrors((prev) => ({
+                        ...prev,
+                        price_value: "Giá gói dịch vụ phải là số dương",
+                      }));
+                    } else if (priceValue < 1000) {
+                      setPriceErrors((prev) => ({
+                        ...prev,
+                        price_value:
+                          "Giá gói dịch vụ phải lớn hơn hoặc bằng 1.000 VND",
+                      }));
+                    } else {
+                      setPriceErrors((prev) => ({ ...prev, price_value: "" }));
+                    }
+                  }
                 }}
-                placeholder="Nhập giá dịch vụ"
-                keyboardType="numeric"
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                rules={[
+                  {
+                    isValid: !priceErrors.price_value,
+                    message: priceErrors.price_value,
+                  },
+                ]}
+                keyBoardType="numeric"
+                required
               />
             </View>
 
@@ -1507,8 +1710,8 @@ const ProviderServiceDetail = () => {
               <CustomButton
                 title="Thêm gói dịch vụ"
                 onPress={handleAddPrice}
-                containerStyles="bg-primary-500"
-                isDisabled={!priceForm.price_name || !priceForm.price_value}
+                containerStyles={`${isPriceFormValid ? "bg-primary-500" : "bg-primary-300"}`}
+                isDisabled={!isPriceFormValid}
               />
             </View>
           </ScrollView>
@@ -1618,14 +1821,40 @@ const ProviderServiceDetail = () => {
 
           <ScrollView className="p-4">
             <View className="mb-4">
-              <Text className="font-pmedium mb-2">Tên lợi ích</Text>
-              <TextInput
-                value={benefitForm.benefit_name}
-                onChangeText={(text) =>
-                  setBenefitForm({ ...benefitForm, benefit_name: text })
-                }
+              <InputField
+                nameField="Tên lợi ích"
                 placeholder={`Ví dụ: ${getRandomBenefitExample()}`}
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                value={benefitForm.benefit_name}
+                onChangeText={(text) => {
+                  setBenefitForm((prev) => ({ ...prev, benefit_name: text }));
+
+                  // Validate realtime
+                  if (!text.trim()) {
+                    setBenefitErrors((prev) => ({
+                      ...prev,
+                      benefit_name: "Tên lợi ích không được để trống",
+                    }));
+                  } else if (text.trim().length < 3) {
+                    setBenefitErrors((prev) => ({
+                      ...prev,
+                      benefit_name: "Tên lợi ích phải có ít nhất 3 ký tự",
+                    }));
+                  } else if (text.trim().length > 50) {
+                    setBenefitErrors((prev) => ({
+                      ...prev,
+                      benefit_name: "Tên lợi ích không được vượt quá 50 ký tự",
+                    }));
+                  } else {
+                    setBenefitErrors((prev) => ({ ...prev, benefit_name: "" }));
+                  }
+                }}
+                rules={[
+                  {
+                    isValid: !benefitErrors.benefit_name,
+                    message: benefitErrors.benefit_name,
+                  },
+                ]}
+                required
               />
             </View>
 
@@ -1701,8 +1930,8 @@ const ProviderServiceDetail = () => {
               <CustomButton
                 title="Thêm lợi ích"
                 onPress={handleAddBenefit}
-                containerStyles="bg-primary-500"
-                isDisabled={!benefitForm.benefit_name}
+                containerStyles={`${isBenefitFormValid ? "bg-primary-500" : "bg-primary-300"}`}
+                isDisabled={!isBenefitFormValid}
               />
             </View>
           </ScrollView>
@@ -1728,14 +1957,20 @@ const ProviderServiceDetail = () => {
 
           <ScrollView className="p-4">
             <View className="mb-4">
-              <Text className="font-pmedium mb-2">Tên lợi ích</Text>
-              <TextInput
+              <InputField
+                nameField="Tên lợi ích"
+                placeholder={`Ví dụ: ${getRandomBenefitExample()}`}
                 value={benefitForm.benefit_name}
                 onChangeText={(text) =>
-                  setBenefitForm({ ...benefitForm, benefit_name: text })
+                  setBenefitForm((prev) => ({ ...prev, benefit_name: text }))
                 }
-                placeholder={`Ví dụ: ${getRandomBenefitExample()}`}
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                rules={[
+                  {
+                    isValid: !benefitErrors.benefit_name,
+                    message: benefitErrors.benefit_name,
+                  },
+                ]}
+                required
               />
             </View>
 
@@ -1817,8 +2052,8 @@ const ProviderServiceDetail = () => {
               <CustomButton
                 title="Cập nhật lợi ích"
                 onPress={handleUpdateBenefit}
-                containerStyles="bg-primary-500"
-                isDisabled={!benefitForm.benefit_name}
+                containerStyles={`${isBenefitFormValid ? "bg-primary-500" : "bg-primary-300"}`}
+                isDisabled={!isBenefitFormValid}
               />
             </View>
           </ScrollView>
@@ -1844,28 +2079,42 @@ const ProviderServiceDetail = () => {
 
           <ScrollView className="p-4">
             <View className="mb-4">
-              <Text className="font-pmedium mb-2">Tên gói</Text>
-              <TextInput
+              <InputField
+                nameField="Tên gói dịch vụ"
+                placeholder="Nhập tên gói dịch vụ"
                 value={priceForm.price_name}
                 onChangeText={(text) =>
-                  setPriceForm({ ...priceForm, price_name: text })
+                  setPriceForm((prev) => ({ ...prev, price_name: text }))
                 }
-                placeholder="Ví dụ: Gói cơ bản, Gói cao cấp..."
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                rules={[
+                  {
+                    isValid: !priceErrors.price_name,
+                    message: priceErrors.price_name,
+                  },
+                ]}
+                required
               />
             </View>
 
             <View className="mb-4">
-              <Text className="font-pmedium mb-2">Giá (VNĐ)</Text>
-              <TextInput
+              <InputField
+                nameField="Giá gói dịch vụ (VNĐ)"
+                placeholder="Nhập giá gói dịch vụ"
                 value={priceForm.price_value}
-                onChangeText={(text) => {
-                  const formattedValue = formatPriceInput(text);
-                  setPriceForm({ ...priceForm, price_value: formattedValue });
-                }}
-                placeholder="Nhập giá dịch vụ"
-                keyboardType="numeric"
-                className="bg-white p-3 rounded-lg border border-gray-300"
+                onChangeText={(text) =>
+                  setPriceForm((prev) => ({
+                    ...prev,
+                    price_value: formatPriceInput(text),
+                  }))
+                }
+                rules={[
+                  {
+                    isValid: !priceErrors.price_value,
+                    message: priceErrors.price_value,
+                  },
+                ]}
+                keyBoardType="numeric"
+                required
               />
             </View>
 
@@ -2039,13 +2288,23 @@ const ProviderServiceDetail = () => {
               <CustomButton
                 title="Cập nhật gói dịch vụ"
                 onPress={handleUpdatePrice}
-                containerStyles="bg-primary-500"
-                isDisabled={!priceForm.price_name || !priceForm.price_value}
+                containerStyles={`${isPriceFormValid ? "bg-primary-500" : "bg-primary-300"}`}
+                isDisabled={!isPriceFormValid}
               />
             </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Thêm modal thông báo vào cuối component */}
+      <CustomModal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onClose={closeModal}
+        onConfirm={modal.onConfirm}
+      />
     </SafeAreaView>
   );
 };
