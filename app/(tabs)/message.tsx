@@ -83,7 +83,13 @@ const getStatusIcon = (status: string): string => {
 };
 ("use client");
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -100,6 +106,7 @@ import {
   RefreshControl,
   ProgressBarAndroidComponent,
   Dimensions,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
@@ -130,12 +137,16 @@ import {
 } from "@/hooks/userOnlineHook";
 import { debounce } from "lodash";
 import useChatStore from "@/stores/chatStore";
+import * as Clipboard from "expo-clipboard";
 
 const MessageScreen = () => {
   const [imageError, setImageError] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState("");
   const [filterMesasgeInput, setFilterMessageInput] = useState("");
+  const [userScrolled, setUserScrolled] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
   const { callDuration } = useLocalSearchParams();
   const { chatWithId } = useLocalSearchParams();
@@ -146,7 +157,7 @@ const MessageScreen = () => {
   const [longPressedMessage, setLongPressedMessage] = useState(null);
   const [showConversationOptions, setShowConversationOptions] = useState(false);
   const [isUploading, setIsUploading] = useState(false); // Added loading state
-  const flatListRef = useRef(null);
+  const flatListRef = useRef<FlatList>(null);
   const user = useRentoData((state) => state.user);
   const markMessagesSeen = useMarkMessagesAsSeen();
 
@@ -237,28 +248,53 @@ const MessageScreen = () => {
   const [conversations, setConversations] = useState([]);
   useEffect(() => {
     if (conversations.length === 0) return;
-    setConversations((prev: any) =>
-      prev.map((conversation: any) => {
+
+    // Chỉ cập nhật trạng thái online/offline mà không gây ra việc cuộn xuống
+    setConversations((prev: any) => {
+      // Tạo bản sao mới của mảng conversations
+      return prev.map((conversation: any) => {
+        // Chỉ cập nhật isOnline nếu nó thực sự thay đổi
+        const newIsOnline = listOnline?.has(
+          conversation?.otherUserId?.toString()
+        );
+        if (conversation.isOnline === newIsOnline) {
+          return conversation;
+        }
         return {
           ...conversation,
-          isOnline: listOnline?.has(conversation?.otherUserId?.toString()),
+          isOnline: newIsOnline,
         };
-      })
-    );
+      });
+    });
   }, [listOnline]);
 
+  // Tương tự, khi cập nhật selectedConversation, không làm gì khiến tự động cuộn
   useEffect(() => {
     if (selectedConversation !== null) {
       const newSelectedConversation = conversations?.find(
         (conversation) => conversation?.id === selectedConversation?.id
       );
-      if (newSelectedConversation)
-        setSelectedConversation(newSelectedConversation);
+      if (newSelectedConversation) {
+        // Chỉ cập nhật nếu có thay đổi thực sự
+        const hasChanges = Object.keys(newSelectedConversation).some(
+          (key) => newSelectedConversation[key] !== selectedConversation[key]
+        );
+
+        if (hasChanges) {
+          // Cập nhật trạng thái mà không kích hoạt cuộn
+          setSelectedConversation((prevState) => ({
+            ...prevState,
+            ...newSelectedConversation,
+          }));
+        }
+      }
+
       useChatStore
         .getState()
         .setCurrentChatId(newSelectedConversation?.otherUserId as string);
     }
   }, [conversations]);
+
   useEffect(() => {
     if (!chatsData || !user?.id) {
       return;
@@ -281,44 +317,76 @@ const MessageScreen = () => {
     markSeen();
   }, [selectedConversation, user?.id, markMessagesSeen]);
 
-  // Memoize current chat messages
-  const currentChatMessages = useMemo(() => {
+  // Bổ sung debounce cho việc hiển thị nút cuộn xuống để tránh nhấp nháy
+  const debouncedShowScrollButton = useCallback(
+    debounce((shouldShow) => {
+      setShowScrollToBottom(shouldShow);
+    }, 300),
+    []
+  );
+
+  // Lấy danh sách tin nhắn từ selectedConversation
+  const messages = useMemo(() => {
     if (!selectedConversation || !chatsData) return [];
 
     const chatData = chatsData.find(
       (chat) => chat.roomId === selectedConversation.id
     );
+
+    // Khi có tin nhắn mới đến (không phải tin nhắn của mình)
+    if (chatData?.messages?.length > 0) {
+      const lastMessage = chatData.messages[chatData.messages.length - 1];
+      const isMyMessage = lastMessage.author === user?.id;
+
+      // Nếu không phải tin nhắn của mình
+      if (!isMyMessage) {
+        // Nếu người dùng đã cuộn lên quá xa, chỉ hiển thị nút cuộn xuống
+        if (userScrolled) {
+          debouncedShowScrollButton(true);
+        }
+        // Nếu người dùng chưa cuộn hoặc chưa cuộn quá xa, tự động cuộn xuống
+        else if (flatListRef.current) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
+      }
+    }
+
     return chatData?.messages || [];
-  }, [selectedConversation, chatsData]);
+  }, [
+    selectedConversation,
+    chatsData,
+    userScrolled,
+    debouncedShowScrollButton,
+    user?.id,
+  ]);
 
   // Message sending handler
   const handleSendMessage = useCallback(
-    async (text = inputMessage, messageType = "user", attachment = null) => {
-      if ((!text.trim() && !attachment) || !selectedConversation || !user?.id)
-        return;
+    async (text = inputMessage, type = "text") => {
+      if ((text.trim() === "" && type !== "system") || isUploading) return;
 
       try {
+        setInputMessage("");
+
         await sendChat({
           senderId: user.id,
           receiverId: selectedConversation.otherUserId,
           message: text,
         });
 
-        setInputMessage("");
-        setIsAttachmentModalVisible(false);
-
-        // Scroll to bottom after sending
-        setTimeout(() => {
-          if (flatListRef.current) {
-            flatListRef.current.scrollToEnd({ animated: false });
-          }
-        }, 100);
+        // Luôn cuộn xuống khi gửi tin nhắn mới
+        if (flatListRef.current) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
       } catch (error) {
         console.error("Error sending message:", error);
-        Alert.alert("Error", "Failed to send message. Please try again.");
       }
     },
-    [inputMessage, selectedConversation, user?.id, sendChat]
+    [inputMessage, isUploading, user?.id, selectedConversation]
   );
 
   // Handle call duration updates
@@ -379,7 +447,7 @@ const MessageScreen = () => {
       const currentMessageDate = new Date(Number.parseInt(item.timestamp));
       const previousMessageDate =
         index > 0
-          ? new Date(Number.parseInt(currentChatMessages[index - 1].timestamp))
+          ? new Date(Number.parseInt(messages[index - 1].timestamp))
           : new Date(0);
 
       const showDateSeparator =
@@ -388,7 +456,7 @@ const MessageScreen = () => {
       const isRetracted = item.retracted === true;
 
       return (
-        <>
+        <React.Fragment key={`msg-${item.id}`}>
           {showDateSeparator && renderDateSeparator(currentMessageDate)}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -493,10 +561,10 @@ const MessageScreen = () => {
               </View>
             </View>
           </TouchableOpacity>
-        </>
+        </React.Fragment>
       );
     },
-    [selectedConversation, user?.id, currentChatMessages]
+    [selectedConversation, user?.id, messages]
   );
 
   const renderDateSeparator = (date) => (
@@ -519,6 +587,7 @@ const MessageScreen = () => {
   const scrollToBottom = () => {
     if (flatListRef.current) {
       flatListRef.current.scrollToEnd({ animated: true });
+      debouncedShowScrollButton(false);
     }
   };
   const uploadImage = useRentoData((state) => state.uploadImage);
@@ -741,6 +810,11 @@ const MessageScreen = () => {
   // Function to report a message
   const reportMessage = async (message) => {
     try {
+      if (!message?.id || !user?.id || !message?.author) {
+        Alert.alert("Lỗi", "Thiếu thông tin tin nhắn hoặc người dùng.");
+        return;
+      }
+
       await reportMessageHook({
         messageId: message.id,
         reporterId: user.id,
@@ -751,8 +825,11 @@ const MessageScreen = () => {
         "Thành công",
         "Báo cáo tin nhắn đã được gửi. Chúng tôi sẽ xem xét nội dung này."
       );
-    } catch (error) {
-      console.error("Error reporting message:", error);
+    } catch (error: any) {
+      console.error(
+        "Error reporting message:",
+        error?.response?.data || error?.message || error
+      );
       Alert.alert("Lỗi", "Không thể báo cáo tin nhắn. Vui lòng thử lại sau.");
     }
   };
@@ -760,6 +837,11 @@ const MessageScreen = () => {
   // Function to report a user
   const reportUser = async (userId) => {
     try {
+      if (!userId || !user?.id) {
+        Alert.alert("Lỗi", "Thiếu thông tin người dùng.");
+        return;
+      }
+
       await reportUserHook({
         reporterId: user.id,
         reason: "Người dùng có hành vi không phù hợp",
@@ -769,28 +851,16 @@ const MessageScreen = () => {
         "Thành công",
         "Báo cáo người dùng đã được gửi. Chúng tôi sẽ xem xét nội dung này."
       );
-    } catch (error) {
-      console.error("Error reporting user:", error);
+    } catch (error: any) {
+      console.error(
+        "Error reporting user:",
+        error?.response?.data || error?.message || error
+      );
       Alert.alert("Lỗi", "Không thể báo cáo người dùng. Vui lòng thử lại sau.");
     }
   };
 
   // Function to block a user
-  const blockUser = async (userId) => {
-    try {
-      await blockUserHook(user.id, userId);
-      Alert.alert("Thành công", "Bạn đã chặn người dùng này thành công.");
-      // Close chat with blocked user
-      setSelectedConversation(null);
-      useChatStore.getState().setCurrentChatId(null);
-      router.setParams({
-        chatWithId: "",
-      });
-    } catch (error) {
-      console.error("Error blocking user:", error);
-      Alert.alert("Lỗi", "Không thể chặn người dùng. Vui lòng thử lại sau.");
-    }
-  };
 
   // Function to retract a message
   const retractMessage = async (message) => {
@@ -803,10 +873,87 @@ const MessageScreen = () => {
     }
   };
 
+  // Cập nhật phần theo dõi bàn phím để tránh hiệu ứng lag
+  useEffect(() => {
+    // Xử lý khi component mount
+    const keyboardDidShowListener =
+      Platform.OS === "ios"
+        ? Keyboard.addListener("keyboardWillShow", () => {
+            // Không làm gì khi bàn phím hiện lên
+          })
+        : Keyboard.addListener("keyboardDidShow", () => {
+            // Không làm gì khi bàn phím hiện lên
+          });
+
+    const keyboardDidHideListener =
+      Platform.OS === "ios"
+        ? Keyboard.addListener("keyboardWillHide", () => {
+            // Không cuộn xuống nếu người dùng đã cuộn lên để xem tin nhắn cũ
+            if (userScrolled) {
+              debouncedShowScrollButton(true);
+            } else if (flatListRef.current && !userScrolled) {
+              requestAnimationFrame(() => {
+                flatListRef.current?.scrollToEnd({ animated: false });
+              });
+            }
+          })
+        : Keyboard.addListener("keyboardDidHide", () => {
+            // Không cuộn xuống nếu người dùng đã cuộn lên để xem tin nhắn cũ
+            if (userScrolled) {
+              debouncedShowScrollButton(true);
+            } else if (flatListRef.current && !userScrolled) {
+              requestAnimationFrame(() => {
+                flatListRef.current?.scrollToEnd({ animated: false });
+              });
+            }
+          });
+
+    // Cleanup function
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, [userScrolled, debouncedShowScrollButton]);
+
+  // Cập nhật useEffect để tự động cuộn đến tin nhắn mới nhất chỉ khi lần đầu vào hội thoại
+  useEffect(() => {
+    if (
+      selectedConversation &&
+      messages.length > 0 &&
+      flatListRef.current &&
+      isFirstLoad
+    ) {
+      // Chỉ cuộn xuống cuối khi mới vào hội thoại lần đầu
+      const timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: false });
+            // Đánh dấu đã không còn là lần đầu nữa
+            setIsFirstLoad(false);
+          }
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    selectedConversation,
+    messages.length,
+    isFirstLoad,
+    debouncedShowScrollButton,
+  ]);
+
+  // Đặt lại trạng thái isFirstLoad khi chuyển hội thoại
+  useEffect(() => {
+    // Khi chọn một hội thoại mới, đặt lại trạng thái để chỉ cuộn xuống cuối ở lần đầu
+    setIsFirstLoad(true);
+    setUserScrolled(false);
+    setShowScrollToBottom(false);
+  }, [selectedConversation?.id]); // Chỉ phản ứng khi ID hội thoại thay đổi, không phải khi các thuộc tính khác thay đổi
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       {!selectedConversation ? (
-        <>
+        <React.Fragment key="conversation-list">
           <View className="p-4 border-b border-gray-200">
             <Text className="font-pbold text-2xl">Tin nhắn</Text>
           </View>
@@ -837,30 +984,23 @@ const MessageScreen = () => {
               />
             }
             ListEmptyComponent={() => (
-              <View className="flex-1 justify-center items-center p-10">
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={60}
-                  color="gray"
-                />
-                <Text className="text-gray-500 text-center mt-4 font-pmedium">
-                  Không có cuộc trò chuyện nào. Bắt đầu trò chuyện với nhà cung
-                  cấp dịch vụ!
-                </Text>
-              </View>
+              <React.Fragment key="empty-list">
+                <View className="flex-1 justify-center items-center p-10">
+                  <Text className="text-gray-500 text-center font-pmedium">
+                    Không có cuộc trò chuyện nào.
+                  </Text>
+                </View>
+              </React.Fragment>
             )}
           />
-        </>
+        </React.Fragment>
       ) : (
-        <>
+        <React.Fragment key="chat-detail">
           <View className="flex-row items-center p-4 border-b border-gray-200">
             <TouchableOpacity
               onPress={() => {
                 setSelectedConversation(null);
                 useChatStore.getState().setCurrentChatId(null);
-                router.setParams({
-                  chatWithId: "",
-                });
               }}
             >
               <Ionicons name="arrow-back" size={24} color="black" />
@@ -902,29 +1042,100 @@ const MessageScreen = () => {
           {selectedConversation && (
             <FlatList
               ref={flatListRef}
-              data={currentChatMessages}
+              data={messages}
+              keyExtractor={(item) => item.id}
               renderItem={renderMessage}
-              keyExtractor={(item, index) => `${item.timestamp}-${index}`}
-              contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: "flex-end",
-                paddingHorizontal: 16,
+              // Thêm các thuộc tính để cải thiện hiệu suất
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={15}
+              windowSize={10}
+              initialNumToRender={15}
+              onContentSizeChange={() => {
+                // Khi nội dung thay đổi (có tin nhắn mới), cuộn xuống nếu người dùng chưa cuộn lên quá xa
+                if (!userScrolled) {
+                  requestAnimationFrame(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  });
+                }
               }}
-              onContentSizeChange={scrollToBottom}
-              inverted={false}
-              ListEmptyComponent={() => (
-                <View className="flex-1 justify-center items-center p-10">
-                  <Text className="text-gray-500 text-center font-pmedium">
-                    Không có tin nhắn. Hãy bắt đầu cuộc trò chuyện!
-                  </Text>
-                </View>
-              )}
+              onLayout={() => {
+                // Khi layout thay đổi, cuộn xuống nếu người dùng chưa cuộn lên quá xa hoặc là lần đầu load
+                if (!userScrolled || isFirstLoad) {
+                  requestAnimationFrame(() => {
+                    flatListRef.current?.scrollToEnd({
+                      animated: !isFirstLoad,
+                    });
+                  });
+                }
+              }}
+              onScroll={(event) => {
+                // Lưu vị trí cuộn hiện tại
+                const currentScrollPosition = event.nativeEvent.contentOffset.y;
+                const contentHeight = event.nativeEvent.contentSize.height;
+                const scrollViewHeight =
+                  event.nativeEvent.layoutMeasurement.height;
+
+                // Tính khoảng cách từ vị trí cuộn hiện tại đến cuối danh sách
+                const distanceFromBottom =
+                  contentHeight - currentScrollPosition - scrollViewHeight;
+
+                if (distanceFromBottom > 20) {
+                  setUserScrolled(true);
+
+                  // Sử dụng debounce để tránh nhấp nháy khi quyết định hiển thị nút
+                  if (distanceFromBottom > 150) {
+                    debouncedShowScrollButton(true);
+                  } else {
+                    debouncedShowScrollButton(false);
+                  }
+                }
+                // Nếu người dùng cuộn đến cuối danh sách, ẩn nút và đặt lại trạng thái
+                else if (distanceFromBottom <= 5) {
+                  setUserScrolled(false);
+                  debouncedShowScrollButton(false);
+                }
+              }}
+              onScrollBeginDrag={() => setUserScrolled(true)}
+              scrollEventThrottle={16}
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 10,
+              }}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16 }}
+              ListEmptyComponent={
+                <React.Fragment key="empty-messages">
+                  <View className="flex-1 justify-center items-center py-12">
+                    <Text className="text-gray-500 font-pmedium text-base">
+                      Không có tin nhắn. Hãy bắt đầu cuộc trò chuyện!
+                    </Text>
+                  </View>
+                </React.Fragment>
+              }
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             />
           )}
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-          >
+          {/* Nút cuộn xuống cuối */}
+          {showScrollToBottom && (
+            <TouchableOpacity
+              onPress={scrollToBottom}
+              className="absolute bottom-20 items-center justify-center shadow-lg"
+              style={{
+                elevation: 5,
+                backgroundColor: "#FF5A5F",
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                left: "50%",
+                marginLeft: -24, // Để căn giữa nút
+              }}
+            >
+              <Ionicons name="arrow-down" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+
+          <View style={{ width: "100%" }}>
             <View className="flex-row items-center border-t border-gray-200 p-4">
               <TouchableOpacity
                 className="mr-2"
@@ -951,7 +1162,7 @@ const MessageScreen = () => {
                 )}
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </View>
           <ShowFullImageModal />
           <AttachmentModal />
           {longPressedMessage && (
@@ -971,12 +1182,33 @@ const MessageScreen = () => {
                   </Text>
                   {longPressedMessage.author === user?.id ? (
                     // Options for own messages
-                    <>
+                    <React.Fragment key="own-message-options">
                       <TouchableOpacity
                         className="py-3 border-b border-gray-100"
-                        onPress={() => {
+                        onPress={async () => {
                           // Copy message text to clipboard
-                          Alert.alert("Thông báo", "Đã sao chép tin nhắn");
+                          if (
+                            longPressedMessage.image &&
+                            !longPressedMessage.image.retracted
+                          ) {
+                            // Copy image URL
+                            const imageUrl = getImagePath(
+                              longPressedMessage.image.path
+                            );
+                            if (imageUrl) {
+                              await Clipboard.setStringAsync(imageUrl);
+                              Alert.alert(
+                                "Thông báo",
+                                "Đã sao chép đường dẫn hình ảnh"
+                              );
+                            }
+                          } else if (longPressedMessage.message) {
+                            // Copy text message
+                            await Clipboard.setStringAsync(
+                              longPressedMessage.message
+                            );
+                            Alert.alert("Thông báo", "Đã sao chép tin nhắn");
+                          }
                           setLongPressedMessage(null);
                         }}
                       >
@@ -1025,15 +1257,36 @@ const MessageScreen = () => {
                           </Text>
                         </View>
                       </TouchableOpacity>
-                    </>
+                    </React.Fragment>
                   ) : (
                     // Options for other's messages
-                    <>
+                    <React.Fragment key="others-message-options">
                       <TouchableOpacity
                         className="py-3 border-b border-gray-100"
-                        onPress={() => {
+                        onPress={async () => {
                           // Copy message text to clipboard
-                          Alert.alert("Thông báo", "Đã sao chép tin nhắn");
+                          if (
+                            longPressedMessage.image &&
+                            !longPressedMessage.image.retracted
+                          ) {
+                            // Copy image URL
+                            const imageUrl = getImagePath(
+                              longPressedMessage.image.path
+                            );
+                            if (imageUrl) {
+                              await Clipboard.setStringAsync(imageUrl);
+                              Alert.alert(
+                                "Thông báo",
+                                "Đã sao chép đường dẫn hình ảnh"
+                              );
+                            }
+                          } else if (longPressedMessage.message) {
+                            // Copy text message
+                            await Clipboard.setStringAsync(
+                              longPressedMessage.message
+                            );
+                            Alert.alert("Thông báo", "Đã sao chép tin nhắn");
+                          }
                           setLongPressedMessage(null);
                         }}
                       >
@@ -1082,7 +1335,7 @@ const MessageScreen = () => {
                           </Text>
                         </View>
                       </TouchableOpacity>
-                    </>
+                    </React.Fragment>
                   )}
                 </View>
               </TouchableOpacity>
@@ -1103,40 +1356,7 @@ const MessageScreen = () => {
                   <Text className="text-center font-pbold text-lg text-gray-600 mb-4 border-b border-gray-200 pb-2">
                     Tùy chọn
                   </Text>
-                  <TouchableOpacity
-                    className="py-3 border-b border-gray-100"
-                    onPress={() => {
-                      Alert.alert(
-                        "Chặn người dùng",
-                        `Bạn có chắc muốn chặn ${selectedConversation?.name}? Sau khi chặn, họ sẽ không thể nhắn tin cho bạn.`,
-                        [
-                          {
-                            text: "Hủy",
-                            style: "cancel",
-                          },
-                          {
-                            text: "Chặn",
-                            style: "destructive",
-                            onPress: () => {
-                              blockUser(selectedConversation?.otherUserId);
-                              setShowConversationOptions(false);
-                            },
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <View className="flex-row items-center">
-                      <Ionicons
-                        name="person-remove-outline"
-                        size={24}
-                        color="#FF3B30"
-                      />
-                      <Text className="font-pmedium text-lg ml-3 text-red-500">
-                        Chặn người dùng
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+
                   <TouchableOpacity
                     className="py-3"
                     onPress={() => {
@@ -1171,7 +1391,7 @@ const MessageScreen = () => {
               </TouchableOpacity>
             </Modal>
           )}
-        </>
+        </React.Fragment>
       )}
     </SafeAreaView>
   );

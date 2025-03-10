@@ -411,8 +411,11 @@ export const useReportMessage = () => {
         reason: payload.reason,
       });
       return true;
-    } catch (error) {
-      console.error("Error reporting message:", error);
+    } catch (error: any) {
+      console.error(
+        "Error reporting message:",
+        error?.response?.data || error?.message || error
+      );
       throw error;
     }
   };
@@ -432,8 +435,11 @@ export const useReportUser = () => {
         reason: payload.reason,
       });
       return true;
-    } catch (error) {
-      console.error("Error reporting user:", error);
+    } catch (error: any) {
+      console.error(
+        "Error reporting user:",
+        error?.response?.data || error?.message || error
+      );
       throw error;
     }
   };

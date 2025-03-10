@@ -89,16 +89,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
             Từ {convertedPrice(price)}
           </Text>
         </View>
-        <View className="flex-row items-center">
+        <View className="flex-row items-center w-1/2 justify-end">
           <Ionicons name="location-outline" size={16} color="gray" />
           <Text className="ml-1 font-pmedium text-sm">
-            {location?.location_name}
+            {location?.province?.name ?? location?.location_name}
           </Text>
         </View>
-        {/*<View className="flex-row items-center">*/}
-        {/*  <Ionicons name="briefcase-outline" size={16} color="blue" />*/}
-        {/*  <Text className="ml-1 font-pmedium text-sm">5 năm</Text>*/}
-        {/*</View>*/}
       </View>
     </TouchableOpacity>
   );
