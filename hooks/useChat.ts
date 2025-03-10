@@ -4,7 +4,7 @@ import firestore from "@react-native-firebase/firestore";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import CryptoJS from "react-native-crypto-js";
 import storage from "@react-native-firebase/storage";
-import { Image } from "react-native";
+import { Image, Alert } from "react-native";
 import { realtimeDatabase, useIsOnline } from "./userOnlineHook";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { compatibilityFlags } from "react-native-screens";
@@ -381,4 +381,165 @@ export const useMarkMessagesAsSeen = () => {
   }, []);
 
   return markAsSeen;
+};
+
+// Report types
+export type ReportMessagePayload = {
+  messageId: string;
+  reporterId: number;
+  reportedUserId: number;
+  reason: string;
+};
+
+export type ReportUserPayload = {
+  reporterId: number;
+  reportedUserId: number;
+  reason: string;
+};
+
+// Hook for reporting messages
+export const useReportMessage = () => {
+  const reportMessage = async (
+    payload: ReportMessagePayload
+  ): Promise<boolean> => {
+    try {
+      await axiosFetch("/reports", "post", {
+        reporter_id: payload.reporterId,
+        entity_id: payload.messageId,
+        entity_type: "message",
+        reported_user_id: payload.reportedUserId,
+        reason: payload.reason,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error reporting message:", error);
+      throw error;
+    }
+  };
+
+  return reportMessage;
+};
+
+// Hook for reporting users
+export const useReportUser = () => {
+  const reportUser = async (payload: ReportUserPayload): Promise<boolean> => {
+    try {
+      await axiosFetch("/reports", "post", {
+        reporter_id: payload.reporterId,
+        entity_id: payload.reportedUserId,
+        entity_type: "user",
+        reported_user_id: payload.reportedUserId,
+        reason: payload.reason,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error reporting user:", error);
+      throw error;
+    }
+  };
+
+  return reportUser;
+};
+
+// Hook for blocking users
+export const useBlockUser = () => {
+  const blockUser = async (
+    userId: number,
+    blockedUserId: number
+  ): Promise<boolean> => {
+    try {
+      await axiosFetch("/user-blocks", "post", {
+        user_id: userId,
+        blocked_user_id: blockedUserId,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error blocking user:", error);
+      throw error;
+    }
+  };
+
+  return blockUser;
+};
+
+// Hook for retracting messages
+export const useRetractMessage = () => {
+  const deleteImage = useRentoData((state) => state.deleteImage);
+
+  const retractMessage = async (message: MessageChatType): Promise<boolean> => {
+    try {
+      // Tìm kiếm tin nhắn dựa trên nội dung và timestamp
+      const messagesSnapshot = await messagesCollection
+        .where("timestamp", "==", message.timestamp)
+        .where("author", "==", message.author)
+        .where("roomId", "==", message.roomId)
+        .limit(1)
+        .get();
+
+      if (messagesSnapshot.empty) {
+        throw new Error("Không tìm thấy tin nhắn cần thu hồi");
+      }
+
+      // Lấy document đầu tiên khớp với điều kiện
+      const docRef = messagesSnapshot.docs[0].ref;
+      // Kiểm tra xem tin nhắn có chứa ảnh không
+      const messageData = messagesSnapshot.docs[0].data();
+      let updatedData = {
+        message: encrypt("Tin nhắn đã bị thu hồi"),
+        retracted: true,
+      };
+      console.log("messageData", messageData);
+
+      if (messageData.image && messageData.image.path) {
+        try {
+          // Gọi API để xóa hình ảnh từ backend
+          // Lấy đường dẫn hình ảnh từ thư mục storage
+          const imagePath = messageData.image.path;
+
+          // Sử dụng hàm deleteImage từ dataStore
+          const success = await deleteImage(imagePath);
+          if (!success) {
+            console.log("Không thể xóa hình ảnh:", imagePath);
+          }
+
+          // Cập nhật trạng thái trong document
+          updatedData = {
+            ...updatedData,
+            image: {
+              ...messageData.image,
+              retracted: true,
+            },
+          };
+        } catch (err) {
+          console.error("Error deleting image:", err);
+        }
+      }
+
+      // Cập nhật tin nhắn thành "đã thu hồi"
+      await docRef.update(updatedData);
+
+      // Cập nhật last message nếu tin nhắn này là tin nhắn cuối cùng
+      const roomDocRef = chatsCollection.doc(message.roomId);
+      const roomDoc = await roomDocRef.get();
+
+      if (roomDoc.exists) {
+        const roomData = roomDoc.data();
+        const lastTimestamp = parseInt(roomData.lastTimestamp);
+
+        // Nếu tin nhắn bị thu hồi là tin nhắn mới nhất trong cuộc trò chuyện
+        if (parseInt(message.timestamp) === lastTimestamp) {
+          await roomDocRef.update({
+            lastMessage: "Tin nhắn đã bị thu hồi",
+          });
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error retracting message:", error);
+      throw error;
+    }
+  };
+
+  return retractMessage;
 };

@@ -54,6 +54,7 @@ type DataState = {
   ) => Promise<boolean>;
   uploadAvatar: (imageUri: string) => Promise<boolean>;
   uploadImage: (imageUri: string) => Promise<string>;
+  deleteImage: (imagePath: string) => Promise<boolean>;
   updateStatusOrder: (id: number, status: OrderStatus) => Promise<boolean>;
 };
 
@@ -313,6 +314,25 @@ const useRentoData = create<DataState>((set, get) => ({
         error?.response?.data?.message || "Không thể tải lên hình ảnh"
       );
       return "";
+    }
+  },
+
+  deleteImage: async (imagePath: string) => {
+    try {
+      console.log("Gọi API xóa hình ảnh với đường dẫn:", imagePath);
+
+      // Đối với phương thức DELETE, cần gửi dữ liệu qua params thay vì data
+      const response = await axiosFetch(
+        `/users/deleteImage?imagePath=${encodeURIComponent(imagePath)}`,
+        "delete"
+      );
+
+      console.log("Kết quả xóa hình ảnh:", response?.data);
+      return true;
+    } catch (error: any) {
+      console.error("Lỗi khi xóa hình ảnh:", error?.response?.data || error);
+      console.log("Đường dẫn hình ảnh:", imagePath);
+      return false;
     }
   },
 

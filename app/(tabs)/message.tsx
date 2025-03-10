@@ -110,6 +110,10 @@ import {
   useSendChat,
   useMarkMessagesAsSeen,
   getRoomId,
+  useReportMessage,
+  useReportUser,
+  useBlockUser,
+  useRetractMessage,
 } from "@/hooks/useChat";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { UserType } from "@/types/type";
@@ -148,6 +152,11 @@ const MessageScreen = () => {
 
   const { chatsData, isLoading, error, listOnline } = useGetChat();
   const sendChat = useSendChat();
+  const reportMessageHook = useReportMessage();
+  const reportUserHook = useReportUser();
+  const blockUserHook = useBlockUser();
+  const retractMessageHook = useRetractMessage();
+
   useEffect(() => {
     const chatWithUser = async () => {
       const responseInfo = await axiosFetch(`/users/${chatWithId}`, "get");
@@ -238,51 +247,6 @@ const MessageScreen = () => {
     );
   }, [listOnline]);
 
-  const fetchConversations = async () => {
-    if (chatsData.length === 0) return;
-    const conversationsData = await Promise.all(
-      chatsData
-        .filter((chat) => {
-          const roomIds = chat.roomId.split("-");
-          const firstId = roomIds[1];
-          const secondId = roomIds[2];
-          const userId = user?.id.toString();
-          return userId === firstId || userId === secondId;
-        })
-        .map(async (chat) => {
-          const roomParts = chat.roomId.split("-");
-          const id1 = Number.parseInt(roomParts[1]);
-          const id2 = Number.parseInt(roomParts[2]);
-          const otherUserId = user?.id === id1 ? id2 : id1;
-
-          const response = await axiosFetch(`/users/${otherUserId}`, "get");
-          const otherUserData = response?.data as UserType;
-          const lastMsg =
-            chat.messages.length > 0
-              ? chat.messages[chat.messages.length - 1]
-              : {
-                  message: "No messages yet",
-                  timestamp: Date.now().toString(),
-                };
-
-          const unreadCount = chat.messages.filter(
-            (msg) => msg.author !== user?.id && !msg.seen
-          ).length;
-
-          return {
-            id: chat.roomId,
-            name: otherUserData ? otherUserData.name : `User ${otherUserId}`,
-            lastMessage: chat.lastMessage,
-            time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
-            unread: unreadCount,
-            avatar: getImageSource(otherUserData),
-            isOnline: listOnline?.has(otherUserId.toString()),
-            otherUserId: otherUserId,
-          };
-        })
-    );
-    setConversations(conversationsData);
-  };
   useEffect(() => {
     if (selectedConversation !== null) {
       const newSelectedConversation = conversations?.find(
@@ -389,7 +353,7 @@ const MessageScreen = () => {
             </View>
             <View className="flex-row justify-between items-center mt-1">
               <Text
-                className="font-pregular text-gray-600 text-sm"
+                className={`font-pregular text-gray-600 text-sm ${item.lastMessage === "Tin nhắn đã bị thu hồi" ? "italic" : ""}`}
                 numberOfLines={1}
               >
                 {item.lastMessage}
@@ -421,13 +385,14 @@ const MessageScreen = () => {
       const showDateSeparator =
         index === 0 || !isSameDay(currentMessageDate, previousMessageDate);
       const isCurrentUser = item.author === user.id;
+      const isRetracted = item.retracted === true;
 
       return (
         <>
           {showDateSeparator && renderDateSeparator(currentMessageDate)}
           <TouchableOpacity
             activeOpacity={0.8}
-            onLongPress={() => setLongPressedMessage(item)}
+            onLongPress={() => !isRetracted && setLongPressedMessage(item)}
           >
             <View
               className={`flex-row ${isCurrentUser ? "justify-end" : "justify-start"} mb-4`}
@@ -439,11 +404,26 @@ const MessageScreen = () => {
                 />
               )}
               <View
-                className={`rounded-2xl p-3 ${isCurrentUser ? "bg-primary-500" : "bg-gray-200"} ${item.image ? "p-1" : "p-3"}`}
+                className={`rounded-2xl p-3 ${isCurrentUser ? "bg-primary-500" : "bg-gray-200"} ${
+                  item.image && !item.image.retracted ? "p-1" : "p-3"
+                }`}
               >
                 {item.image ? (
                   <View>
-                    {!imageError ? (
+                    {item.image.retracted ? (
+                      <View className="flex-row items-center justify-center p-4">
+                        <Ionicons
+                          name="image-outline"
+                          size={24}
+                          color={isCurrentUser ? "white" : "gray"}
+                        />
+                        <Text
+                          className={`ml-2 font-pregular italic ${isCurrentUser ? "text-white" : "text-gray-500"}`}
+                        >
+                          Hình ảnh đã bị thu hồi
+                        </Text>
+                      </View>
+                    ) : !imageError ? (
                       <TouchableOpacity
                         onPress={() => {
                           setCurrentImageUrl(
@@ -477,7 +457,9 @@ const MessageScreen = () => {
                     )}
                     {item.message.trim() && (
                       <Text
-                        className={`mt-2 font-pregular ${isCurrentUser ? "text-white" : "text-black"}`}
+                        className={`mt-2 font-pregular ${isRetracted ? "italic" : ""} ${
+                          isCurrentUser ? "text-white" : "text-black"
+                        }`}
                       >
                         {item.message}
                       </Text>
@@ -485,18 +467,22 @@ const MessageScreen = () => {
                   </View>
                 ) : (
                   <Text
-                    className={`font-pregular ${isCurrentUser ? "text-white" : "text-black"}`}
+                    className={`font-pregular ${isRetracted ? "italic" : ""} ${
+                      isCurrentUser ? "text-white" : "text-black"
+                    }`}
                   >
                     {item.message}
                   </Text>
                 )}
                 <View className="flex-row items-center justify-end mt-1">
                   <Text
-                    className={`text-xs mr-1 font-pregular ${isCurrentUser ? "text-white" : "text-gray-500"}`}
+                    className={`text-xs mr-1 font-pregular ${
+                      isCurrentUser ? "text-white" : "text-gray-500"
+                    }`}
                   >
                     {formatTime(currentMessageDate)}
                   </Text>
-                  {isCurrentUser && (
+                  {isCurrentUser && !isRetracted && (
                     <Ionicons
                       name={getStatusIcon(item.seen ? "seen" : "delivered")}
                       size={16}
@@ -706,6 +692,117 @@ const MessageScreen = () => {
     </Modal>
   );
 
+  const fetchConversations = async () => {
+    if (chatsData.length === 0) return;
+    const conversationsData = await Promise.all(
+      chatsData
+        .filter((chat) => {
+          const roomIds = chat.roomId.split("-");
+          const firstId = roomIds[1];
+          const secondId = roomIds[2];
+          const userId = user?.id.toString();
+          return userId === firstId || userId === secondId;
+        })
+        .map(async (chat) => {
+          const roomParts = chat.roomId.split("-");
+          const id1 = Number.parseInt(roomParts[1]);
+          const id2 = Number.parseInt(roomParts[2]);
+          const otherUserId = user?.id === id1 ? id2 : id1;
+
+          const response = await axiosFetch(`/users/${otherUserId}`, "get");
+          const otherUserData = response?.data as UserType;
+          const lastMsg =
+            chat.messages.length > 0
+              ? chat.messages[chat.messages.length - 1]
+              : {
+                  message: "No messages yet",
+                  timestamp: Date.now().toString(),
+                };
+
+          const unreadCount = chat.messages.filter(
+            (msg) => msg.author !== user?.id && !msg.seen
+          ).length;
+
+          return {
+            id: chat.roomId,
+            name: otherUserData ? otherUserData.name : `User ${otherUserId}`,
+            lastMessage: chat.lastMessage,
+            time: formatTime(new Date(Number.parseInt(lastMsg.timestamp))),
+            unread: unreadCount,
+            avatar: getImageSource(otherUserData),
+            isOnline: listOnline?.has(otherUserId.toString()),
+            otherUserId: otherUserId,
+          };
+        })
+    );
+    setConversations(conversationsData);
+  };
+
+  // Function to report a message
+  const reportMessage = async (message) => {
+    try {
+      await reportMessageHook({
+        messageId: message.id,
+        reporterId: user.id,
+        reason: "Nội dung không phù hợp",
+        reportedUserId: message.author,
+      });
+      Alert.alert(
+        "Thành công",
+        "Báo cáo tin nhắn đã được gửi. Chúng tôi sẽ xem xét nội dung này."
+      );
+    } catch (error) {
+      console.error("Error reporting message:", error);
+      Alert.alert("Lỗi", "Không thể báo cáo tin nhắn. Vui lòng thử lại sau.");
+    }
+  };
+
+  // Function to report a user
+  const reportUser = async (userId) => {
+    try {
+      await reportUserHook({
+        reporterId: user.id,
+        reason: "Người dùng có hành vi không phù hợp",
+        reportedUserId: userId,
+      });
+      Alert.alert(
+        "Thành công",
+        "Báo cáo người dùng đã được gửi. Chúng tôi sẽ xem xét nội dung này."
+      );
+    } catch (error) {
+      console.error("Error reporting user:", error);
+      Alert.alert("Lỗi", "Không thể báo cáo người dùng. Vui lòng thử lại sau.");
+    }
+  };
+
+  // Function to block a user
+  const blockUser = async (userId) => {
+    try {
+      await blockUserHook(user.id, userId);
+      Alert.alert("Thành công", "Bạn đã chặn người dùng này thành công.");
+      // Close chat with blocked user
+      setSelectedConversation(null);
+      useChatStore.getState().setCurrentChatId(null);
+      router.setParams({
+        chatWithId: "",
+      });
+    } catch (error) {
+      console.error("Error blocking user:", error);
+      Alert.alert("Lỗi", "Không thể chặn người dùng. Vui lòng thử lại sau.");
+    }
+  };
+
+  // Function to retract a message
+  const retractMessage = async (message) => {
+    try {
+      await retractMessageHook(message);
+      Alert.alert("Thành công", "Tin nhắn đã được thu hồi.");
+    } catch (error) {
+      console.error("Error retracting message:", error);
+      Alert.alert("Lỗi", "Không thể thu hồi tin nhắn. Vui lòng thử lại sau.");
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       {!selectedConversation ? (
@@ -868,35 +965,125 @@ const MessageScreen = () => {
                 activeOpacity={1}
                 onPress={() => setLongPressedMessage(null)}
               >
-                <View className="bg-white rounded-lg p-4 m-4">
-                  <TouchableOpacity
-                    className="py-2"
-                    onPress={() => {
-                      // Copy message text to clipboard
-                      Alert.alert(
-                        "Feature in Development",
-                        "Copy functionality will be available soon!"
-                      );
-                      setLongPressedMessage(null);
-                    }}
-                  >
-                    <Text className="font-pmedium text-lg">Sao chép</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    className="py-2"
-                    onPress={() => {
-                      // Delete message functionality
-                      Alert.alert(
-                        "Feature in Development",
-                        "Message deletion will be available soon!"
-                      );
-                      setLongPressedMessage(null);
-                    }}
-                  >
-                    <Text className="font-pmedium text-lg text-red-500">
-                      Xóa
-                    </Text>
-                  </TouchableOpacity>
+                <View className="bg-white rounded-t-xl p-4 absolute bottom-0 left-0 right-0">
+                  <Text className="text-center font-pbold text-lg text-gray-600 mb-4 border-b border-gray-200 pb-2">
+                    Tùy chọn tin nhắn
+                  </Text>
+                  {longPressedMessage.author === user?.id ? (
+                    // Options for own messages
+                    <>
+                      <TouchableOpacity
+                        className="py-3 border-b border-gray-100"
+                        onPress={() => {
+                          // Copy message text to clipboard
+                          Alert.alert("Thông báo", "Đã sao chép tin nhắn");
+                          setLongPressedMessage(null);
+                        }}
+                      >
+                        <View className="flex-row items-center">
+                          <Ionicons
+                            name="copy-outline"
+                            size={24}
+                            color="#0286FF"
+                          />
+                          <Text className="font-pmedium text-lg ml-3">
+                            Sao chép
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="py-3"
+                        onPress={() => {
+                          Alert.alert(
+                            "Xác nhận",
+                            "Bạn có chắc muốn thu hồi tin nhắn này?",
+                            [
+                              {
+                                text: "Hủy",
+                                style: "cancel",
+                              },
+                              {
+                                text: "Thu hồi",
+                                style: "destructive",
+                                onPress: () => {
+                                  retractMessage(longPressedMessage);
+                                  setLongPressedMessage(null);
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <View className="flex-row items-center">
+                          <Ionicons
+                            name="trash-outline"
+                            size={24}
+                            color="#FF3B30"
+                          />
+                          <Text className="font-pmedium text-lg ml-3 text-red-500">
+                            Thu hồi
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    // Options for other's messages
+                    <>
+                      <TouchableOpacity
+                        className="py-3 border-b border-gray-100"
+                        onPress={() => {
+                          // Copy message text to clipboard
+                          Alert.alert("Thông báo", "Đã sao chép tin nhắn");
+                          setLongPressedMessage(null);
+                        }}
+                      >
+                        <View className="flex-row items-center">
+                          <Ionicons
+                            name="copy-outline"
+                            size={24}
+                            color="#0286FF"
+                          />
+                          <Text className="font-pmedium text-lg ml-3">
+                            Sao chép
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="py-3"
+                        onPress={() => {
+                          Alert.alert(
+                            "Báo cáo tin nhắn",
+                            "Hãy cho chúng tôi biết vấn đề với tin nhắn này",
+                            [
+                              {
+                                text: "Hủy",
+                                style: "cancel",
+                              },
+                              {
+                                text: "Báo cáo",
+                                style: "destructive",
+                                onPress: () => {
+                                  reportMessage(longPressedMessage);
+                                  setLongPressedMessage(null);
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <View className="flex-row items-center">
+                          <Ionicons
+                            name="flag-outline"
+                            size={24}
+                            color="#FF3B30"
+                          />
+                          <Text className="font-pmedium text-lg ml-3 text-red-500">
+                            Báo cáo tin nhắn
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               </TouchableOpacity>
             </Modal>
@@ -912,36 +1099,73 @@ const MessageScreen = () => {
                 activeOpacity={1}
                 onPress={() => setShowConversationOptions(false)}
               >
-                <View className="bg-white rounded-lg p-4 m-4">
+                <View className="bg-white rounded-t-xl p-4 absolute bottom-0 left-0 right-0">
+                  <Text className="text-center font-pbold text-lg text-gray-600 mb-4 border-b border-gray-200 pb-2">
+                    Tùy chọn
+                  </Text>
                   <TouchableOpacity
-                    className="py-2"
+                    className="py-3 border-b border-gray-100"
                     onPress={() => {
-                      // Handle block user
                       Alert.alert(
-                        "Feature in Development",
-                        "User blocking will be available soon!"
+                        "Chặn người dùng",
+                        `Bạn có chắc muốn chặn ${selectedConversation?.name}? Sau khi chặn, họ sẽ không thể nhắn tin cho bạn.`,
+                        [
+                          {
+                            text: "Hủy",
+                            style: "cancel",
+                          },
+                          {
+                            text: "Chặn",
+                            style: "destructive",
+                            onPress: () => {
+                              blockUser(selectedConversation?.otherUserId);
+                              setShowConversationOptions(false);
+                            },
+                          },
+                        ]
                       );
-                      setShowConversationOptions(false);
                     }}
                   >
-                    <Text className="font-pmedium text-lg text-red-500">
-                      Chặn người dùng
-                    </Text>
+                    <View className="flex-row items-center">
+                      <Ionicons
+                        name="person-remove-outline"
+                        size={24}
+                        color="#FF3B30"
+                      />
+                      <Text className="font-pmedium text-lg ml-3 text-red-500">
+                        Chặn người dùng
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    className="py-2"
+                    className="py-3"
                     onPress={() => {
-                      // Handle report user
                       Alert.alert(
-                        "Feature in Development",
-                        "User reporting will be available soon!"
+                        "Báo cáo người dùng",
+                        "Hãy cho chúng tôi biết vấn đề với người dùng này",
+                        [
+                          {
+                            text: "Hủy",
+                            style: "cancel",
+                          },
+                          {
+                            text: "Báo cáo",
+                            style: "destructive",
+                            onPress: () => {
+                              reportUser(selectedConversation?.otherUserId);
+                              setShowConversationOptions(false);
+                            },
+                          },
+                        ]
                       );
-                      setShowConversationOptions(false);
                     }}
                   >
-                    <Text className="font-pmedium text-lg">
-                      Báo cáo người dùng
-                    </Text>
+                    <View className="flex-row items-center">
+                      <Ionicons name="flag-outline" size={24} color="#FF3B30" />
+                      <Text className="font-pmedium text-lg ml-3 text-red-500">
+                        Báo cáo người dùng
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
