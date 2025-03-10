@@ -1,16 +1,19 @@
-import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import axios, { AxiosResponse, Method } from "axios";
+import { Alert } from "react-native";
 import {
   CategoryType,
   ImageType,
   NotificationType,
   OrderStatus,
+  ORDER_STATUS_ENUM_MAP,
   ServiceType,
   UserType,
+  ViewedServiceType,
 } from "@/types/type";
 import useAuthStore from "@/stores/authStore";
-import { Alert } from "react-native";
 import { compatibilityFlags } from "react-native-screens";
 import { cloneWith } from "lodash";
 import { router } from "expo-router";
@@ -51,7 +54,7 @@ type DataState = {
   ) => Promise<boolean>;
   uploadAvatar: (imageUri: string) => Promise<boolean>;
   uploadImage: (imageUri: string) => Promise<string>;
-  updateStatusOrder: (orderId: number, status: number) => Promise<boolean>;
+  updateStatusOrder: (id: number, status: OrderStatus) => Promise<boolean>;
 };
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
@@ -313,26 +316,15 @@ const useRentoData = create<DataState>((set, get) => ({
     }
   },
 
-  updateStatusOrder: async (orderId: number, status: number) => {
+  updateStatusOrder: async (id: number, status: OrderStatus) => {
     try {
-      const response = await axiosFetch(
-        `/users/orders/${orderId}/update-status`,
-        "put",
-        {
-          status,
-        }
-      );
+      const statusString = ORDER_STATUS_ENUM_MAP[status];
+      await axiosFetch(`/orders/${id}/update-status`, "put", {
+        status: statusString,
+      });
       return true;
-    } catch (error: any) {
-      console.error(
-        "Lỗi khi cập nhật trạng thái đơn hàng:",
-        error?.response?.data || error
-      );
-      Alert.alert(
-        "Lỗi",
-        error?.response?.data?.message ||
-          "Không thể cập nhật trạng thái đơn hàng"
-      );
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
       return false;
     }
   },

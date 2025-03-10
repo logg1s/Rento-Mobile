@@ -62,8 +62,8 @@ const endpoints = {
   searchProvinces: "/provinces/search",
 
   // Locations
-  locations: "/locations",
-  locationById: (id: number) => `/locations/${id}`,
+  locations: "/provider/locations",
+  locationById: (id: number) => `/provider/locations/${id}`,
 };
 
 export const useLocationStore = create<LocationState>((set, get) => ({

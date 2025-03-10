@@ -163,6 +163,22 @@ export enum OrderStatus {
   COMPLETED = 3,
 }
 
+// Mapping from string status to OrderStatus enum
+export const ORDER_STATUS_STRING_MAP = {
+  cancelled: OrderStatus.CANCELLED,
+  pending: OrderStatus.PENDING,
+  processing: OrderStatus.IN_PROGRESS,
+  completed: OrderStatus.COMPLETED,
+};
+
+// Mapping from OrderStatus enum to string status
+export const ORDER_STATUS_ENUM_MAP = {
+  [OrderStatus.CANCELLED]: "cancelled",
+  [OrderStatus.PENDING]: "pending",
+  [OrderStatus.IN_PROGRESS]: "processing",
+  [OrderStatus.COMPLETED]: "completed",
+};
+
 export interface OrderStatusConfig {
   text: string;
   style: {

@@ -307,7 +307,10 @@ const DetailJob = () => {
               <View className="flex-row items-center">
                 <Ionicons name="location-outline" size={16} color="gray" />
                 <Text className="ml-1 font-pmedium text-sm">
-                  {data?.location?.location_name}
+                  {data?.location?.province?.name ||
+                    data?.location?.location_name ||
+                    data?.location?.real_location_name ||
+                    data?.user?.address}
                 </Text>
               </View>
             </View>

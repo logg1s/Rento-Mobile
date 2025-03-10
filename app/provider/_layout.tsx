@@ -1,15 +1,12 @@
 import { Tabs } from "expo-router";
-import { useColorScheme } from "react-native";
-import Colors from "../../constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
+import { useNotification } from "@/hooks/notificationHook";
 
 export default function ProviderLayout() {
-  const colorScheme = useColorScheme();
-
+  useNotification();
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
       }}
     >

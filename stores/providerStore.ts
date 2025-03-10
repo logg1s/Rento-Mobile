@@ -22,7 +22,7 @@ interface ProviderStore {
   fetchStatistics: () => Promise<void>;
   fetchServices: () => Promise<void>;
   fetchOrders: (status?: string) => Promise<void>;
-  updateOrderStatus: (orderId: number, status: string) => Promise<void>;
+  updateOrderStatus: (orderId: number, status: string) => Promise<boolean>;
   createService: (data: any) => Promise<void>;
   updateService: (id: number, data: any) => Promise<void>;
   deleteService: (id: number) => Promise<void>;
@@ -39,11 +39,7 @@ interface ProviderStore {
   ) => Promise<any>;
   deleteServiceBenefit: (serviceId: number, benefitId: number) => Promise<void>;
   getIndependentBenefits: (serviceId: number) => Promise<any>;
-  attachBenefitsToPrice: (
-    priceId: number,
-    benefitIds: number[]
-  ) => Promise<void>;
-  detachBenefitFromPrice: (benefitId: number, priceId: number) => Promise<void>;
+
   bulkUpdateBenefits: (
     benefits: { id: number; benefit_name: string; price_ids: number[] }[]
   ) => Promise<any>;
@@ -98,26 +94,87 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
   fetchOrders: async (status = "all") => {
     try {
       set({ isLoading: true, error: null });
-      const response = await axiosFetch("/provider/orders/my-orders", "get", {
-        params: { status },
-      });
-      set({ orders: response?.data || [], isLoading: false });
+
+      // Gọi API với tham số status
+      const url = `/provider/orders/my-orders?status=${status}`;
+      const response = await axiosFetch(url, "get");
+
+      // Log toàn bộ response để debug
+      console.log(
+        "API Response:",
+        JSON.stringify(response?.data).substring(0, 200) + "..."
+      );
+
+      // Kiểm tra kiểu dữ liệu trả về và đảm bảo nó là mảng
+      if (response?.data) {
+        let ordersData = [];
+
+        if (Array.isArray(response.data)) {
+          // Nếu dữ liệu là mảng, sử dụng trực tiếp
+          ordersData = response.data;
+          console.log("Dữ liệu là mảng với", ordersData.length, "items");
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          // Nếu dữ liệu theo format pagination (có trường data là mảng)
+          ordersData = response.data.data;
+          console.log("Dữ liệu paging với", ordersData.length, "items");
+        } else {
+          // Trường hợp dữ liệu không phải mảng
+          console.error("Dữ liệu API không phải mảng:", typeof response.data);
+          // Vẫn giữ là mảng rỗng
+        }
+
+        // Set state với mảng đã kiểm tra
+        set({ orders: ordersData, isLoading: false });
+        return ordersData;
+      } else {
+        // Đảm bảo trả về mảng rỗng nếu không có dữ liệu
+        set({ orders: [], isLoading: false });
+        console.log("Không có dữ liệu trả về từ API.");
+        return [];
+      }
     } catch (error) {
-      set({ error: "Không thể tải danh sách đơn hàng", isLoading: false });
+      console.error("Lỗi khi tải danh sách đơn hàng:", error);
+      set({
+        error: "Không thể tải danh sách đơn hàng",
+        isLoading: false,
+        orders: [],
+      });
+      return [];
     }
   },
 
   updateOrderStatus: async (orderId: number, status: string) => {
     try {
       set({ isLoading: true, error: null });
-      await axiosFetch(`/provider/orders/${orderId}/status`, "put", { status });
+
+      // Đảm bảo status là một trong những giá trị hợp lệ
+      if (
+        !["pending", "processing", "completed", "cancelled"].includes(status)
+      ) {
+        throw new Error("Trạng thái không hợp lệ");
+      }
+
+      // Gọi API với status dạng string
+      const response = await axiosFetch(
+        `/provider/orders/${orderId}/status`,
+        "put",
+        { status }
+      );
+
+      // Log thông tin để debug
+      console.log("Cập nhật trạng thái đơn hàng thành công:", response?.data);
+
+      // Tải lại danh sách đơn hàng
       await get().fetchOrders();
       set({ isLoading: false });
+      return true;
     } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
       set({
         error: "Không thể cập nhật trạng thái đơn hàng",
         isLoading: false,
       });
+      throw error;
     }
   },
 
@@ -272,7 +329,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
       };
 
       const response = await axiosFetch(
-        `/benefits/create-with-prices`,
+        `/provider/benefits/create-with-prices`,
         "post",
         payload
       );
@@ -300,7 +357,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
       };
 
       const response = await axiosFetch(
-        `/benefits/${benefitId}/update-with-prices`,
+        `/provider/benefits/${benefitId}/update-with-prices`,
         "put",
         payload
       );
@@ -320,7 +377,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       // API delete trong BenefitController
-      await axiosFetch(`/benefits/${benefitId}`, "delete");
+      await axiosFetch(`/provider/benefits/${benefitId}`, "delete");
       set({ isLoading: false });
     } catch (error: any) {
       console.error("Lỗi khi xóa lợi ích:", error?.response?.data || error);
@@ -332,7 +389,9 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
   getIndependentBenefits: async (serviceId: number) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await axiosFetch(`/benefits/independent/${serviceId}`);
+      const response = await axiosFetch(
+        `/provider/benefits/independent/${serviceId}`
+      );
       set({ isLoading: false });
       return response?.data || [];
     } catch (error: any) {
@@ -345,49 +404,19 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     }
   },
 
-  attachBenefitsToPrice: async (priceId: number, benefitIds: number[]) => {
-    try {
-      set({ isLoading: true, error: null });
-      await axiosFetch(`/benefits/attach-to-price/${priceId}`, "post", {
-        benefit_ids: benefitIds,
-      });
-      set({ isLoading: false });
-    } catch (error: any) {
-      console.error(
-        "Lỗi khi gán lợi ích cho gói giá:",
-        error?.response?.data || error
-      );
-      set({ error: "Không thể gán lợi ích cho gói giá", isLoading: false });
-      throw error;
-    }
-  },
-
-  detachBenefitFromPrice: async (benefitId: number, priceId: number) => {
-    try {
-      set({ isLoading: true, error: null });
-      await axiosFetch(`/benefits/${benefitId}/detach-price`, "post", {
-        price_id: priceId,
-      });
-      set({ isLoading: false });
-    } catch (error: any) {
-      console.error(
-        "Lỗi khi xóa liên kết lợi ích:",
-        error?.response?.data || error
-      );
-      set({ error: "Không thể xóa liên kết lợi ích", isLoading: false });
-      throw error;
-    }
-  },
-
   bulkUpdateBenefits: async (
     benefits: { id: number; benefit_name: string; price_ids: number[] }[]
   ) => {
     try {
       set({ isLoading: true, error: null });
 
-      const response = await axiosFetch(`/benefits/bulk-update`, "post", {
-        benefits,
-      });
+      const response = await axiosFetch(
+        `/provider/benefits/bulk-update`,
+        "post",
+        {
+          benefits,
+        }
+      );
 
       set({ isLoading: false });
       return response?.data;
@@ -412,7 +441,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
         service_id: serviceId,
       };
       const response = await axiosFetch(
-        `/prices/create-with-benefits`,
+        `/provider/prices/create-with-benefits`,
         "post",
         payload
       );
@@ -435,7 +464,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await axiosFetch(
-        `/prices/${priceId}/update-with-benefits`,
+        `/provider/prices/${priceId}/update-with-benefits`,
         "put",
         data
       );
@@ -461,9 +490,13 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
   ) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await axiosFetch(`/prices/bulk-update`, "post", {
-        prices,
-      });
+      const response = await axiosFetch(
+        `/provider/prices/bulk-update`,
+        "post",
+        {
+          prices,
+        }
+      );
       set({ isLoading: false });
       return response?.data;
     } catch (error: any) {
