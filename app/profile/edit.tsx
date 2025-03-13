@@ -19,7 +19,7 @@ const EditProfileScreen = () => {
   const [form, setForm] = useState({
     name: user?.name ?? "",
     phone_number: user?.phone_number ?? "",
-    address: user?.address ?? "",
+    address: user?.location?.location_name ?? "",
     lat: user?.location?.lat ?? null,
     lng: user?.location?.lng ?? null,
     real_location_name: user?.location?.real_location_name ?? "",
@@ -31,7 +31,7 @@ const EditProfileScreen = () => {
     lat: user?.location?.lat ?? null,
     lng: user?.location?.lng ?? null,
     province: null as Province | null,
-    detailedAddress: user?.address ?? "",
+    detailedAddress: user?.location?.location_name ?? "",
     real_location_name: user?.location?.real_location_name ?? "",
     province_id: user?.location?.province_id ?? null,
   });
@@ -249,7 +249,7 @@ const EditProfileScreen = () => {
           }
           onLocationSelected={handleLocationSelected}
           onLocationChange={handleLocationChange}
-          initialAddress={user?.address || null}
+          initialAddress={user?.location?.location_name || null}
           initialProvince={initialProvince}
         />
         <View className="flex-row justify-around">

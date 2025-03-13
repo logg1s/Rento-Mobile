@@ -20,9 +20,11 @@ import debounce from "lodash/debounce";
 import useRentoData from "@/stores/dataStore";
 import Slider from "@react-native-community/slider";
 import { formatToVND, normalizeVietnamese, searchFilter } from "@/utils/utils";
-import { FilterType, defaultFilters } from "@/types/filter";
+import { FilterType, defaultFilters, SortOption } from "@/types/filter";
 import { ScrollView } from "react-native-gesture-handler";
 import { ServiceType } from "@/types/type";
+import { useLocationStore, Province } from "@/stores/locationStore";
+import React from "react";
 
 const SearchTab = () => {
   const { fromHome, searchText } = useLocalSearchParams();
@@ -33,11 +35,29 @@ const SearchTab = () => {
   const [filterState, setFilterState] = useState<FilterType>(defaultFilters);
   const [providerFilter, setProviderFilter] = useState("");
   const filters = useMemo(() => filterState, [filterState]);
+  const [showProvinceModal, setShowProvinceModal] = useState(false);
+  const [provinceSearchQuery, setProvinceSearchQuery] = useState("");
+  const [tempLocation, setTempLocation] = useState<string | null>(null);
 
-  const services = useRentoData((state) => state.services);
-  const categories = useRentoData((state) => state.categories);
+  const services = useRentoData((state) => state.services) || [];
+  const categories = useRentoData((state) => state.categories) || [];
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const fetchServices = useRentoData((state) => state.fetchServices);
+  const fetchCategories = useRentoData((state) => state.fetchCategories);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { provinces, loadingProvinces, fetchProvinces } = useLocationStore();
+
+  const onRefreshCategories = async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchCategories();
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (fromHome) {
@@ -49,6 +69,10 @@ const SearchTab = () => {
       }
     }
   }, [fromHome, searchText]);
+
+  useEffect(() => {
+    fetchProvinces();
+  }, []);
 
   const ratingCounts = useMemo(() => {
     const counts = new Array(6).fill(0); // 0-5 stars
@@ -65,13 +89,16 @@ const SearchTab = () => {
     return services.filter((item) => {
       const searchTerms = normalizeVietnamese(searchQuery.toLowerCase());
       const providerTerms = normalizeVietnamese(providerFilter.toLowerCase());
-      // Separate search conditions for clarity
+
       const matchesServiceName = searchFilter(item.service_name, searchTerms);
       const matchesDescription = searchFilter(
-        item.service_description,
-        searchTerms,
+        item.service_description || "",
+        searchTerms
       );
-      const matchesProvider = searchFilter(item.user?.name, providerTerms);
+      const matchesProvider = searchFilter(
+        item.user?.name || "",
+        providerTerms
+      );
 
       const matchesSearch =
         searchQuery === "" || matchesServiceName || matchesDescription;
@@ -79,24 +106,32 @@ const SearchTab = () => {
 
       const matchesCategories =
         filters.categories.length === 0 ||
-        filters.categories.includes(item.category?.id);
+        (item.category?.id !== undefined &&
+          filters.categories.includes(item.category.id));
 
-      // Updated price filtering logic
       const matchesPrice =
         !item.price || item.price.length === 0
-          ? filters.priceRange.min === 0 // Show free services only when min is 0
+          ? filters.priceRange.min === 0
           : item.price?.some(
               (p) =>
                 p.price_value >= filters.priceRange.min &&
-                p.price_value <= filters.priceRange.max,
+                p.price_value <= filters.priceRange.max
             );
 
       const matchesRating =
-        filters.ratings.length === 0 || // Show all if no ratings selected
+        filters.ratings.length === 0 ||
         filters.ratings.includes(Math.round(item.average_rate ?? 0));
 
       const matchesLocation =
-        !filters.location || item.location?.location_name === filters.location;
+        !filters.location ||
+        (item.location?.location_name &&
+          normalizeVietnamese(
+            item.location.location_name.toLowerCase()
+          ).includes(normalizeVietnamese(filters.location.toLowerCase()))) ||
+        (item.location?.province?.name &&
+          normalizeVietnamese(
+            item.location.province.name.toLowerCase()
+          ).includes(normalizeVietnamese(filters.location.toLowerCase())));
 
       return (
         matchesSearch &&
@@ -125,18 +160,159 @@ const SearchTab = () => {
     setFilterState(defaultFilters);
   };
 
-  // Add selected category name for display
+  const ProvinceSelectionModal = React.memo(() => {
+    // Use component-local state to prevent parent re-renders
+    const [localSearchQuery, setLocalSearchQuery] =
+      useState(provinceSearchQuery);
+    const [searchResults, setSearchResults] = useState(provinces);
+
+    // Update search results only when typing finishes
+    useEffect(() => {
+      if (!localSearchQuery) {
+        setSearchResults(provinces);
+        return;
+      }
+
+      const normalizedQuery = normalizeVietnamese(
+        localSearchQuery.toLowerCase()
+      );
+      const filtered = provinces.filter((province) =>
+        normalizeVietnamese(province.name.toLowerCase()).includes(
+          normalizedQuery
+        )
+      );
+      setSearchResults(filtered);
+    }, [localSearchQuery, provinces]);
+
+    // Only sync with parent state when modal opens
+    useEffect(() => {
+      if (showProvinceModal) {
+        setLocalSearchQuery(provinceSearchQuery);
+      }
+    }, [showProvinceModal]);
+
+    const handleSelectProvince = useCallback(
+      (province: Province | null) => {
+        setTempLocation(province?.name || null);
+        setShowProvinceModal(false);
+        setProvinceSearchQuery(localSearchQuery);
+      },
+      [localSearchQuery]
+    );
+
+    const handleClearSearch = useCallback(() => {
+      setLocalSearchQuery("");
+    }, []);
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showProvinceModal}
+        onRequestClose={() => setShowProvinceModal(false)}
+        statusBarTranslucent={true}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-5 h-[80%]">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="font-pbold text-2xl">Chọn tỉnh thành</Text>
+              <TouchableOpacity
+                onPress={() => setShowProvinceModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row items-center bg-gray-100 rounded-lg px-4 py-2 mb-4">
+              <Ionicons name="search" size={20} color="gray" />
+              <TextInput
+                placeholder="Tìm kiếm tỉnh thành..."
+                value={localSearchQuery}
+                onChangeText={setLocalSearchQuery}
+                className="flex-1 ml-2 font-pmedium"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="off"
+              />
+              {localSearchQuery !== "" && (
+                <TouchableOpacity
+                  onPress={handleClearSearch}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close-circle" size={20} color="gray" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id.toString()}
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={true}
+              initialNumToRender={20}
+              maxToRenderPerBatch={20}
+              windowSize={10}
+              ListHeaderComponent={
+                <TouchableOpacity
+                  onPress={() => handleSelectProvince(null)}
+                  className="p-4 border-b border-gray-200"
+                >
+                  <Text className="font-pmedium text-lg">
+                    Tất cả tỉnh thành
+                  </Text>
+                </TouchableOpacity>
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => handleSelectProvince(item)}
+                  className="p-4 border-b border-gray-200"
+                >
+                  <Text className="font-pmedium text-lg">{item.name}</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View className="flex-1 justify-center items-center py-10">
+                  {loadingProvinces ? (
+                    <Text className="font-pmedium text-lg text-gray-500">
+                      Đang tải danh sách tỉnh thành...
+                    </Text>
+                  ) : (
+                    <>
+                      <Ionicons name="location" size={48} color="gray" />
+                      <Text className="font-pmedium text-lg text-gray-500 mt-4">
+                        Không tìm thấy tỉnh thành
+                      </Text>
+                    </>
+                  )}
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+    );
+  });
+
   const selectedCategoriesNames = useMemo(() => {
     return categories
       .filter((c) => filters.categories.includes(c.id))
       .map((c) => c.category_name);
   }, [filters.categories, categories]);
 
-  // Enhanced FilterModal with better state management
   const FilterModal = () => {
     const [localFilters, setLocalFilters] = useState<FilterType>(filters);
     const [localProviderFilter, setLocalProviderFilter] =
       useState(providerFilter);
+
+    useEffect(() => {
+      if (showProvinceModal === false && tempLocation !== null) {
+        setLocalFilters((prev) => ({
+          ...prev,
+          location: tempLocation,
+        }));
+      }
+    }, [showProvinceModal, tempLocation]);
 
     const applyFilters = useCallback(() => {
       setFilterState(localFilters);
@@ -155,7 +331,7 @@ const SearchTab = () => {
 
     return (
       <Modal
-        animationType="fade" // Changed to fade for smoother transitions
+        animationType="fade"
         transparent={true}
         visible={showFilter}
         onRequestClose={() => setShowFilter(false)}
@@ -170,7 +346,6 @@ const SearchTab = () => {
             </View>
 
             <ScrollView className="max-h-[70vh]">
-              {/* Add Provider Search Section at the top */}
               <View className="mb-6">
                 <Text className="font-pmedium text-lg mb-4">Nhà cung cấp</Text>
                 <View className="flex-row items-center bg-gray-100 rounded-lg px-4 py-2">
@@ -191,7 +366,6 @@ const SearchTab = () => {
                 </View>
               </View>
 
-              {/* Price Range Section */}
               <View className="mb-6">
                 <Text className="font-pmedium text-lg mb-4">Khoảng giá</Text>
                 <View className="flex-row justify-between items-center">
@@ -232,7 +406,6 @@ const SearchTab = () => {
                 </View>
               </View>
 
-              {/* Modified Rating Section */}
               <View className="mb-6">
                 <Text className="font-pmedium text-lg mb-4">Đánh giá</Text>
                 <View className="flex-row flex-wrap gap-2">
@@ -269,44 +442,75 @@ const SearchTab = () => {
                 </View>
               </View>
 
-              {/* Locations Section - if you have locations data */}
               <View className="mb-6">
                 <Text className="font-pmedium text-lg mb-4">Địa điểm</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View className="flex-row gap-2">
-                    {["Tất cả", "Hà Nội", "TP.HCM", "Đà Nẵng"].map((loc) => (
-                      <TouchableOpacity
-                        key={loc}
-                        onPress={() =>
-                          setLocalFilters((prev) => ({
-                            ...prev,
-                            location: loc === "Tất cả" ? null : loc,
-                          }))
+                <View className="flex-row items-center mb-3">
+                  <TouchableOpacity
+                    onPress={() => setShowProvinceModal(true)}
+                    className="flex-1 flex-row items-center bg-gray-100 rounded-lg px-4 py-3 border border-gray-200"
+                  >
+                    <Ionicons name="location" size={20} color="gray" />
+                    <Text className="flex-1 ml-2 font-pmedium text-gray-700">
+                      {localFilters.location || "Chọn tỉnh thành"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="gray" />
+                  </TouchableOpacity>
+
+                  {localFilters.location && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        setLocalFilters((prev) => ({ ...prev, location: null }))
+                      }
+                      className="ml-2 p-3 bg-gray-100 rounded-lg"
+                    >
+                      <Ionicons name="close" size={20} color="gray" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View className="flex-row flex-wrap gap-2">
+                  {provinces.slice(0, 5).map((province) => (
+                    <TouchableOpacity
+                      key={province.id}
+                      onPress={() =>
+                        setLocalFilters((prev) => ({
+                          ...prev,
+                          location: province.name,
+                        }))
+                      }
+                      className={`px-4 py-2 rounded-full ${
+                        localFilters.location === province.name
+                          ? "bg-primary-500"
+                          : "bg-gray-100"
+                      }`}
+                    >
+                      <Text
+                        className={
+                          localFilters.location === province.name
+                            ? "text-white font-pmedium"
+                            : "text-gray-800 font-pmedium"
                         }
-                        className={`px-6 py-3 rounded-full ${
-                          (loc === "Tất cả" && !localFilters.location) ||
-                          localFilters.location === loc
-                            ? "bg-primary-500"
-                            : "bg-gray-100"
-                        }`}
                       >
-                        <Text
-                          className={`font-pmedium ${
-                            (loc === "Tất cả" && !localFilters.location) ||
-                            localFilters.location === loc
-                              ? "text-white"
-                              : "text-gray-800"
-                          }`}
-                        >
-                          {loc}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
+                        {province.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    onPress={() => setShowProvinceModal(true)}
+                    className="px-4 py-2 rounded-full bg-gray-100 flex-row items-center"
+                  >
+                    <Text className="text-primary-500 font-pmedium mr-1">
+                      Xem thêm
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="#0ea5e9"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              {/* Add Sort Section */}
               <View className="mb-6">
                 <Text className="font-pmedium text-lg mb-4">Sắp xếp theo</Text>
                 <View className="flex-row flex-wrap gap-2">
@@ -322,7 +526,7 @@ const SearchTab = () => {
                       onPress={() =>
                         setLocalFilters((prev) => ({
                           ...prev,
-                          sortBy: sort.value,
+                          sortBy: sort.value as SortOption,
                         }))
                       }
                       className={`px-4 py-2 rounded-full ${
@@ -382,7 +586,6 @@ const SearchTab = () => {
     );
   };
 
-  // Add new category selection section component
   const CategorySelectionHeader = () => (
     <View className="bg-white p-5 border-b border-gray-200">
       <Text className="font-pbold text-xl mb-3">Chọn thể loại dịch vụ</Text>
@@ -437,13 +640,11 @@ const SearchTab = () => {
     </View>
   );
 
-  // Modified categories with "All" option
   const allCategoriesOption = { id: -1, category_name: "Tất cả" };
   const allCategories = useMemo(() => {
     return [allCategoriesOption, ...categories];
   }, [categories]);
 
-  // Updated CategoryGrid component
   const CategoryGrid = () => (
     <View className="flex-1">
       <View className="px-5 pt-5">
@@ -451,6 +652,12 @@ const SearchTab = () => {
         {categories.length > 0 ? (
           <FlatList
             data={allCategories}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefreshCategories}
+              />
+            }
             keyExtractor={(item) => item.id.toString()}
             numColumns={2}
             renderItem={({ item }) => (
@@ -468,8 +675,12 @@ const SearchTab = () => {
                 <Image
                   source={
                     item.id === -1
-                      ? require("@/assets/images/picsum_1.jpg") // Thay thế tạm thời bằng ảnh có sẵn
-                      : { uri: `https://picsum.photos/seed/${item.id}/200` }
+                      ? {
+                          uri: `https://picsum.photos/seed/categories/200`,
+                        }
+                      : {
+                          uri: `https://picsum.photos/seed/${item.category_name}/200`,
+                        }
                   }
                   className="w-full h-full absolute"
                   resizeMode="cover"
@@ -504,21 +715,28 @@ const SearchTab = () => {
     </View>
   );
 
-  // Modified ServiceCard to handle services without price
   const renderServiceCard = (item: ServiceType) => (
     <ServiceCard
       data={{
         ...item,
         price: item.price?.length
           ? item.price
-          : [{ price_value: 0, price_name: "Miễn phí" }],
+          : [
+              {
+                id: 0,
+                price_value: 0,
+                price_name: "Miễn phí",
+                deleted_at: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ],
       }}
       onPressFavorite={() => updateFavorite(item.id, !item.is_liked)}
       containerStyles="mb-4"
     />
   );
 
-  // Enhanced search results view with modified price filter badge
   const SearchResults = () => (
     <View className="flex-1">
       <View className="bg-white">
@@ -532,7 +750,6 @@ const SearchTab = () => {
               : "Không tìm thấy kết quả phù hợp"}
           </Text>
           <View className="flex-row flex-wrap gap-2 mt-2">
-            {/* Add provider filter badge */}
             {providerFilter !== "" && (
               <View className="bg-primary-100 px-3 py-1 rounded-full">
                 <Text className="font-pmedium text-primary-500">
@@ -575,7 +792,7 @@ const SearchTab = () => {
                   {filters.priceRange.min === 0
                     ? `Tối đa ${formatToVND(filters.priceRange.max)}`
                     : `${formatToVND(filters.priceRange.min)} - ${formatToVND(
-                        filters.priceRange.max,
+                        filters.priceRange.max
                       )}`}
                 </Text>
               </View>
@@ -662,6 +879,7 @@ const SearchTab = () => {
 
       {showSearch ? <SearchResults /> : <CategoryGrid />}
       {showFilter && <FilterModal />}
+      <ProvinceSelectionModal />
     </SafeAreaView>
   );
 };

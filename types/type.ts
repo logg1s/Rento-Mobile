@@ -16,7 +16,6 @@ export type UserType = {
   phone_number: string;
   image_id?: string;
   image?: ImageType;
-  address?: string;
   deleted_at: string | null;
   role: RoleType[];
   status: UserStatusEnum;
@@ -240,20 +239,52 @@ export type UserSettingType = {
   deleted_at: string | null;
 } & TimeStampType;
 
+// Service type returned in statistics
+export interface StatisticsService {
+  id: number;
+  name: string;
+  order_count: number;
+  revenue: number;
+  average_rating: number;
+  review_count: number;
+}
+
+// Statistics response structure from backend
 export interface ProviderStatistics {
-  total_services: number;
-  order_statistics: {
-    total_orders: number;
-    completed_orders: number;
-    cancelled_orders: number;
-    pending_orders: number;
-    total_revenue: number;
+  revenue: {
+    labels: string[];
+    data: number[];
+    total: number;
+    average: number;
+    trend: number;
   };
-  monthly_revenue: Array<{
-    month: number;
-    year: number;
-    revenue: number;
-  }>;
+  orders: {
+    total: number;
+    completed: number;
+    cancelled: number;
+    pending: number;
+    in_progress: number;
+    completion_rate: number;
+    cancellation_rate: number;
+    trends: {
+      labels: string[];
+      data: number[];
+    };
+  };
+  services: {
+    services: StatisticsService[];
+    total_services: number;
+    most_popular: string | null;
+    highest_rated: string | null;
+    most_profitable: string | null;
+  };
+  summary: {
+    total_services: number;
+    total_orders: number;
+    total_revenue: number;
+    average_order_value: number;
+    average_rating: number;
+  };
 }
 
 export interface ProviderService extends ServiceType {

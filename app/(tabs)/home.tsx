@@ -12,6 +12,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,7 @@ import Swiper from "react-native-swiper";
 import { useCheckProfileComplete } from "@/hooks/useCheckProfileComplete";
 
 const TabHome = () => {
+  useCheckProfileComplete();
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const data = useRentoData((state) => state.services);
@@ -36,6 +38,14 @@ const TabHome = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onTapBanner = (index: number) => {
+    console.log("onTapBanner", index);
+    router.push({
+      pathname: "/(tabs)/search",
+      params: { fromHome: true, searchText: searchText.trim() },
+    });
   };
 
   useEffect(() => {
@@ -62,8 +72,6 @@ const TabHome = () => {
     }
   };
 
-  useCheckProfileComplete();
-
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <View className="px-5">
@@ -83,7 +91,7 @@ const TabHome = () => {
             </View>
           </View>
         </View>
-        <View className="flex-row items-center bg-white rounded-full px-4 py-5 mt-5 border-2 border-gray-400 -mb-5">
+        <View className="flex-row items-center bg-white rounded-2xl px-4 py-5 mt-5 border-2 border-gray-400 -mb-5">
           <Ionicons name="search" size={20} color="gray" />
           <TextInput
             placeholder="Tìm kiếm dịch vụ..."
@@ -129,22 +137,105 @@ const TabHome = () => {
           <>
             <View className="h-60">
               <Swiper
-                autoplay
+                // autoplay
                 loop
                 // dot={<View className="w-[32px] h-[4px] mx-1 bg-[#E2E8F0]" />}
                 // activeDot={<View className="w-[32px] h-[4px] mx-1 bg-[#0286FF]" />}
               >
-                <Image
-                  source={require("@/assets/images/picsum_1.jpg")}
-                  className="w-full h-56"
-                  resizeMode="contain"
-                />
-                <Image
-                  source={require("@/assets/images/picsum_1.jpg")}
-                  className="w-full h-56"
-                  resizeMode="contain"
-                />
+                <TouchableWithoutFeedback onPress={() => onTapBanner(0)}>
+                  <Image
+                    source={require("@/assets/images/banner/1.jpg")}
+                    className="w-full h-56"
+                    resizeMode="cover"
+                  />
+                </TouchableWithoutFeedback>
+                <TouchableWithoutFeedback onPress={() => onTapBanner(1)}>
+                  <Image
+                    source={require("@/assets/images/banner/2.jpg")}
+                    className="w-full h-56"
+                    resizeMode="cover"
+                  />
+                </TouchableWithoutFeedback>
+                <TouchableWithoutFeedback onPress={() => onTapBanner(2)}>
+                  <Image
+                    source={require("@/assets/images/banner/3.jpg")}
+                    className="w-full h-56"
+                    resizeMode="cover"
+                  />
+                </TouchableWithoutFeedback>
+                <TouchableWithoutFeedback onPress={() => onTapBanner(3)}>
+                  <Image
+                    source={require("@/assets/images/banner/4.jpg")}
+                    className="w-full h-56"
+                    resizeMode="cover"
+                  />
+                </TouchableWithoutFeedback>
               </Swiper>
+            </View>
+            <View className="flex-row gap-2 mb-5">
+              <TouchableOpacity
+                className="flex-1 aspect-square relative overflow-hidden rounded-2xl shadow-md"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: `https://picsum.photos/seed/categories/400` }}
+                  className="absolute w-full h-full"
+                  resizeMode="cover"
+                />
+                <View className="flex-1 justify-end p-4 bg-black/30">
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="grid" size={20} color="white" />
+                    <Text className="font-psemibold text-lg text-white">
+                      Danh mục
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="flex-1 aspect-square relative overflow-hidden rounded-2xl shadow-md"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/search",
+                    params: { fromHome: true },
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: `https://picsum.photos/seed/search/400` }}
+                  className="absolute w-full h-full"
+                  resizeMode="cover"
+                />
+                <View className="flex-1 justify-end p-4 bg-black/30">
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="search" size={20} color="white" />
+                    <Text className="font-psemibold text-lg text-white">
+                      Tìm kiếm
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+            <View>
+              <View className="flex-row items-center">
+                <Text className="font-psemibold text-xl flex-1">Dịch vụ</Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(tabs)/search",
+                      params: { fromHome: true },
+                    })
+                  }
+                >
+                  <Text className="font-psemibold text-md text-primary-500">
+                    Xem tất cả
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             {/* <View className="gap-2 mb-10">
               <View className="flex-row items-center">

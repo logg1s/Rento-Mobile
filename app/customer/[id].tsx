@@ -144,7 +144,9 @@ export default function CustomerDetails() {
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Địa chỉ</Text>
-          <Text style={styles.detailValue}>{user.address || "Không có"}</Text>
+          <Text style={styles.detailValue}>
+            {user.location?.address || "Không có"}
+          </Text>
         </View>
       </View>
 

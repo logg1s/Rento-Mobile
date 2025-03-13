@@ -18,7 +18,7 @@ import { axiosFetch } from "@/stores/dataStore";
 import { twMerge } from "tailwind-merge";
 
 const CommentCard = ({
-  data: { id, rate, comment_body },
+  data,
   containerStyles,
   user,
   enableOption = false,
@@ -29,17 +29,36 @@ const CommentCard = ({
   enableOption?: boolean;
   handleDeleteComment?: (id: number) => void;
 }) => {
+  // Early return with placeholder if data is undefined
+  if (!data) {
+    return (
+      <View
+        className={twMerge(
+          `rounded-xl w-72 p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500`,
+          containerStyles
+        )}
+      >
+        <Text className="font-pmedium text-gray-400">
+          Không có dữ liệu bình luận
+        </Text>
+      </View>
+    );
+  }
+
+  // Safely extract properties from data
+  const { id, rate, comment_body, created_at, updated_at } = data;
+
   const onPressComment = () => {};
   const [showOption, setShowOption] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const menuButtonRef = useRef(null);
+  const menuButtonRef = useRef<TouchableOpacity | null>(null);
 
   const handlePressOutside = () => {
     setShowOption(false);
   };
 
   const handleShowMenu = () => {
-    menuButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
+    menuButtonRef.current?.measure?.((x, y, width, height, pageX, pageY) => {
       setMenuPosition({ x: pageX - 100, y: pageY + height });
       setShowOption(true);
     });
@@ -54,7 +73,9 @@ const CommentCard = ({
       {
         text: "Xóa",
         onPress: () => {
-          handleDeleteComment?.(id);
+          if (id && handleDeleteComment) {
+            handleDeleteComment(id);
+          }
         },
         style: "destructive",
       },
@@ -63,12 +84,27 @@ const CommentCard = ({
     setShowOption(false);
   };
 
+  // Use the most recent date between created_at and updated_at
+  const getDisplayDate = () => {
+    if (!created_at) return new Date(); // Fallback to current date if no date available
+
+    const createdDate = new Date(created_at);
+
+    if (updated_at) {
+      const updatedDate = new Date(updated_at);
+      return updatedDate > createdDate ? updatedDate : createdDate;
+    }
+
+    return createdDate;
+  };
+
   const onLongPressComment = () => {};
+
   return (
     <TouchableOpacity
       className={twMerge(
-        `rounded-xl w-72 p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500 `,
-        containerStyles,
+        `rounded-xl w-72 p-3 gap-5 border border-general-100 bg-white shadow-md shadow-gray-500`,
+        containerStyles
       )}
       onPress={onPressComment}
       activeOpacity={1}
@@ -107,9 +143,7 @@ const CommentCard = ({
                 >
                   <TouchableOpacity
                     className="px-4 py-2 flex-row items-center gap-2"
-                    onPress={() => {
-                      handleShowDeleteConfirm(id);
-                    }}
+                    onPress={handleShowDeleteConfirm}
                   >
                     <FontAwesome name="trash" size={16} color="#ef4444" />
                     <Text className="font-pmedium text-red-500">Xóa</Text>
@@ -133,7 +167,7 @@ const CommentCard = ({
           </View>
         </View>
         <Text className="font-pregular text-sm">
-          {formatDateToVietnamese(new Date())}
+          {formatDateToVietnamese(getDisplayDate())}
         </Text>
       </View>
     </TouchableOpacity>

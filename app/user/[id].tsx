@@ -72,8 +72,8 @@ const UserProfile = () => {
         prev.map((service) =>
           service.id === serviceId
             ? { ...service, is_liked: !service.is_liked }
-            : service,
-        ),
+            : service
+        )
       );
       await updateFavorite(serviceId, action);
     } catch (error) {
@@ -202,30 +202,37 @@ const UserProfile = () => {
                 selectedCategory === "all" ? "text-white" : "text-gray-700"
               }`}
             >
-              Tất cả
+              Tất cả ({services.length})
             </Text>
           </TouchableOpacity>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              onPress={() => setSelectedCategory(String(category.id))}
-              className={`px-4 py-2 rounded-full border ${
-                selectedCategory === String(category.id)
-                  ? "bg-black border-black"
-                  : "border-gray-300"
-              }`}
-            >
-              <Text
-                className={`font-pmedium ${
+          {categories.map((category) => {
+            // Count services for this category
+            const serviceCount = services.filter(
+              (service) => service.category?.id === category.id
+            ).length;
+
+            return (
+              <TouchableOpacity
+                key={category.id}
+                onPress={() => setSelectedCategory(String(category.id))}
+                className={`px-4 py-2 rounded-full border ${
                   selectedCategory === String(category.id)
-                    ? "text-white"
-                    : "text-gray-700"
+                    ? "bg-black border-black"
+                    : "border-gray-300"
                 }`}
               >
-                {category.category_name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  className={`font-pmedium ${
+                    selectedCategory === String(category.id)
+                      ? "text-white"
+                      : "text-gray-700"
+                  }`}
+                >
+                  {category.category_name} ({serviceCount})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 

@@ -217,17 +217,14 @@ export default function ProviderServices() {
     formattedAddress?: string;
     province_id?: number | null;
   }) => {
-    setFormData(
-      (prev) =>
-        ({
-          ...prev,
-          lat: data.lat,
-          lng: data.lng,
-          location_name: data.address,
-          real_location_name: data.formattedAddress || data.address,
-          province_id: data.province_id || null,
-        }) as typeof prev
-    );
+    setFormData((prev) => ({
+      ...prev,
+      lat: data.lat,
+      lng: data.lng,
+      location_name: data.address,
+      real_location_name: data.formattedAddress || data.address,
+      province_id: data.province_id || null,
+    }));
   };
 
   const handleSubmit = async () => {
@@ -406,6 +403,10 @@ export default function ProviderServices() {
   };
 
   const filteredServices = useMemo(() => {
+    if (!services || !Array.isArray(services)) {
+      return [];
+    }
+
     return services.filter((service) => {
       if (!service || !service.service_name) return false;
 

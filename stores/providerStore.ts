@@ -11,6 +11,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
 
+// Period type for statistics filtering
+export type StatisticsPeriod = "week" | "month" | "year";
+
 interface ProviderStore {
   statistics: ProviderStatistics | null;
   services: ProviderService[];
@@ -20,6 +23,7 @@ interface ProviderStore {
 
   // Actions
   fetchStatistics: () => Promise<void>;
+  fetchStatisticsWithPeriod: (period: StatisticsPeriod) => Promise<void>;
   fetchServices: () => Promise<void>;
   fetchOrders: (status?: string) => Promise<void>;
   updateOrderStatus: (orderId: number, status: string) => Promise<boolean>;
@@ -73,8 +77,26 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
       set({ isLoading: true, error: null });
       const response = await axiosFetch("/provider/statistics");
       set({ statistics: response?.data || null, isLoading: false });
+      return response?.data;
     } catch (error) {
+      console.error("Lỗi khi tải thống kê:", error);
       set({ error: "Không thể tải thống kê", isLoading: false });
+      throw error;
+    }
+  },
+
+  fetchStatisticsWithPeriod: async (period: StatisticsPeriod = "week") => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await axiosFetch(
+        `/provider/statistics?period=${period}`
+      );
+      set({ statistics: response?.data || null, isLoading: false });
+      return response?.data;
+    } catch (error) {
+      console.error(`Lỗi khi tải thống kê cho kỳ ${period}:`, error);
+      set({ error: "Không thể tải thống kê", isLoading: false });
+      throw error;
     }
   },
 

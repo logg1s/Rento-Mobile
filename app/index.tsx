@@ -1,4 +1,5 @@
 import Oauth from "@/components/Oauth";
+import { useCheckProfileComplete } from "@/hooks/useCheckProfileComplete";
 import useAuthStore from "@/stores/authStore";
 import { Redirect, router } from "expo-router";
 import React from "react";

@@ -53,7 +53,9 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
         source={
           service_name && images && images.length > 0
             ? getServiceImageSource(images[0].image_url)
-            : require("@/assets/images/picsum_1.jpg")
+            : {
+                uri: `https://picsum.photos/seed/services/400`,
+              }
         }
         className="w-full h-40"
         resizeMode="cover"

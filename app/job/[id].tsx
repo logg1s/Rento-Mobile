@@ -261,12 +261,16 @@ const DetailJob = () => {
                         e.nativeEvent.error
                       );
                     }}
-                    defaultSource={require("@/assets/images/avatar_placeholder_icon.png")}
+                    defaultSource={{
+                      uri: `https://picsum.photos/seed/services/400`,
+                    }}
                   />
                 ))
               ) : (
                 <Image
-                  source={require("@/assets/images/picsum_1.jpg")}
+                  source={{
+                    uri: `https://picsum.photos/seed/services/400`,
+                  }}
                   className="h-full w-full"
                 />
               )}
@@ -310,7 +314,7 @@ const DetailJob = () => {
                   {data?.location?.province?.name ||
                     data?.location?.location_name ||
                     data?.location?.real_location_name ||
-                    data?.user?.address}
+                    data?.user?.location?.address}
                 </Text>
               </View>
             </View>
@@ -397,7 +401,17 @@ const DetailJob = () => {
                 </Text>
               </View>
               {(data?.comment_count ?? 0) > 0 && (
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/job/comments",
+                      params: {
+                        id: data?.id,
+                        service_name: data?.service_name,
+                      },
+                    })
+                  }
+                >
                   <Text className="font-psemibold text-primary-500">
                     Xem tất cả
                   </Text>
@@ -409,20 +423,41 @@ const DetailJob = () => {
               contentContainerClassName="gap-5 py-5"
               showsHorizontalScrollIndicator={false}
             >
-              {data?.comment?.map((item) => (
-                <CommentCard key={item.id} data={item} user={item?.user} />
-              ))}
+              {data?.comment && data.comment.length > 0 ? (
+                data.comment
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      new Date(b.created_at || 0).getTime() -
+                      new Date(a.created_at || 0).getTime()
+                  )
+                  .slice(0, 5)
+                  .map(
+                    (item) =>
+                      item && (
+                        <CommentCard
+                          key={item.id || `comment-${Math.random()}`}
+                          data={item}
+                          user={item?.user}
+                        />
+                      )
+                  )
+              ) : (
+                <Text className="font-pmedium text-gray-500 px-5">
+                  Chưa có đánh giá nào
+                </Text>
+              )}
             </ScrollView>
           </View>
 
           <View className="bg-white p-5">
-            {data?.comment_by_you !== null && (
+            {data?.comment_by_you && (
               <View>
                 <Text className="font-psemibold text-xl">
                   Bình luận của bạn
                 </Text>
                 <CommentCard
-                  data={data?.comment_by_you!}
+                  data={data.comment_by_you}
                   user={data?.user}
                   containerStyles="w-full my-5"
                   enableOption

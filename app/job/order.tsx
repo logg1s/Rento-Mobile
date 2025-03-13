@@ -33,7 +33,7 @@ const OrderService = () => {
     if (user) {
       setFormData((prev) => ({
         ...prev,
-        address: user.address || prev.address,
+        address: user.location?.address || prev.address,
         phone_number: user.phone_number || prev.phone_number,
       }));
     }
@@ -122,7 +122,7 @@ const OrderService = () => {
         <View className="gap-5">
           <OrderServiceDetails service={service} price={price} />
 
-          {((user?.address || user?.phone_number) ?? null) ? (
+          {((user?.location?.address || user?.phone_number) ?? null) ? (
             <View className="bg-primary-100 p-4 rounded-lg">
               <View className="flex-row justify-between items-center mb-3">
                 <Text className="font-pmedium text-base text-primary-900">
@@ -135,9 +135,9 @@ const OrderService = () => {
                   <Text className="font-pmedium text-white">Áp dụng</Text>
                 </TouchableOpacity>
               </View>
-              {user?.address && (
+              {user?.location?.address && (
                 <Text className="text-gray-600 mb-1">
-                  Địa chỉ: {user.address}
+                  Địa chỉ: {user.location.address}
                 </Text>
               )}
               {user?.phone_number && (

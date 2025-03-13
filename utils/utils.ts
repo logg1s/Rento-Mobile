@@ -66,7 +66,7 @@ export const getImagePath = (path: string | null | undefined) => {
 };
 
 export const getServiceImageSource = (imageUrl: string | null | undefined) => {
-  if (!imageUrl) return require("@/assets/images/avatar_placeholder_icon.png");
+  if (!imageUrl) return { uri: `https://picsum.photos/seed/services/400` };
 
   try {
     // Kiểm tra nếu đường dẫn đã có http hoặc https
@@ -91,7 +91,7 @@ export const getServiceImageSource = (imageUrl: string | null | undefined) => {
     return { uri: fullUrl };
   } catch (error) {
     console.error("Lỗi xử lý URL ảnh:", error);
-    return require("@/assets/images/avatar_placeholder_icon.png");
+    return { uri: `https://picsum.photos/seed/services/400` };
   }
 };
 

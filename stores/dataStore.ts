@@ -102,7 +102,7 @@ const useRentoData = create<DataState>((set, get) => ({
   fetchServices: async () => {
     try {
       const response = await axiosFetch(`/services`);
-      const currentFavorites = get().favorites;
+      const currentFavorites = get().favorites || [];
       const updatedServices =
         response?.data?.data?.map((s: ServiceType) => ({
           ...s,
@@ -172,13 +172,31 @@ const useRentoData = create<DataState>((set, get) => ({
 
   updateFavorite: async (serviceId: number, action: boolean) => {
     try {
+      const currentServices = [...get().services];
+      const updatedServices = currentServices.map((service) =>
+        service.id === serviceId ? { ...service, is_liked: action } : service
+      );
+      set({ services: updatedServices });
+
+      const currentFavorites = [...get().favorites];
+      if (action) {
+        const serviceToAdd = currentServices.find((s) => s.id === serviceId);
+        if (serviceToAdd && !currentFavorites.some((f) => f.id === serviceId)) {
+          set({ favorites: [...currentFavorites, serviceToAdd] });
+        }
+      } else {
+        set({ favorites: currentFavorites.filter((f) => f.id !== serviceId) });
+      }
+
       const response = await axiosFetch(`/favorites/${serviceId}`, "post", {
         action,
       });
-      await get().fetchFavorites();
-      await get().fetchServices();
+
+      get().fetchFavorites();
       return response?.data;
     } catch (error: any) {
+      await get().fetchFavorites();
+      await get().fetchServices();
       console.error(
         "Lỗi khi cập nhật yêu thích:",
         error?.response?.data || error
@@ -321,7 +339,6 @@ const useRentoData = create<DataState>((set, get) => ({
     try {
       console.log("Gọi API xóa hình ảnh với đường dẫn:", imagePath);
 
-      // Đối với phương thức DELETE, cần gửi dữ liệu qua params thay vì data
       const response = await axiosFetch(
         `/users/deleteImage?imagePath=${encodeURIComponent(imagePath)}`,
         "delete"
