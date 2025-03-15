@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -54,16 +55,28 @@ const sortOptions = [
   { key: "price_low", value: "Giá thấp nhất" },
 ];
 
+const searchFilterOptions = [
+  { key: "service", value: "Tên dịch vụ", icon: "construct" },
+  { key: "customer", value: "Tên khách hàng", icon: "person" },
+  { key: "order_id", value: "Mã đơn hàng", icon: "receipt" },
+  { key: "phone", value: "Số điện thoại", icon: "call" },
+  { key: "address", value: "Địa chỉ", icon: "location" },
+  { key: "email", value: "Email", icon: "mail" },
+  { key: "all", value: "Tất cả", icon: "search" },
+];
+
 export default function ProviderOrders() {
   const {
-    orders: allOrders,
+    orders: storeOrders,
     isLoading,
     fetchOrders,
     updateOrderStatus,
     statistics,
     fetchStatistics,
   } = useProviderStore();
+  const [orders, setOrders] = useState<ProviderOrder[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchFilter, setSearchFilter] = useState("service");
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -76,81 +89,155 @@ export default function ProviderOrders() {
     visible: false,
     type: "start" as "start" | "end",
   });
+  const [showSearchFilter, setShowSearchFilter] = useState(false);
 
-  // Tính toán các thống kê nhanh từ tất cả đơn hàng
-  const orderStats = useMemo(() => {
-    // Đảm bảo allOrders là một mảng
-    const orders = Array.isArray(allOrders) ? allOrders : [];
+  // Pagination state
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [orderCounts, setOrderCounts] = useState({
+    total: 0,
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    cancelled: 0,
+  });
+  const [totalCompletedRevenue, setTotalCompletedRevenue] = useState(0);
 
-    const pendingCount = orders.filter(
-      (order) => order.status === OrderStatus.PENDING
-    ).length;
-    const processingCount = orders.filter(
-      (order) => order.status === OrderStatus.IN_PROGRESS
-    ).length;
-    const completedCount = orders.filter(
-      (order) => order.status === OrderStatus.COMPLETED
-    ).length;
-    const cancelledCount = orders.filter(
-      (order) => order.status === OrderStatus.CANCELLED
-    ).length;
-
-    // Tính tổng doanh thu từ tất cả các đơn hoàn thành
-    const completedOrders = orders.filter(
-      (order) => order.status === OrderStatus.COMPLETED
-    );
-    const totalRevenue = completedOrders.reduce(
-      (sum, order) => sum + order.price_final_value,
-      0
-    );
-
-    return {
-      total: orders.length,
-      pending: pendingCount,
-      processing: processingCount,
-      completed: completedCount,
-      cancelled: cancelledCount,
-      totalRevenue,
-      completedCount: completedOrders.length,
-    };
-  }, [allOrders]);
-
-  // Tải đơn hàng từ backend - luôn lấy tất cả đơn hàng
-  const loadOrders = async () => {
+  // Initial load orders
+  const loadOrders = async (refresh = true) => {
     try {
-      setRefreshing(true);
-      // Luôn lấy tất cả đơn hàng từ API, statusFilter chỉ sử dụng cho lọc ở client
-      const data = await fetchOrders("all");
+      setRefreshing(refresh);
+      if (refresh) {
+        setNextCursor(null);
+        setHasMore(true);
+      }
 
-      // Kiểm tra dữ liệu nhận được
-      console.log(
-        "Dữ liệu nhận từ API:",
-        Array.isArray(data) ? `mảng với ${data.length} phần tử` : typeof data
+      // Send all filter parameters to backend
+      const response = await fetchOrders(
+        statusFilter,
+        refresh ? null : nextCursor,
+        searchQuery,
+        searchFilter,
+        sortBy,
+        dateRange.startDate
+          ? dateRange.startDate.toISOString().split("T")[0]
+          : null,
+        dateRange.endDate ? dateRange.endDate.toISOString().split("T")[0] : null
       );
+
+      if (response) {
+        if (response.data && Array.isArray(response.data)) {
+          if (refresh) {
+            setOrders(response.data);
+          } else {
+            setOrders((prev) => [...prev, ...response.data]);
+          }
+
+          setNextCursor(response.next_cursor || null);
+          setHasMore(!!response.has_more);
+
+          if (response.counts) {
+            setOrderCounts(response.counts);
+          }
+
+          if (response.total_revenue !== undefined) {
+            setTotalCompletedRevenue(response.total_revenue);
+          }
+        } else {
+          if (refresh) {
+            setOrders([]);
+          }
+        }
+      } else {
+        if (refresh) {
+          setOrders([]);
+          setNextCursor(null);
+          setHasMore(false);
+        }
+      }
     } catch (error) {
       console.error("Lỗi khi tải đơn hàng:", error);
+      if (refresh) {
+        setOrders([]);
+        setNextCursor(null);
+        setHasMore(false);
+      }
       Alert.alert(
         "Lỗi",
         "Không thể tải danh sách đơn hàng. Vui lòng thử lại sau."
       );
     } finally {
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
-  // Tải dữ liệu khi component mount
+  // Handle search input with debounce
   useEffect(() => {
-    loadOrders();
-    fetchStatistics();
+    const debounceTimeout = setTimeout(() => {
+      handleRefresh();
+    }, 300);
+
+    return () => clearTimeout(debounceTimeout);
+  }, [searchQuery, searchFilter]);
+
+  // Handle filter changes
+  useEffect(() => {
+    handleRefresh();
+  }, [statusFilter, sortBy, dateRange.startDate, dateRange.endDate]);
+
+  // Load more orders when scrolling
+  const handleLoadMore = async () => {
+    if (!hasMore || loadingMore || refreshing) return;
+
+    setLoadingMore(true);
+    await loadOrders(false);
+  };
+
+  // Refresh function
+  const handleRefresh = async () => {
+    await loadOrders(true);
+    try {
+      await fetchStatistics();
+      if (statistics && statistics.summary) {
+        setTotalCompletedRevenue(statistics.summary.total_revenue || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+    }
+  };
+
+  // Load data when component mounts
+  useEffect(() => {
+    handleRefresh();
   }, []);
+
+  // Custom function to handle status filter change
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status);
+  };
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     try {
-      await updateOrderStatus(orderId, newStatus);
-      Alert.alert("Thành công", "Đã cập nhật trạng thái đơn hàng");
-      loadOrders(); // Tải lại toàn bộ đơn hàng sau khi cập nhật
-      fetchStatistics();
+      const success = await updateOrderStatus(orderId, newStatus);
+      if (success) {
+        Alert.alert("Thành công", "Trạng thái đơn hàng đã được cập nhật");
+        await loadOrders(true);
+        try {
+          await fetchStatistics();
+          if (statistics && statistics.summary) {
+            setTotalCompletedRevenue(statistics.summary.total_revenue || 0);
+          }
+        } catch (error) {
+          console.error(
+            "Error fetching statistics after status update:",
+            error
+          );
+        }
+      }
     } catch (error) {
+      console.error("Error updating order status:", error);
       Alert.alert(
         "Lỗi",
         "Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại sau."
@@ -158,136 +245,28 @@ export default function ProviderOrders() {
     }
   };
 
-  // Lọc đơn hàng dựa trên trạng thái, tìm kiếm và các bộ lọc khác (tất cả thực hiện ở client-side)
   const filteredOrders = useMemo(() => {
-    // Đảm bảo allOrders là một mảng
-    if (!Array.isArray(allOrders)) {
-      console.error("allOrders không phải là mảng:", allOrders);
-      return [];
-    }
+    return orders;
+  }, [orders]);
 
-    let result = [...allOrders];
-
-    // Lọc theo trạng thái
-    if (statusFilter !== "all") {
-      const statusMapping: Record<string, OrderStatus> = {
-        pending: OrderStatus.PENDING,
-        processing: OrderStatus.IN_PROGRESS,
-        completed: OrderStatus.COMPLETED,
-        cancelled: OrderStatus.CANCELLED,
-      };
-      result = result.filter(
-        (order) => order.status === statusMapping[statusFilter]
-      );
-    }
-
-    // Lọc theo tìm kiếm
-    if (searchQuery.trim()) {
-      result = result.filter((order) => {
-        // Tìm kiếm theo tên dịch vụ
-        const matchServiceName =
-          order.service &&
-          searchFilter(order.service.service_name, searchQuery);
-
-        // Tìm kiếm theo tên khách hàng
-        const matchCustomerName =
-          order.user && searchFilter(order.user.name, searchQuery);
-
-        // Tìm kiếm theo mã đơn hàng
-        const matchOrderId = order.id.toString().includes(searchQuery.trim());
-
-        // Tìm kiếm theo số điện thoại
-        const matchPhoneNumber =
-          order.phone_number && order.phone_number.includes(searchQuery.trim());
-
-        // Tìm kiếm theo địa chỉ
-        const matchAddress =
-          order.address && searchFilter(order.address, searchQuery);
-
-        // Tìm kiếm theo ghi chú
-        const matchMessage =
-          order.message && searchFilter(order.message, searchQuery);
-
-        // Tìm kiếm theo giá
-        const matchPrice =
-          order.price_final_value &&
-          order.price_final_value.toString().includes(searchQuery.trim());
-
-        // Tìm kiếm theo tên gói dịch vụ
-        const matchPackageName =
-          order.price &&
-          order.price.price_name &&
-          searchFilter(order.price.price_name, searchQuery);
-
-        // Tìm kiếm theo email người dùng
-        const matchEmail =
-          order.user &&
-          order.user.email &&
-          searchFilter(order.user.email, searchQuery);
-
-        return (
-          matchServiceName ||
-          matchCustomerName ||
-          matchOrderId ||
-          matchPhoneNumber ||
-          matchAddress ||
-          matchMessage ||
-          matchPrice ||
-          matchPackageName ||
-          matchEmail
-        );
-      });
-    }
-
-    // Lọc theo ngày
-    if (dateRange.startDate || dateRange.endDate) {
-      result = result.filter((order) => {
-        const orderDate = new Date(order.created_at);
-
-        if (dateRange.startDate && dateRange.endDate) {
-          return (
-            orderDate >= dateRange.startDate && orderDate <= dateRange.endDate
-          );
-        } else if (dateRange.startDate) {
-          return orderDate >= dateRange.startDate;
-        } else if (dateRange.endDate) {
-          return orderDate <= dateRange.endDate;
-        }
-
-        return true;
-      });
-    }
-
-    // Sắp xếp kết quả
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case "newest":
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-        case "oldest":
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-        case "price_high":
-          return b.price_final_value - a.price_final_value;
-        case "price_low":
-          return a.price_final_value - b.price_final_value;
-        default:
-          return 0;
-      }
-    });
-
-    return result;
-  }, [allOrders, searchQuery, statusFilter, sortBy, dateRange]);
-
-  const renderOrderItem = ({ item }: { item: ProviderOrder }) => (
-    <OrderCard
-      order={item}
-      isProvider={true}
-      onOrderUpdate={loadOrders}
-      onUpdateStatus={(newStatus) => handleUpdateStatus(item.id, newStatus)}
-    />
+  const renderOrderItem = ({
+    item,
+    index,
+  }: {
+    item: ProviderOrder;
+    index: number;
+  }) => (
+    <View key={`order-${item.id}`}>
+      <Text className="text-gray-500 font-pmedium mb-2">#{index + 1}</Text>
+      <OrderCard
+        order={item}
+        isProvider={true}
+        onOrderUpdate={handleRefresh}
+        onUpdateStatus={(newStatus) => {
+          handleUpdateStatus(item.id, newStatus);
+        }}
+      />
+    </View>
   );
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -307,15 +286,23 @@ export default function ProviderOrders() {
     }
   };
 
+  // Apply filters and close modal
+  const applyFilters = () => {
+    handleRefresh();
+    setShowFilterModal(false);
+  };
+
+  // Clear filters
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
     setSortBy("newest");
     setDateRange({ startDate: null, endDate: null });
+    handleRefresh();
     setShowFilterModal(false);
   };
 
-  // Render chip cho mỗi trạng thái đơn hàng
+  // Render status chip
   const renderStatusChip = (
     status: string,
     label: string,
@@ -330,7 +317,7 @@ export default function ProviderOrders() {
           ? `bg-${color}-500`
           : "bg-white border border-gray-200"
       }`}
-      onPress={() => setStatusFilter(status)}
+      onPress={() => handleStatusFilterChange(status)}
       style={{ height: 60, width: "100%" }}
     >
       <View className="flex-row items-center justify-center mb-1">
@@ -373,7 +360,7 @@ export default function ProviderOrders() {
     </TouchableOpacity>
   );
 
-  // Hàm tiện ích để lấy giá trị màu cho icon
+  // Helper function to get color value for icon
   const getColorValue = (color: string) => {
     switch (color) {
       case "blue":
@@ -389,61 +376,174 @@ export default function ProviderOrders() {
     }
   };
 
+  // Render footer for FlatList (loading indicator)
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+
+    return (
+      <View className="py-4 items-center">
+        <ActivityIndicator size="small" color="#3b82f6" />
+        <Text className="text-gray-500 mt-2 text-sm">
+          Đang tải thêm đơn hàng...
+        </Text>
+      </View>
+    );
+  };
+
+  // Custom search filter dropdown
+  const renderSearchFilterDropdown = () => {
+    return (
+      <Modal
+        visible={showSearchFilter}
+        transparent={true}
+        animationType="none"
+        onRequestClose={() => setShowSearchFilter(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowSearchFilter(false)}
+          className="flex-1 bg-black/20"
+        >
+          <View
+            className="absolute bg-white rounded-lg border border-gray-200 shadow-lg"
+            style={{
+              top: 145, // Adjust this value based on your header height
+              left: 16,
+              width: 200,
+              maxHeight: 300,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 3.84,
+              elevation: 5,
+            }}
+          >
+            <ScrollView bounces={false}>
+              {searchFilterOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.key}
+                  className={`flex-row items-center px-3 py-2.5 border-b border-gray-100 ${
+                    searchFilter === option.key ? "bg-blue-50" : ""
+                  }`}
+                  onPress={() => {
+                    setSearchFilter(option.key);
+                    setShowSearchFilter(false);
+                  }}
+                >
+                  <Ionicons
+                    name={option.icon as any}
+                    size={18}
+                    color={searchFilter === option.key ? "#3b82f6" : "#6b7280"}
+                  />
+                  <Text
+                    className={`ml-2 ${
+                      searchFilter === option.key
+                        ? "text-blue-600 font-pmedium"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {option.value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-general-500">
-      {/* Phần thống kê nhanh */}
+      {/* Stats section */}
       <View className="bg-white px-4 py-3">
         <Text className="text-2xl font-pbold mb-3">Quản lý đơn hàng</Text>
 
-        {/* Thống kê tổng quan */}
+        {/* Overview stats */}
         <View className="bg-blue-50 p-3 rounded-xl border border-blue-100 mb-3">
           <View className="flex-row justify-between mb-1">
             <Text className="text-gray-700 font-pmedium">
               Tổng doanh thu hoàn thành
             </Text>
             <Text className="text-blue-600 font-pbold">
-              {formatToVND(orderStats.totalRevenue)}
+              {formatToVND(totalCompletedRevenue)}
             </Text>
           </View>
           <Text className="text-xs text-gray-500">
-            Từ {orderStats.completedCount} đơn hoàn thành • {orderStats.total}{" "}
-            tổng đơn hàng
+            Từ {orderCounts.completed} đơn hoàn thành • {orderCounts.total} tổng
+            đơn hàng
           </Text>
         </View>
 
-        {/* Thanh tìm kiếm */}
-        <View className="flex-row mb-4 items-center">
-          <View className="flex-1 flex-row items-center bg-gray-100 rounded-lg px-3 py-2 mr-2">
-            <Ionicons name="search-outline" size={20} color="#6b7280" />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Tìm kiếm đơn hàng..."
-              className="flex-1 ml-2 text-base font-pregular"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity
-            className="bg-blue-50 p-2 rounded-lg border border-blue-200"
-            onPress={() => setShowFilterModal(true)}
-          >
-            <Ionicons name="options-outline" size={24} color="#3b82f6" />
-          </TouchableOpacity>
-        </View>
+        {/* Search section */}
+        <View className="mb-4">
+          <View className="flex-row items-center">
+            {/* Custom search filter dropdown button */}
+            <TouchableOpacity
+              className="flex-row items-center bg-white px-3 h-[42] rounded-lg border border-gray-200"
+              onPress={() => setShowSearchFilter(!showSearchFilter)}
+              style={{ minWidth: 140 }}
+            >
+              <Ionicons
+                name={
+                  searchFilterOptions.find((opt) => opt.key === searchFilter)
+                    ?.icon as any
+                }
+                size={18}
+                color="#374151"
+              />
+              <Text
+                className="mx-2 text-gray-700 font-pmedium"
+                numberOfLines={1}
+              >
+                {
+                  searchFilterOptions.find((opt) => opt.key === searchFilter)
+                    ?.value
+                }
+              </Text>
+              <Ionicons
+                name={showSearchFilter ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#374151"
+              />
+            </TouchableOpacity>
 
-        {/* Bộ lọc chip trạng thái */}
+            {/* Search bar */}
+            <View className="flex-1 flex-row items-center bg-gray-100 rounded-lg px-3 h-[42] mx-2">
+              <Ionicons name="search-outline" size={20} color="#6b7280" />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={`Tìm theo ${searchFilterOptions.find((opt) => opt.key === searchFilter)?.value.toLowerCase()}...`}
+                className="flex-1 ml-2 text-base font-pregular"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Filter button */}
+            <TouchableOpacity
+              className="bg-blue-50 p-2 rounded-lg border border-blue-200"
+              onPress={() => setShowFilterModal(true)}
+            >
+              <Ionicons name="options-outline" size={24} color="#3b82f6" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        {renderSearchFilterDropdown()}
+
+        {/* Status filter chips */}
         <View className="mb-3">
-          {/* Hàng 1: Tất cả và Đang xử lý */}
+          {/* Row 1: All and Processing */}
           <View className="flex-row mb-2 justify-between">
             <View className="flex-1 mr-2">
               {renderStatusChip(
                 "all",
                 "Tất cả",
-                orderStats.total,
+                orderCounts.total,
                 "list",
                 "blue"
               )}
@@ -452,20 +552,20 @@ export default function ProviderOrders() {
               {renderStatusChip(
                 "processing",
                 "Đang thực hiện",
-                orderStats.processing,
+                orderCounts.processing,
                 "hammer",
                 "blue"
               )}
             </View>
           </View>
 
-          {/* Hàng 2: Chờ xử lý, Hoàn thành, Đã hủy */}
+          {/* Row 2: Pending, Completed, Cancelled */}
           <View className="flex-row justify-between">
             <View className="flex-1 mr-2">
               {renderStatusChip(
                 "pending",
                 "Chờ xử lý",
-                orderStats.pending,
+                orderCounts.pending,
                 "clock",
                 "yellow"
               )}
@@ -474,7 +574,7 @@ export default function ProviderOrders() {
               {renderStatusChip(
                 "completed",
                 "Hoàn thành",
-                orderStats.completed,
+                orderCounts.completed,
                 "check-circle",
                 "green"
               )}
@@ -483,7 +583,7 @@ export default function ProviderOrders() {
               {renderStatusChip(
                 "cancelled",
                 "Đã hủy",
-                orderStats.cancelled,
+                orderCounts.cancelled,
                 "times-circle",
                 "red"
               )}
@@ -492,14 +592,14 @@ export default function ProviderOrders() {
         </View>
       </View>
 
-      {/* Hiển thị kết quả lọc */}
+      {/* Show filter results */}
       {(searchQuery ||
         dateRange.startDate ||
         dateRange.endDate ||
         sortBy !== "newest") && (
         <View className="bg-blue-50 p-3 flex-row justify-between items-center">
           <Text className="text-blue-800 font-pmedium">
-            {filteredOrders.length} kết quả tìm kiếm
+            {orders.length} kết quả tìm kiếm
           </Text>
           <TouchableOpacity onPress={clearFilters}>
             <Text className="text-blue-600 font-pbold">Xóa bộ lọc</Text>
@@ -508,26 +608,46 @@ export default function ProviderOrders() {
       )}
 
       <FlatList
-        data={filteredOrders}
+        data={orders}
         renderItem={renderOrderItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => `order-${item.id}`}
         contentContainerClassName="p-4"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={loadOrders} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={["#3b82f6"]}
+            tintColor="#3b82f6"
+          />
         }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={renderFooter}
+        extraData={orders}
         ListEmptyComponent={
           <View className="items-center justify-center py-8">
-            <MaterialIcons name="inbox" size={48} color="gray" />
-            <Text className="text-gray-500 mt-2 font-pmedium">
-              {searchQuery || statusFilter !== "all"
-                ? "Không tìm thấy đơn hàng nào"
-                : "Chưa có đơn hàng nào"}
-            </Text>
+            {isLoading ? (
+              <View>
+                <ActivityIndicator size="large" color="#3b82f6" />
+                <Text className="text-gray-500 mt-4 font-pmedium">
+                  Đang tải đơn hàng...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <MaterialIcons name="inbox" size={48} color="gray" />
+                <Text className="text-gray-500 mt-2 font-pmedium">
+                  {searchQuery || statusFilter !== "all"
+                    ? "Không tìm thấy đơn hàng nào"
+                    : "Chưa có đơn hàng nào"}
+                </Text>
+              </>
+            )}
           </View>
         }
       />
 
-      {/* Modal lọc nâng cao */}
+      {/* Advanced filter modal */}
       <Modal
         visible={showFilterModal}
         transparent={true}
@@ -543,7 +663,7 @@ export default function ProviderOrders() {
               </TouchableOpacity>
             </View>
 
-            {/* Sắp xếp */}
+            {/* Sort options */}
             <View className="mb-5">
               <Text className="font-pbold mb-2">Sắp xếp theo</Text>
               <SelectList
@@ -551,7 +671,9 @@ export default function ProviderOrders() {
                 data={sortOptions}
                 save="key"
                 search={false}
-                defaultOption={sortOptions[0]}
+                defaultOption={sortOptions.find(
+                  (option) => option.key === sortBy
+                )}
                 boxStyles={{
                   borderRadius: 8,
                   borderColor: "#E5E7EB",
@@ -568,7 +690,7 @@ export default function ProviderOrders() {
               />
             </View>
 
-            {/* Chọn khoảng thời gian */}
+            {/* Date range selection */}
             <View className="mb-5">
               <Text className="font-pbold mb-2">Khoảng thời gian</Text>
               <View className="flex-row justify-between">
@@ -601,7 +723,7 @@ export default function ProviderOrders() {
               </View>
             </View>
 
-            {/* Nút áp dụng */}
+            {/* Apply buttons */}
             <View className="flex-row mb-5">
               <TouchableOpacity
                 className="flex-1 mr-2 py-3 bg-gray-200 rounded-lg items-center"
@@ -611,7 +733,7 @@ export default function ProviderOrders() {
               </TouchableOpacity>
               <TouchableOpacity
                 className="flex-1 ml-2 py-3 bg-blue-500 rounded-lg items-center"
-                onPress={() => setShowFilterModal(false)}
+                onPress={applyFilters}
               >
                 <Text className="font-pbold text-white">Áp dụng</Text>
               </TouchableOpacity>

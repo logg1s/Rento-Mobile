@@ -25,7 +25,15 @@ interface ProviderStore {
   fetchStatistics: () => Promise<void>;
   fetchStatisticsWithPeriod: (period: StatisticsPeriod) => Promise<void>;
   fetchServices: () => Promise<void>;
-  fetchOrders: (status?: string) => Promise<void>;
+  fetchOrders: (
+    status: string,
+    cursor: string | null,
+    search: string,
+    searchFilter: string,
+    sortBy: string,
+    startDate: string | null,
+    endDate: string | null
+  ) => Promise<any>;
   updateOrderStatus: (orderId: number, status: string) => Promise<boolean>;
   createService: (data: any) => Promise<void>;
   updateService: (id: number, data: any) => Promise<void>;
@@ -76,12 +84,22 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const response = await axiosFetch("/provider/statistics");
-      set({ statistics: response?.data || null, isLoading: false });
-      return response?.data;
+
+      if (response?.data) {
+        set({ statistics: response.data, isLoading: false });
+        return response.data;
+      } else {
+        set({ statistics: null, isLoading: false });
+        return null;
+      }
     } catch (error) {
       console.error("Lỗi khi tải thống kê:", error);
-      set({ error: "Không thể tải thống kê", isLoading: false });
-      throw error;
+      set({
+        error: "Không thể tải thống kê",
+        isLoading: false,
+        statistics: null,
+      });
+      return null;
     }
   },
 
@@ -113,55 +131,78 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     }
   },
 
-  fetchOrders: async (status = "all") => {
+  fetchOrders: async (
+    status: string = "all",
+    cursor: string | null = null,
+    search: string = "",
+    searchFilter: string = "service",
+    sortBy: string = "newest",
+    startDate: string | null = null,
+    endDate: string | null = null
+  ) => {
     try {
-      set({ isLoading: true, error: null });
+      set({ isLoading: true });
+      const params = new URLSearchParams({
+        status,
+        ...(cursor && { cursor }),
+        ...(search && { search }),
+        ...(searchFilter && { searchFilter }),
+        ...(sortBy && { sortBy }),
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+      });
 
-      // Gọi API với tham số status
-      const url = `/provider/orders/my-orders?status=${status}`;
-      const response = await axiosFetch(url, "get");
-
-      // Log toàn bộ response để debug
-      console.log(
-        "API Response:",
-        JSON.stringify(response?.data).substring(0, 200) + "..."
+      const response = await axiosFetch(
+        `/provider/orders/my-orders?${params.toString()}`,
+        "get"
       );
 
-      // Kiểm tra kiểu dữ liệu trả về và đảm bảo nó là mảng
       if (response?.data) {
-        let ordersData = [];
-
         if (Array.isArray(response.data)) {
-          // Nếu dữ liệu là mảng, sử dụng trực tiếp
-          ordersData = response.data;
-          console.log("Dữ liệu là mảng với", ordersData.length, "items");
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Nếu dữ liệu theo format pagination (có trường data là mảng)
-          ordersData = response.data.data;
-          console.log("Dữ liệu paging với", ordersData.length, "items");
-        } else {
-          // Trường hợp dữ liệu không phải mảng
-          console.error("Dữ liệu API không phải mảng:", typeof response.data);
-          // Vẫn giữ là mảng rỗng
+          return {
+            data: response.data,
+            next_cursor: null,
+            has_more: false,
+            counts: {
+              total: response.data.length,
+              pending: response.data.filter((o) => o.status === 1).length,
+              processing: response.data.filter((o) => o.status === 2).length,
+              completed: response.data.filter((o) => o.status === 3).length,
+              cancelled: response.data.filter((o) => o.status === 0).length,
+            },
+          };
         }
-
-        // Set state với mảng đã kiểm tra
-        set({ orders: ordersData, isLoading: false });
-        return ordersData;
-      } else {
-        // Đảm bảo trả về mảng rỗng nếu không có dữ liệu
-        set({ orders: [], isLoading: false });
-        console.log("Không có dữ liệu trả về từ API.");
-        return [];
+        return response.data;
       }
+
+      return {
+        data: [],
+        next_cursor: null,
+        has_more: false,
+        counts: {
+          total: 0,
+          pending: 0,
+          processing: 0,
+          completed: 0,
+          cancelled: 0,
+        },
+      };
     } catch (error) {
-      console.error("Lỗi khi tải danh sách đơn hàng:", error);
-      set({
-        error: "Không thể tải danh sách đơn hàng",
-        isLoading: false,
-        orders: [],
-      });
-      return [];
+      console.error("Error fetching orders:", error);
+      return {
+        data: [],
+        next_cursor: null,
+        has_more: false,
+        counts: {
+          total: 0,
+          pending: 0,
+          processing: 0,
+          completed: 0,
+          cancelled: 0,
+        },
+      };
+    } finally {
+      set({ isLoading: false });
     }
   },
 
@@ -169,25 +210,19 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Đảm bảo status là một trong những giá trị hợp lệ
       if (
         !["pending", "processing", "completed", "cancelled"].includes(status)
       ) {
         throw new Error("Trạng thái không hợp lệ");
       }
 
-      // Gọi API với status dạng string
       const response = await axiosFetch(
         `/provider/orders/${orderId}/status`,
         "put",
         { status }
       );
 
-      // Log thông tin để debug
-      console.log("Cập nhật trạng thái đơn hàng thành công:", response?.data);
-
-      // Tải lại danh sách đơn hàng
-      await get().fetchOrders();
+      await get().fetchOrders("all", null, "", "service", "newest", null, null);
       set({ isLoading: false });
       return true;
     } catch (error) {
@@ -204,7 +239,6 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Kiểm tra dữ liệu trước khi gửi
       if (
         !data.get("service_name") ||
         !data.get("service_description") ||
@@ -228,10 +262,8 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Kiểm tra xem data có phải là FormData không
       const isFormData = data instanceof FormData;
 
-      // Nếu là FormData, kiểm tra các trường bắt buộc
       if (isFormData) {
         if (
           !data.get("service_name") ||
@@ -242,7 +274,6 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
           throw new Error("Thiếu thông tin bắt buộc");
         }
       } else {
-        // Nếu là JSON, kiểm tra các trường bắt buộc
         if (
           !data.service_name ||
           !data.service_description ||
@@ -253,13 +284,11 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
         }
       }
 
-      // Lấy token từ AsyncStorage
       const token = await AsyncStorage.getItem("jwtToken");
 
-      // Gửi dữ liệu lên server
       const response = await axios({
         url: rentoHost + `/provider/services/${id}`,
-        method: isFormData ? "post" : "put", // Sử dụng POST với _method=PUT nếu là FormData
+        method: isFormData ? "post" : "put",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": isFormData
@@ -269,7 +298,6 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
         data: data,
       });
 
-      // Cập nhật lại danh sách dịch vụ
       await get().fetchServices();
 
       set({ isLoading: false });
@@ -292,9 +320,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
         "delete"
       );
 
-      // Kiểm tra response để đảm bảo dịch vụ đã được xóa thành công
       if (response && response.status >= 200 && response.status < 300) {
-        // Cập nhật danh sách dịch vụ sau khi xóa thành công
         await get().fetchServices();
         set({ isLoading: false });
       } else {
@@ -303,7 +329,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     } catch (error) {
       console.error("Lỗi khi xóa dịch vụ:", error);
       set({ error: "Không thể xóa dịch vụ", isLoading: false });
-      throw error; // Ném lỗi để component có thể xử lý
+      throw error;
     }
   },
 
@@ -342,7 +368,6 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Sử dụng API mới để thêm benefit và liên kết với prices trong một lần
       const payload = {
         benefit_name: data.benefit_name,
         service_id: serviceId,
@@ -372,7 +397,6 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Sử dụng API mới để cập nhật benefit và liên kết với prices trong một lần
       const payload = {
         benefit_name: data.benefit_name,
         price_ids: data.price_id || [],
@@ -398,7 +422,6 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
   deleteServiceBenefit: async (serviceId: number, benefitId: number) => {
     try {
       set({ isLoading: true, error: null });
-      // API delete trong BenefitController
       await axiosFetch(`/provider/benefits/${benefitId}`, "delete");
       set({ isLoading: false });
     } catch (error: any) {

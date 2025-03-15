@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   FlatList,
@@ -9,6 +15,7 @@ import {
   Alert,
   Image,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +26,7 @@ import InputField from "@/components/InputField";
 import CustomButton from "@/components/CustomButton";
 import * as ImagePicker from "expo-image-picker";
 import useRentoStore from "@/stores/dataStore";
-import { CategoryType, CommentType } from "@/types/type";
+import { CategoryType, CommentType, ProviderService } from "@/types/type";
 import {
   normalizeVietnamese,
   formatDateToVietnamese,
@@ -29,6 +36,7 @@ import { useRouter } from "expo-router";
 import { axiosFetch } from "@/stores/dataStore";
 import CommentCard from "@/components/CommentCard";
 import LocationInputField from "@/components/LocationInputField";
+import { PaginationType } from "@/types/pagination";
 
 type ValidationRule = {
   isValid: boolean;
@@ -95,6 +103,26 @@ export default function ProviderServices() {
   const categories = useRentoStore((state) => state.categories);
   const router = useRouter();
 
+  // Pagination state
+  const [servicesList, setServicesList] = useState<ProviderService[]>([]);
+  const [paginationData, setPaginationData] = useState<{
+    nextCursor: string | null;
+    hasMore: boolean;
+    isLoadingMore: boolean;
+    refreshing: boolean;
+    loadedCount: number;
+    isFilterChanging: boolean;
+    lastEndReachTime: number;
+  }>({
+    nextCursor: null,
+    hasMore: true,
+    isLoadingMore: false,
+    refreshing: false,
+    loadedCount: 0,
+    isFilterChanging: false,
+    lastEndReachTime: 0,
+  });
+
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [images, setImages] = useState<string[]>([]);
@@ -102,10 +130,10 @@ export default function ProviderServices() {
     service_name: "",
     service_description: "",
     location_name: "",
-    lat: null,
-    lng: null,
+    lat: null as number | null,
+    lng: null as number | null,
     real_location_name: "",
-    province_id: null,
+    province_id: null as number | null,
   });
   const [isValid, setIsValid] = useState(false);
 
@@ -129,8 +157,353 @@ export default function ProviderServices() {
   });
   const [isPriceValid, setIsPriceValid] = useState(false);
 
+  // State for category counts
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
+    {}
+  );
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+
+  // State for expanded categories view
+  const [isExpandedCategories, setIsExpandedCategories] = useState(false);
+  const INITIAL_CATEGORIES_TO_SHOW = 3; // Number of categories to show initially
+
+  // State for debounced search
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Refs for more reliable infinite scrolling
+  const onEndReachedCalledDuringMomentum = useRef<boolean>(false);
+  const flatListRef = useRef<FlatList>(null);
+  const loadMoreAttempts = useRef<number>(0);
+  const loadMoreRetryTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Apply debounce to search query
   useEffect(() => {
-    fetchServices();
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    searchTimeout.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce delay
+
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Trigger search when debounced value changes
+  useEffect(() => {
+    // Mark that we are changing filters
+    setPaginationData((prev) => ({
+      ...prev,
+      nextCursor: null,
+      hasMore: true,
+      isFilterChanging: true,
+    }));
+
+    // Immediately clear the list when filters change to prevent showing wrong data
+    setServicesList([]);
+
+    loadInitialServices();
+  }, [debouncedSearchQuery, filterCategory]);
+
+  // Load initial data
+  useEffect(() => {
+    loadInitialServices();
+    fetchCategoryCounts(); // Fetch category counts on initial load
+  }, []);
+
+  // Function to load initial services
+  const loadInitialServices = async () => {
+    try {
+      setPaginationData((prev) => ({
+        ...prev,
+        refreshing: true, // Always show refreshing when loading initial services
+      }));
+
+      // Build the API URL with search and category filters
+      let url = "/provider/services/my-services";
+      const params = new URLSearchParams();
+
+      // Add search query if it exists (use debounced value)
+      if (debouncedSearchQuery.trim()) {
+        // Match the exact parameter name that the backend is expecting
+        params.append("search", debouncedSearchQuery.trim());
+        console.log(`Searching with query: "${debouncedSearchQuery.trim()}"`);
+      }
+
+      // Add category filter if not "all"
+      if (filterCategory !== "all") {
+        params.append("category_id", filterCategory);
+        console.log(`Filtering by category ID: ${filterCategory}`);
+      }
+
+      // Append params to URL if any exist
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      console.log("Loading services with URL:", url);
+      const response = await axiosFetch(url);
+
+      if (response?.data) {
+        // Handle the pagination data structure correctly
+        const paginatedData = response.data;
+
+        // Make sure we get an array of services
+        const services = Array.isArray(paginatedData.data)
+          ? paginatedData.data
+          : [];
+
+        console.log(
+          `Loaded ${services.length} services for category: ${filterCategory}`
+        );
+
+        // Completely replace the services list (no merging)
+        setServicesList(services);
+        setPaginationData({
+          nextCursor: paginatedData.next_cursor,
+          hasMore: !!paginatedData.next_cursor,
+          isLoadingMore: false,
+          refreshing: false,
+          loadedCount: services.length,
+          isFilterChanging: false,
+          lastEndReachTime: Date.now(),
+        });
+      } else {
+        setServicesList([]);
+        setPaginationData({
+          nextCursor: null,
+          hasMore: false,
+          isLoadingMore: false,
+          refreshing: false,
+          loadedCount: 0,
+          isFilterChanging: false,
+          lastEndReachTime: Date.now(),
+        });
+      }
+    } catch (error) {
+      console.error("Error loading services:", error);
+      setServicesList([]);
+      setPaginationData({
+        nextCursor: null,
+        hasMore: false,
+        isLoadingMore: false,
+        refreshing: false,
+        loadedCount: 0,
+        isFilterChanging: false,
+        lastEndReachTime: Date.now(),
+      });
+    }
+  };
+
+  // Function to load more services with retry mechanism
+  const loadMoreServices = async (isRetry = false) => {
+    // Skip if no more data, already loading, or filter changing
+    if (
+      !paginationData.hasMore ||
+      paginationData.isLoadingMore ||
+      paginationData.isFilterChanging
+    ) {
+      console.log(
+        "Skipping loadMoreServices - hasMore:",
+        paginationData.hasMore,
+        "isLoadingMore:",
+        paginationData.isLoadingMore,
+        "isFilterChanging:",
+        paginationData.isFilterChanging
+      );
+      return;
+    }
+
+    // Clear any existing retry timeouts
+    if (loadMoreRetryTimeout.current) {
+      clearTimeout(loadMoreRetryTimeout.current);
+      loadMoreRetryTimeout.current = null;
+    }
+
+    try {
+      console.log(
+        `Loading more services... ${isRetry ? "(Retry attempt)" : ""}`
+      );
+      setPaginationData((prev) => ({ ...prev, isLoadingMore: true }));
+
+      // Build the API URL with cursor, search, and category filters
+      const params = new URLSearchParams();
+      params.append("cursor", paginationData.nextCursor || "");
+
+      // Add search query if it exists (use debounced value)
+      if (debouncedSearchQuery.trim()) {
+        params.append("search", debouncedSearchQuery.trim());
+      }
+
+      // Add category filter if not "all"
+      if (filterCategory !== "all") {
+        params.append("category_id", filterCategory);
+      }
+
+      const url = `/provider/services/my-services?${params.toString()}`;
+      console.log("Loading more services with URL:", url);
+      const response = await axiosFetch(url);
+
+      if (response?.data) {
+        // Reset retry attempts on success
+        loadMoreAttempts.current = 0;
+
+        // Handle the pagination data structure correctly
+        const paginatedData = response.data;
+        console.log("Load more API response received");
+
+        // Check if data is an array (flat structure) or nested
+        const newServices = Array.isArray(paginatedData.data)
+          ? paginatedData.data
+          : [];
+
+        // Only update list if we got new items
+        if (newServices.length > 0) {
+          console.log(`Received ${newServices.length} new services`);
+          setServicesList((prev) => [...prev, ...newServices]);
+          setPaginationData((prev) => ({
+            ...prev,
+            nextCursor: paginatedData.next_cursor,
+            hasMore: !!paginatedData.next_cursor,
+            isLoadingMore: false,
+            loadedCount: prev.loadedCount + newServices.length, // Add to current count
+            lastEndReachTime: Date.now(),
+          }));
+        } else {
+          // If no new items, just update pagination state
+          console.log("No new services received");
+          setPaginationData((prev) => ({
+            ...prev,
+            nextCursor: paginatedData.next_cursor,
+            hasMore: !!paginatedData.next_cursor,
+            isLoadingMore: false,
+            lastEndReachTime: Date.now(),
+          }));
+        }
+      } else {
+        // If no data, mark as no more to load
+        console.log("No data in response");
+        setPaginationData((prev) => ({
+          ...prev,
+          hasMore: false,
+          isLoadingMore: false,
+          lastEndReachTime: Date.now(),
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading more services:", error);
+
+      // Implement retry mechanism
+      if (loadMoreAttempts.current < 3) {
+        loadMoreAttempts.current += 1;
+        console.log(
+          `Load more failed, scheduling retry #${loadMoreAttempts.current} in 2 seconds...`
+        );
+
+        // Schedule a retry after 2 seconds
+        loadMoreRetryTimeout.current = setTimeout(() => {
+          setPaginationData((prev) => ({ ...prev, isLoadingMore: false }));
+          loadMoreServices(true);
+        }, 2000);
+      } else {
+        console.log("Max retry attempts reached, giving up");
+        loadMoreAttempts.current = 0;
+        setPaginationData((prev) => ({
+          ...prev,
+          isLoadingMore: false,
+          hasMore: false,
+          lastEndReachTime: Date.now(),
+        }));
+      }
+    }
+  };
+
+  // Function to handle manual load more button click
+  const handleManualLoadMore = useCallback(() => {
+    console.log("Manual load more pressed");
+    // Reset momentum flag to ensure we can load more
+    onEndReachedCalledDuringMomentum.current = false;
+    // Reset attempt counter for a fresh start
+    loadMoreAttempts.current = 0;
+    loadMoreServices();
+  }, [filterCategory, debouncedSearchQuery, paginationData.nextCursor]);
+
+  // Handler for refresh
+  const handleRefresh = useCallback(async () => {
+    console.log("Pull-to-refresh triggered");
+    // Reset retry counter
+    loadMoreAttempts.current = 0;
+
+    // Cancel any pending retries
+    if (loadMoreRetryTimeout.current) {
+      clearTimeout(loadMoreRetryTimeout.current);
+      loadMoreRetryTimeout.current = null;
+    }
+
+    await loadInitialServices();
+  }, [filterCategory, debouncedSearchQuery]);
+
+  // Handler for end reached with debounce and retry logic
+  const handleEndReached = useCallback(
+    ({ distanceFromEnd }: { distanceFromEnd: number }) => {
+      // Prevent too frequent end reached calls (at least 1 second between calls)
+      const now = Date.now();
+      const timeSinceLastEndReach = now - paginationData.lastEndReachTime;
+
+      if (timeSinceLastEndReach < 1000) {
+        console.log(
+          `Ignoring end reached - too soon (${timeSinceLastEndReach}ms since last call)`
+        );
+        return;
+      }
+
+      // Standard checks
+      if (
+        !onEndReachedCalledDuringMomentum.current &&
+        paginationData.hasMore &&
+        !paginationData.isLoadingMore &&
+        !paginationData.isFilterChanging
+      ) {
+        console.log(
+          `End reached - distance: ${distanceFromEnd} - loading more services`
+        );
+        onEndReachedCalledDuringMomentum.current = true;
+
+        // Update last end reach time immediately
+        setPaginationData((prev) => ({
+          ...prev,
+          lastEndReachTime: now,
+        }));
+
+        loadMoreServices();
+      } else {
+        console.log(
+          `Skipping end reached - onEndReachedCalledDuringMomentum: ${onEndReachedCalledDuringMomentum.current}, ` +
+            `hasMore: ${paginationData.hasMore}, isLoadingMore: ${paginationData.isLoadingMore}, ` +
+            `isFilterChanging: ${paginationData.isFilterChanging}`
+        );
+      }
+    },
+    [
+      paginationData.hasMore,
+      paginationData.isLoadingMore,
+      paginationData.isFilterChanging,
+      paginationData.lastEndReachTime,
+    ]
+  );
+
+  // Cleanup timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      if (loadMoreRetryTimeout.current) {
+        clearTimeout(loadMoreRetryTimeout.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -217,14 +590,14 @@ export default function ProviderServices() {
     formattedAddress?: string;
     province_id?: number | null;
   }) => {
-    setFormData((prev) => ({
-      ...prev,
+    setFormData({
+      ...formData,
       lat: data.lat,
       lng: data.lng,
       location_name: data.address,
       real_location_name: data.formattedAddress || data.address,
       province_id: data.province_id || null,
-    }));
+    });
   };
 
   const handleSubmit = async () => {
@@ -296,7 +669,7 @@ export default function ProviderServices() {
       Alert.alert("Thành công", "Thêm dịch vụ mới thành công");
 
       // Tải lại danh sách dịch vụ
-      fetchServices();
+      handleRefresh();
     } catch (error) {
       console.error("Lỗi khi thêm dịch vụ:", error);
       Alert.alert(
@@ -392,7 +765,7 @@ export default function ProviderServices() {
       Alert.alert("Thành công", "Thêm gói dịch vụ thành công");
 
       // Tải lại danh sách dịch vụ
-      fetchServices();
+      handleRefresh();
     } catch (error) {
       console.error("Lỗi khi thêm gói dịch vụ:", error);
       Alert.alert(
@@ -402,51 +775,133 @@ export default function ProviderServices() {
     }
   };
 
+  // Update to search in the local state instead of services from store
   const filteredServices = useMemo(() => {
-    if (!services || !Array.isArray(services)) {
-      return [];
+    // Return the direct servicesList without additional filtering
+    // since the backend already handles the filtering
+    return servicesList;
+  }, [servicesList]);
+
+  // Handler for category switching
+  const handleCategorySwitch = useCallback(
+    (categoryId: string) => {
+      if (filterCategory !== categoryId) {
+        console.log(`Switching to category ID: ${categoryId}`);
+
+        // Clear the current list immediately to prevent showing wrong data
+        setServicesList([]);
+
+        // Then update the filter
+        setFilterCategory(categoryId);
+      }
+    },
+    [filterCategory]
+  );
+
+  // Footer component for infinite loading
+  const renderFooter = useCallback(() => {
+    if (!paginationData.isLoadingMore) return null;
+    return (
+      <View className="py-4 items-center">
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }, [paginationData.isLoadingMore]);
+
+  // Function to fetch the total count of services in each category
+  const fetchCategoryCounts = async () => {
+    try {
+      setIsLoadingCounts(true);
+
+      // Make a request to get category counts
+      const response = await axiosFetch("/provider/services/category-counts");
+
+      if (response?.data) {
+        // The response should be an object with category IDs as keys and counts as values
+        setCategoryCounts(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading category counts:", error);
+      // Use a fallback of empty counts
+      setCategoryCounts({});
+    } finally {
+      setIsLoadingCounts(false);
     }
+  };
 
-    return services.filter((service) => {
-      if (!service || !service.service_name) return false;
-
-      const matchesCategory =
-        filterCategory === "all" ||
-        service.category?.id === parseInt(filterCategory);
-
-      const normalizedQuery = normalizeVietnamese(searchQuery.toLowerCase());
-      const normalizedServiceName = normalizeVietnamese(
-        service.service_name.toLowerCase()
-      );
-      const normalizedDescription = service.service_description
-        ? normalizeVietnamese(service.service_description.toLowerCase())
-        : "";
-
-      const matchesSearch =
-        normalizedServiceName.includes(normalizedQuery) ||
-        normalizedDescription.includes(normalizedQuery);
-
-      return matchesCategory && matchesSearch;
-    });
-  }, [services, searchQuery, filterCategory]);
+  // ListEmptyComponent to handle various states
+  const renderEmptyComponent = useCallback(() => {
+    return (
+      <View className="items-center justify-center py-8">
+        {paginationData.refreshing || paginationData.isFilterChanging ? (
+          // Show loader during initial load, refresh, or filter changes
+          <>
+            <ActivityIndicator size="large" color="#0000ff" />
+            <Text className="text-gray-500 mt-4 font-pmedium">
+              Đang tải dịch vụ...
+            </Text>
+          </>
+        ) : (
+          // Standard empty state when no items match
+          <>
+            <Ionicons name="cube-outline" size={48} color="gray" />
+            <Text className="text-gray-500 mt-2 font-pmedium">
+              {searchQuery.length > 0
+                ? "Không tìm thấy dịch vụ nào phù hợp với từ khóa tìm kiếm"
+                : filterCategory !== "all"
+                  ? "Không tìm thấy dịch vụ nào trong danh mục này"
+                  : "Chưa có dịch vụ nào"}
+            </Text>
+            {(searchQuery.length > 0 || filterCategory !== "all") && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery("");
+                  setServicesList([]);
+                  handleCategorySwitch("all");
+                }}
+                className="mt-4 bg-primary-500 px-4 py-2 rounded-full"
+              >
+                <Text className="text-white font-pmedium">
+                  Xem tất cả dịch vụ
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+      </View>
+    );
+  }, [
+    paginationData.refreshing,
+    paginationData.isFilterChanging,
+    searchQuery,
+    filterCategory,
+  ]);
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <FlatList
+        ref={flatListRef}
         data={filteredServices}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View className="mx-4 mb-4">
-            <ServiceCard
-              data={item}
-              containerStyles="mb-2"
-              onPressFavorite={() => {}}
-              onPress={() => {
-                router.push({
-                  pathname: "/provider/service/[id]",
-                  params: { id: item.id },
-                });
-              }}
-            />
+            <View className="flex-row items-center mb-2">
+              <Text className="text-primary-500 font-pbold mr-2">
+                #{index + 1}
+              </Text>
+              <View className="flex-1">
+                <ServiceCard
+                  data={item}
+                  containerStyles=""
+                  onPressFavorite={() => {}}
+                  onPress={() => {
+                    router.push({
+                      pathname: "/provider/service/[id]",
+                      params: { id: item.id },
+                    });
+                  }}
+                />
+              </View>
+            </View>
             <View className="flex-row justify-end gap-2">
               <TouchableOpacity
                 onPress={() => {
@@ -473,9 +928,47 @@ export default function ProviderServices() {
           </View>
         )}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerClassName="pt-4"
+        contentContainerClassName="pt-4 pb-20"
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={fetchServices} />
+          <RefreshControl
+            refreshing={paginationData.refreshing}
+            onRefresh={handleRefresh}
+          />
+        }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.2}
+        windowSize={21}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10,
+        }}
+        onMomentumScrollBegin={() => {
+          onEndReachedCalledDuringMomentum.current = false;
+        }}
+        onScroll={() => {
+          // Reset momentum flag occasionally during normal scrolling
+          // This helps in case onMomentumScrollBegin doesn't trigger properly
+          if (Math.random() < 0.1) {
+            // 10% chance on each scroll event
+            onEndReachedCalledDuringMomentum.current = false;
+          }
+        }}
+        ListFooterComponent={
+          <>
+            {renderFooter()}
+            {paginationData.hasMore && !paginationData.isLoadingMore && (
+              <TouchableOpacity
+                onPress={handleManualLoadMore}
+                className="py-4 items-center mb-4"
+              >
+                <Text className="text-primary-500 font-pmedium">Tải thêm</Text>
+              </TouchableOpacity>
+            )}
+          </>
         }
         ListHeaderComponent={
           <>
@@ -498,79 +991,121 @@ export default function ProviderServices() {
                   placeholder="Tìm kiếm dịch vụ..."
                   className="ml-2 flex-1 font-pregular"
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={(text) => {
+                    setSearchQuery(text);
+                    // No need to call handleRefresh here as it will be triggered by the debounced effect
+                  }}
                 />
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearchQuery("");
+                      // Clear the list immediately to prevent showing wrong data
+                      setServicesList([]);
+                      // Still need to reset when explicitly clearing
+                      handleRefresh();
+                    }}
+                  >
                     <Ionicons name="close-circle" size={20} color="gray" />
                   </TouchableOpacity>
                 )}
               </View>
 
               {/* Thêm bộ lọc danh mục */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerClassName="gap-2"
-              >
-                <TouchableOpacity
-                  onPress={() => setFilterCategory("all")}
-                  className={`px-4 py-2 rounded-full border ${
-                    filterCategory === "all"
-                      ? "bg-primary-500 border-primary-500"
-                      : "border-gray-300"
-                  }`}
-                >
-                  <Text
-                    className={`font-pmedium ${
-                      filterCategory === "all" ? "text-white" : "text-gray-700"
-                    }`}
-                  >
-                    Tất cả
-                  </Text>
-                </TouchableOpacity>
-                {categories?.map((category) => (
+              <View className="mb-4">
+                <View className="flex-row flex-wrap gap-3">
                   <TouchableOpacity
-                    key={category.id}
-                    onPress={() => setFilterCategory(String(category.id))}
-                    className={`px-4 py-2 rounded-full border ${
-                      filterCategory === String(category.id)
+                    onPress={() => handleCategorySwitch("all")}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                    className={`py-3 px-5 rounded-full border mb-2 ${
+                      filterCategory === "all"
                         ? "bg-primary-500 border-primary-500"
                         : "border-gray-300"
                     }`}
                   >
                     <Text
                       className={`font-pmedium ${
-                        filterCategory === String(category.id)
+                        filterCategory === "all"
                           ? "text-white"
                           : "text-gray-700"
                       }`}
                     >
-                      {category.category_name}
+                      Tất cả
+                      {Object.values(categoryCounts).reduce(
+                        (sum, count) => sum + count,
+                        0
+                      ) > 0 &&
+                        ` (${Object.values(categoryCounts).reduce((sum, count) => sum + count, 0)})`}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
 
-            {/* Hiển thị số lượng dịch vụ đã lọc */}
-            <View className="mx-4 mb-2">
-              <Text className="font-pmedium text-gray-700">
-                Tìm thấy {filteredServices.length} dịch vụ
-              </Text>
+                  {categories
+                    ?.slice(
+                      0,
+                      isExpandedCategories
+                        ? categories.length
+                        : INITIAL_CATEGORIES_TO_SHOW
+                    )
+                    .map((category) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        onPress={() =>
+                          handleCategorySwitch(String(category.id))
+                        }
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                        className={`py-3 px-5 rounded-full border mb-2 ${
+                          filterCategory === String(category.id)
+                            ? "bg-primary-500 border-primary-500"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        <Text
+                          className={`font-pmedium ${
+                            filterCategory === String(category.id)
+                              ? "text-white"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {category.category_name}
+                          {categoryCounts[category.id] > 0 &&
+                            ` (${categoryCounts[category.id]})`}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+
+                  {categories &&
+                    categories.length > INITIAL_CATEGORIES_TO_SHOW && (
+                      <TouchableOpacity
+                        onPress={() =>
+                          setIsExpandedCategories(!isExpandedCategories)
+                        }
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                        className="py-3 px-5 rounded-full border border-gray-300 mb-2 flex-row items-center"
+                      >
+                        <Text className="font-pmedium text-gray-700">
+                          {isExpandedCategories
+                            ? "Thu gọn"
+                            : `Xem thêm (${categories.length - INITIAL_CATEGORIES_TO_SHOW})`}
+                        </Text>
+                        <Ionicons
+                          name={
+                            isExpandedCategories ? "chevron-up" : "chevron-down"
+                          }
+                          size={16}
+                          color="gray"
+                          style={{ marginLeft: 5 }}
+                        />
+                      </TouchableOpacity>
+                    )}
+                </View>
+              </View>
             </View>
           </>
         }
-        ListEmptyComponent={
-          <View className="items-center justify-center py-8">
-            <Ionicons name="cube-outline" size={48} color="gray" />
-            <Text className="text-gray-500 mt-2 font-pmedium">
-              {searchQuery.length > 0 || filterCategory !== "all"
-                ? "Không tìm thấy dịch vụ nào"
-                : "Chưa có dịch vụ nào"}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={renderEmptyComponent}
       />
 
       {/* Modal thêm dịch vụ mới */}
