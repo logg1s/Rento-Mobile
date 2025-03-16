@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, memo } from "react";
 import { useLocalSearchParams } from "expo-router";
 import {
   View,
@@ -16,9 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ServiceCard from "@/components/ServiceCard";
 import CustomButton from "@/components/CustomButton";
-import debounce from "lodash/debounce";
-import useRentoData from "@/stores/dataStore";
-import Slider from "@react-native-community/slider";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { formatToVND, normalizeVietnamese, searchFilter } from "@/utils/utils";
 import { FilterType, defaultFilters, SortOption } from "@/types/filter";
 import { ScrollView } from "react-native-gesture-handler";
@@ -29,7 +27,6 @@ import React from "react";
 const SearchTab = () => {
   const { fromHome, searchText } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState((searchText as string) || "");
-  const [isLoading, setIsLoading] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [filterState, setFilterState] = useState<FilterType>(defaultFilters);
@@ -38,17 +35,42 @@ const SearchTab = () => {
   const [showProvinceModal, setShowProvinceModal] = useState(false);
   const [provinceSearchQuery, setProvinceSearchQuery] = useState("");
   const [tempLocation, setTempLocation] = useState<string | null>(null);
-
-  const services = useRentoData((state) => state.services) || [];
+  const nextCursorRef = useRef<string | null>(null);
   const categories = useRentoData((state) => state.categories) || [];
   const updateFavorite = useRentoData((state) => state.updateFavorite);
-  const fetchServices = useRentoData((state) => state.fetchServices);
   const fetchCategories = useRentoData((state) => state.fetchCategories);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
+  const [services, setServices] = useState<ServiceType[]>([]);
   const { provinces, loadingProvinces, fetchProvinces } = useLocationStore();
+  const favorite = useRentoData((state) => state.favorites);
+  const favoriteSet = useMemo(
+    () => new Set<number>(favorite.map((f) => f.id)),
+    [favorite]
+  );
+  const retryTimeRef = useRef<number>(0);
+  const listRef = useRef<FlatList>(null);
+  const scrollRef = useRef<number | null>(null);
+  const [filteredData, setFilteredData] = useState<ServiceType[]>([]);
 
-  const onRefreshCategories = async () => {
+  // Thêm refs để theo dõi các filter trước đó
+  const prevSearchQuery = useRef(searchQuery);
+  const prevProviderFilter = useRef(providerFilter);
+  const prevFilters = useRef(filters);
+
+  const onRefreshService = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      nextCursorRef.current = null;
+      const newServices: ServiceType[] = [];
+      await fetchServices(newServices);
+    } catch (error: any) {
+      console.error(error?.response?.data);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  const onRefreshCategories = useCallback(async () => {
     try {
       setIsRefreshing(true);
       await fetchCategories();
@@ -57,7 +79,7 @@ const SearchTab = () => {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (fromHome) {
@@ -70,81 +92,153 @@ const SearchTab = () => {
     }
   }, [fromHome, searchText]);
 
+  const fetchServices = useCallback(
+    async (currentService: ServiceType[] | []) => {
+      let urlEndpoint = "/services";
+      if (nextCursorRef.current) {
+        urlEndpoint += `?cursor=${nextCursorRef.current}`;
+      }
+
+      try {
+        const response = await axiosFetch(urlEndpoint, "get");
+
+        if (response?.data) {
+          const servicesData = response.data;
+          const newService = [...currentService, ...servicesData.data].map(
+            (s) => ({ ...s, is_liked: favoriteSet.has(s.id) })
+          );
+
+          if (servicesData?.next_cursor) {
+            nextCursorRef.current = servicesData.next_cursor;
+            retryTimeRef.current = 0;
+            await fetchServices(newService);
+          } else {
+            setServices(newService);
+            setTimeout(() => {
+              if (listRef?.current && scrollRef?.current) {
+                listRef.current?.scrollToOffset({
+                  offset: scrollRef.current,
+                  animated: true,
+                });
+              }
+            }, 300);
+
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching services:", error);
+        if (retryTimeRef.current < 3) {
+          retryTimeRef.current++;
+          fetchServices(currentService);
+        }
+      }
+    },
+    [favoriteSet]
+  );
+
   useEffect(() => {
     fetchProvinces();
-  }, []);
+    fetchServices([]);
+  }, [fetchProvinces, fetchServices]);
 
-  const ratingCounts = useMemo(() => {
-    const counts = new Array(6).fill(0); // 0-5 stars
-    services.forEach((service) => {
-      const rating = Math.round(service.average_rate ?? 0);
-      counts[rating]++;
-    });
+  const ratingCounts = () => {
+    const counts = new Array(6).fill(0); // 0-5 stars?
+
+    if (Array.isArray(services) && services.length > 0) {
+      services.forEach((service) => {
+        const rating = Math.round(service.average_rate ?? 0);
+        counts[rating]++;
+      });
+    }
     return counts;
-  }, [services]);
+  };
 
-  const filteredData = useMemo(() => {
-    if (!showSearch) return [];
+  useEffect(() => {
+    if (!(Array.isArray(services) && services.length > 0) || !showSearch) {
+      setFilteredData([]);
+      return;
+    }
 
-    return services.filter((item) => {
-      const searchTerms = normalizeVietnamese(searchQuery.toLowerCase());
-      const providerTerms = normalizeVietnamese(providerFilter.toLowerCase());
+    const searchTerms = normalizeVietnamese(searchQuery.toLowerCase());
+    const providerTerms = normalizeVietnamese(providerFilter.toLowerCase());
 
-      const matchesServiceName = searchFilter(item.service_name, searchTerms);
-      const matchesDescription = searchFilter(
-        item.service_description || "",
-        searchTerms
-      );
-      const matchesProvider = searchFilter(
-        item.user?.name || "",
-        providerTerms
-      );
+    // Dùng callback để tránh tạo mảng mới mỗi khi filteredData thay đổi
+    setFilteredData((prevFilteredData) => {
+      // Nếu các điều kiện lọc không thay đổi thì giữ nguyên kết quả
+      if (
+        prevFilteredData.length > 0 &&
+        searchQuery === prevSearchQuery.current &&
+        providerFilter === prevProviderFilter.current &&
+        JSON.stringify(filters) === JSON.stringify(prevFilters.current)
+      ) {
+        return prevFilteredData;
+      }
 
-      const matchesSearch =
-        searchQuery === "" || matchesServiceName || matchesDescription;
-      const matchesProviderFilter = providerFilter === "" || matchesProvider;
+      // Lưu trạng thái hiện tại để so sánh lần sau
+      prevSearchQuery.current = searchQuery;
+      prevProviderFilter.current = providerFilter;
+      prevFilters.current = JSON.parse(JSON.stringify(filters));
 
-      const matchesCategories =
-        filters.categories.length === 0 ||
-        (item.category?.id !== undefined &&
-          filters.categories.includes(item.category.id));
+      const filtered = services.filter((item) => {
+        const matchesServiceName = searchFilter(item.service_name, searchTerms);
+        const matchesDescription = searchFilter(
+          item.service_description || "",
+          searchTerms
+        );
+        const matchesProvider = searchFilter(
+          item.user?.name || "",
+          providerTerms
+        );
 
-      const matchesPrice =
-        !item.price || item.price.length === 0
-          ? filters.priceRange.min === 0
-          : item.price?.some(
-              (p) =>
-                p.price_value >= filters.priceRange.min &&
-                p.price_value <= filters.priceRange.max
-            );
+        const matchesSearch =
+          searchQuery === "" || matchesServiceName || matchesDescription;
+        const matchesProviderFilter = providerFilter === "" || matchesProvider;
 
-      const matchesRating =
-        filters.ratings.length === 0 ||
-        filters.ratings.includes(Math.round(item.average_rate ?? 0));
+        const matchesCategories =
+          filters.categories.length === 0 ||
+          (item.category?.id !== undefined &&
+            filters.categories.includes(item.category.id));
 
-      const matchesLocation =
-        !filters.location ||
-        (item.location?.location_name &&
-          normalizeVietnamese(
-            item.location.location_name.toLowerCase()
-          ).includes(normalizeVietnamese(filters.location.toLowerCase()))) ||
-        (item.location?.province?.name &&
-          normalizeVietnamese(
-            item.location.province.name.toLowerCase()
-          ).includes(normalizeVietnamese(filters.location.toLowerCase())));
+        const matchesPrice =
+          !item.price || item.price.length === 0
+            ? filters.priceRange.min === 0
+            : item.price?.some(
+                (p) =>
+                  p.price_value >= filters.priceRange.min &&
+                  p.price_value <= filters.priceRange.max
+              );
 
-      return (
-        matchesSearch &&
-        matchesProviderFilter &&
-        matchesCategories &&
-        matchesPrice &&
-        matchesRating &&
-        matchesLocation
-      );
+        const matchesRating =
+          filters.ratings.length === 0 ||
+          filters.ratings.includes(Math.round(item.average_rate ?? 0));
+
+        const matchesLocation =
+          !filters.location ||
+          (item.location?.location_name &&
+            normalizeVietnamese(
+              item.location.location_name.toLowerCase()
+            ).includes(normalizeVietnamese(filters.location.toLowerCase()))) ||
+          (item.location?.province?.name &&
+            normalizeVietnamese(
+              item.location.province.name.toLowerCase()
+            ).includes(normalizeVietnamese(filters.location.toLowerCase())));
+
+        return (
+          matchesSearch &&
+          matchesProviderFilter &&
+          matchesCategories &&
+          matchesPrice &&
+          matchesRating &&
+          matchesLocation
+        );
+      });
+
+      return filtered;
     });
   }, [services, searchQuery, providerFilter, filters, showSearch]);
 
-  const handleCategorySelect = (categoryId: number) => {
+  const handleCategorySelect = useCallback((categoryId: number) => {
     setShowSearch(true);
     setFilterState((prev) => ({
       ...prev,
@@ -152,13 +246,13 @@ const SearchTab = () => {
         ? prev.categories.filter((id) => id !== categoryId)
         : [...prev.categories, categoryId],
     }));
-  };
+  }, []);
 
-  const handleBackToCategories = () => {
+  const handleBackToCategories = useCallback(() => {
     setShowSearch(false);
     setSearchQuery("");
     setFilterState(defaultFilters);
-  };
+  }, []);
 
   const ProvinceSelectionModal = React.memo(() => {
     // Use component-local state to prevent parent re-renders
@@ -300,7 +394,24 @@ const SearchTab = () => {
       .map((c) => c.category_name);
   }, [filters.categories, categories]);
 
-  const FilterModal = () => {
+  // Memoize ratingCounts để cải thiện hiệu suất
+  const countRatings = useCallback(() => {
+    const counts = new Array(6).fill(0); // 0-5 stars
+
+    if (Array.isArray(services) && services.length > 0) {
+      services.forEach((service) => {
+        const rating = Math.round(service.average_rate ?? 0);
+        if (rating >= 0 && rating <= 5) {
+          counts[rating]++;
+        }
+      });
+    }
+    return counts;
+  }, [services]);
+
+  const ratingCountsArray = useMemo(() => countRatings(), [countRatings]);
+
+  const FilterModal = memo(() => {
     const [localFilters, setLocalFilters] = useState<FilterType>(filters);
     const [localProviderFilter, setLocalProviderFilter] =
       useState(providerFilter);
@@ -320,14 +431,14 @@ const SearchTab = () => {
       setShowFilter(false);
     }, [localFilters, localProviderFilter]);
 
-    const toggleRating = (rating: number) => {
+    const toggleRating = useCallback((rating: number) => {
       setLocalFilters((prev) => {
         const newRatings = prev.ratings.includes(rating)
           ? prev.ratings.filter((r) => r !== rating)
           : [...prev.ratings, rating];
         return { ...prev, ratings: newRatings };
       });
-    };
+    }, []);
 
     return (
       <Modal
@@ -435,7 +546,7 @@ const SearchTab = () => {
                             : "text-gray-500"
                         }`}
                       >
-                        ({ratingCounts[rating]})
+                        ({ratingCountsArray[rating]})
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -584,9 +695,9 @@ const SearchTab = () => {
         </View>
       </Modal>
     );
-  };
+  });
 
-  const CategorySelectionHeader = () => (
+  const CategorySelectionHeader = memo(() => (
     <View className="bg-white p-5 border-b border-gray-200">
       <Text className="font-pbold text-xl mb-3">Chọn thể loại dịch vụ</Text>
       <ScrollView
@@ -638,191 +749,262 @@ const SearchTab = () => {
         </View>
       </ScrollView>
     </View>
-  );
+  ));
 
   const allCategoriesOption = { id: -1, category_name: "Tất cả" };
   const allCategories = useMemo(() => {
     return [allCategoriesOption, ...categories];
   }, [categories]);
 
-  const CategoryGrid = () => (
-    <View className="flex-1">
-      <View className="px-5 pt-5">
-        <Text className="font-pbold text-2xl mb-4">Khám phá dịch vụ</Text>
-        {categories.length > 0 ? (
-          <FlatList
-            data={allCategories}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={onRefreshCategories}
-              />
-            }
-            keyExtractor={(item) => item.id.toString()}
-            numColumns={2}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                className={`flex-1 aspect-square m-2 rounded-xl overflow-hidden`}
-                onPress={() => {
-                  if (item.id === -1) {
-                    // Chọn tất cả
-                    setShowSearch(true);
-                  } else {
-                    handleCategorySelect(item.id);
-                  }
-                }}
-              >
-                <Image
-                  source={
-                    item.id === -1
-                      ? {
-                          uri: `https://picsum.photos/seed/categories/200`,
-                        }
-                      : {
-                          uri: `https://picsum.photos/seed/${item.category_name}/200`,
-                        }
-                  }
-                  className="w-full h-full absolute"
-                  resizeMode="cover"
+  const CategoryGrid = memo(() => {
+    const handleCategoryPress = useCallback(
+      (categoryId: number) => {
+        if (categoryId === -1) {
+          // Chọn tất cả
+          setShowSearch(true);
+        } else {
+          handleCategorySelect(categoryId);
+        }
+      },
+      [handleCategorySelect]
+    );
+
+    return (
+      <View className="flex-1">
+        <View className="px-5 pt-5">
+          <Text className="font-pbold text-2xl mb-4">Khám phá dịch vụ</Text>
+          {categories.length > 0 ? (
+            <FlatList
+              data={allCategories}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onRefreshCategories}
                 />
-                <View
-                  className={`w-full h-full justify-end p-4 ${
-                    item.id === -1 ? "bg-primary-500/50" : "bg-black/30"
-                  }`}
+              }
+              keyExtractor={(item) => item.id.toString()}
+              numColumns={2}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  className={`flex-1 aspect-square m-2 rounded-xl overflow-hidden`}
+                  onPress={() => handleCategoryPress(item.id)}
                 >
-                  <View className="flex-row justify-between items-center">
-                    <Text className="font-pbold text-xl text-white flex-1">
-                      {item.category_name}
-                    </Text>
-                    {item.id === -1 && (
-                      <View className="bg-primary-500 rounded-full p-2">
-                        <Ionicons name="grid" size={16} color="white" />
-                      </View>
-                    )}
+                  <Image
+                    source={
+                      item.id === -1
+                        ? {
+                            uri: `https://picsum.photos/seed/categories/200`,
+                          }
+                        : {
+                            uri: `https://picsum.photos/seed/${item.category_name}/200`,
+                          }
+                    }
+                    className="w-full h-full absolute"
+                    resizeMode="cover"
+                  />
+                  <View
+                    className={`w-full h-full justify-end p-4 ${
+                      item.id === -1 ? "bg-primary-500/50" : "bg-black/30"
+                    }`}
+                  >
+                    <View className="flex-row justify-between items-center">
+                      <Text className="font-pbold text-xl text-white flex-1">
+                        {item.category_name}
+                      </Text>
+                      {item.id === -1 && (
+                        <View className="bg-primary-500 rounded-full p-2">
+                          <Ionicons name="grid" size={16} color="white" />
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        ) : (
-          <View className="flex-1 justify-center items-center">
-            <Text className="font-pmedium text-lg text-gray-500">
-              Đang tải danh mục...
-            </Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-
-  const renderServiceCard = (item: ServiceType) => (
-    <ServiceCard
-      data={{
-        ...item,
-        price: item.price?.length
-          ? item.price
-          : [
-              {
-                id: 0,
-                price_value: 0,
-                price_name: "Miễn phí",
-                deleted_at: null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              },
-            ],
-      }}
-      onPressFavorite={() => updateFavorite(item.id, !item.is_liked)}
-      containerStyles="mb-4"
-    />
-  );
-
-  const SearchResults = () => (
-    <View className="flex-1">
-      <View className="bg-white">
-        <CategorySelectionHeader />
-        <View className="px-5 py-3 border-t border-gray-200">
-          <Text className="font-pmedium text-gray-600">
-            {filteredData.length > 0
-              ? filters.categories.length === 0
-                ? `Tìm thấy ${filteredData.length} kết quả từ tất cả thể loại`
-                : `Tìm thấy ${filteredData.length} kết quả từ ${filters.categories.length} thể loại`
-              : "Không tìm thấy kết quả phù hợp"}
-          </Text>
-          <View className="flex-row flex-wrap gap-2 mt-2">
-            {providerFilter !== "" && (
-              <View className="bg-primary-100 px-3 py-1 rounded-full">
-                <Text className="font-pmedium text-primary-500">
-                  👤 Nhà cung cấp: {providerFilter}
-                </Text>
-              </View>
-            )}
-            {filters.sortBy && (
-              <View className="bg-primary-100 px-3 py-1 rounded-full">
-                <Text className="font-pmedium text-primary-500">
-                  {filters.sortBy === "price_asc" && "↑ Giá tăng dần"}
-                  {filters.sortBy === "price_desc" && "↓ Giá giảm dần"}
-                  {filters.sortBy === "rating" && "⭐ Đánh giá cao nhất"}
-                  {filters.sortBy === "newest" && "🕒 Mới nhất"}
-                </Text>
-              </View>
-            )}
-            {filters.ratings.length > 0 && (
-              <View className="bg-primary-100 px-3 py-1 rounded-full">
-                <Text className="font-pmedium text-primary-500">
-                  {filters.ratings
-                    .sort((a, b) => a - b)
-                    .map((r) => `${r}⭐`)
-                    .join(", ")}
-                </Text>
-              </View>
-            )}
-            {filters.location && (
-              <View className="bg-primary-100 px-3 py-1 rounded-full">
-                <Text className="font-pmedium text-primary-500">
-                  📍 {filters.location}
-                </Text>
-              </View>
-            )}
-            {(filters.priceRange.min > 0 ||
-              filters.priceRange.max !== defaultFilters.priceRange.max) && (
-              <View className="bg-primary-100 px-3 py-1 rounded-full">
-                <Text className="font-pmedium text-primary-500">
-                  💰{" "}
-                  {filters.priceRange.min === 0
-                    ? `Tối đa ${formatToVND(filters.priceRange.max)}`
-                    : `${formatToVND(filters.priceRange.min)} - ${formatToVND(
-                        filters.priceRange.max
-                      )}`}
-                </Text>
-              </View>
-            )}
-          </View>
+                </TouchableOpacity>
+              )}
+            />
+          ) : (
+            <View className="flex-1 justify-center items-center">
+              <Text className="font-pmedium text-lg text-gray-500">
+                Đang tải danh mục...
+              </Text>
+            </View>
+          )}
         </View>
       </View>
+    );
+  });
 
-      <FlatList
-        data={filteredData}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={{ padding: 20 }}
-        refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={fetchServices} />
-        }
-        renderItem={({ item }) => renderServiceCard(item)}
-        ListEmptyComponent={
-          <View className="flex-1 justify-center items-center py-10">
-            <Ionicons name="search" size={48} color="gray" />
-            <Text className="font-pmedium text-lg text-gray-500 mt-4">
-              Không tìm thấy kết quả
+  const SearchResults = React.memo(() => {
+    const updateServiceFavorite = useCallback(
+      (id: number, isLiked: boolean) => {
+        // Lưu lại vị trí cuộn hiện tại trước khi cập nhật
+        const currentScrollPosition = scrollRef.current;
+
+        // Cập nhật filteredData
+        setFilteredData((prev) => {
+          return prev.map((service) =>
+            service.id === id ? { ...service, is_liked: !isLiked } : service
+          );
+        });
+
+        // Cập nhật services chính
+        setServices((prev) => {
+          return prev.map((service) =>
+            service.id === id ? { ...service, is_liked: !isLiked } : service
+          );
+        });
+
+        // Cập nhật trạng thái favorite trong store
+        updateFavorite(id, !isLiked);
+      },
+      [updateFavorite]
+    );
+
+    return (
+      <View className="flex-1">
+        <View className="bg-white">
+          <CategorySelectionHeader />
+          <View className="px-5 py-3 border-t border-gray-200">
+            <Text className="font-pmedium text-gray-600">
+              {filteredData.length > 0
+                ? filters.categories.length === 0
+                  ? `Tìm thấy ${filteredData.length} kết quả từ tất cả thể loại`
+                  : `Tìm thấy ${filteredData.length} kết quả từ ${filters.categories.length} thể loại`
+                : "Không tìm thấy kết quả phù hợp"}
             </Text>
-            <Text className="font-pregular text-gray-400 text-center mt-2">
-              Thử điều chỉnh bộ lọc hoặc tìm kiếm với từ khóa khác
-            </Text>
+            <View className="flex-row flex-wrap gap-2 mt-2">
+              {providerFilter !== "" && (
+                <View className="bg-primary-100 px-3 py-1 rounded-full">
+                  <Text className="font-pmedium text-primary-500">
+                    👤 Nhà cung cấp: {providerFilter}
+                  </Text>
+                </View>
+              )}
+              {filters.sortBy && (
+                <View className="bg-primary-100 px-3 py-1 rounded-full">
+                  <Text className="font-pmedium text-primary-500">
+                    {filters.sortBy === "price_asc" && "↑ Giá tăng dần"}
+                    {filters.sortBy === "price_desc" && "↓ Giá giảm dần"}
+                    {filters.sortBy === "rating" && "⭐ Đánh giá cao nhất"}
+                    {filters.sortBy === "newest" && "🕒 Mới nhất"}
+                  </Text>
+                </View>
+              )}
+              {filters.ratings.length > 0 && (
+                <View className="bg-primary-100 px-3 py-1 rounded-full">
+                  <Text className="font-pmedium text-primary-500">
+                    {filters.ratings
+                      .sort((a, b) => a - b)
+                      .map((r) => `${r}⭐`)
+                      .join(", ")}
+                  </Text>
+                </View>
+              )}
+              {filters.location && (
+                <View className="bg-primary-100 px-3 py-1 rounded-full">
+                  <Text className="font-pmedium text-primary-500">
+                    📍 {filters.location}
+                  </Text>
+                </View>
+              )}
+              {(filters.priceRange.min > 0 ||
+                filters.priceRange.max !== defaultFilters.priceRange.max) && (
+                <View className="bg-primary-100 px-3 py-1 rounded-full">
+                  <Text className="font-pmedium text-primary-500">
+                    💰{" "}
+                    {filters.priceRange.min === 0
+                      ? `Tối đa ${formatToVND(filters.priceRange.max)}`
+                      : `${formatToVND(filters.priceRange.min)} - ${formatToVND(
+                          filters.priceRange.max
+                        )}`}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
-        }
-      />
-    </View>
-  );
+        </View>
+
+        <FlatList
+          data={filteredData}
+          keyExtractor={(item, index) => item.id.toString() + index}
+          contentContainerStyle={{ padding: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefreshService}
+            />
+          }
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+          }}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          extraData={favoriteSet} // Chỉ re-render khi favoriteSet thay đổi
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          getItemLayout={(data, index) => ({
+            length: 180, // Chiều cao ước tính cho mỗi item
+            offset: 180 * index + (index > 0 ? 16 * index : 0), // 16 là margin-bottom từ containerStyles
+            index,
+          })}
+          disableVirtualization={false}
+          onEndReachedThreshold={0.5}
+          renderItem={({ item }) => {
+            return (
+              <ServiceCardMemo
+                data={{
+                  ...item,
+                  price: item.price?.length
+                    ? item.price
+                    : [
+                        {
+                          id: 0,
+                          price_value: 0,
+                          price_name: "Miễn phí",
+                          deleted_at: null,
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                        },
+                      ],
+                }}
+                onPressFavorite={() => {
+                  // Tránh việc re-render không cần thiết
+                  requestAnimationFrame(() => {
+                    updateServiceFavorite(item.id, item.is_liked);
+                  });
+                }}
+                containerStyles="mb-4"
+              />
+            );
+          }}
+          onScroll={(event) => {
+            scrollRef.current = event.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+          ref={listRef}
+          ListEmptyComponent={
+            <View className="flex-1 justify-center items-center py-10">
+              <Ionicons name="search" size={48} color="gray" />
+              <Text className="font-pmedium text-lg text-gray-500 mt-4">
+                Không tìm thấy kết quả
+              </Text>
+              <Text className="font-pregular text-gray-400 text-center mt-2">
+                Thử điều chỉnh bộ lọc hoặc tìm kiếm với từ khóa khác
+              </Text>
+            </View>
+          }
+        />
+      </View>
+    );
+  });
+
+  // Memoize ServiceCard để tránh re-render không cần thiết
+  const ServiceCardMemo = React.memo(ServiceCard, (prevProps, nextProps) => {
+    return (
+      prevProps.data.id === nextProps.data.id &&
+      prevProps.data.is_liked === nextProps.data.is_liked
+    );
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
@@ -884,4 +1066,4 @@ const SearchTab = () => {
   );
 };
 
-export default SearchTab;
+export default memo(SearchTab);
