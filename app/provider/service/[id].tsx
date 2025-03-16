@@ -306,12 +306,12 @@ const ProviderServiceDetail = () => {
       headerRight: () => (
         <View className="flex-row">
           <TouchableOpacity
-            onPress={() => setShowEditModal(true)}
+            onPressIn={() => setShowEditModal(true)}
             className="mr-4"
           >
             <Ionicons name="create-outline" size={24} color="black" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowDeleteConfirm(true)}>
+          <TouchableOpacity onPressIn={() => setShowDeleteConfirm(true)}>
             <Ionicons name="trash-outline" size={24} color="red" />
           </TouchableOpacity>
         </View>

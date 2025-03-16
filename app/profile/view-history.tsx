@@ -30,7 +30,7 @@ const ViewHistoryScreen = () => {
     navigation.setOptions({
       title: "Lịch sử xem dịch vụ",
       headerRight: () => (
-        <TouchableOpacity onPress={handleClearAll}>
+        <TouchableOpacity onPressIn={handleClearAll}>
           {viewHistory.length > 0 && (
             <Text className="text-red-500 font-pmedium">Xóa tất cả</Text>
           )}

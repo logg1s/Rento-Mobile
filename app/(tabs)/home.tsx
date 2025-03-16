@@ -33,8 +33,8 @@ const TabHome = () => {
     try {
       setIsLoading(true);
       await fetchServices();
-    } catch (error) {
-      console.error("Lỗi khi refresh:", error?.response?.data);
+    } catch (error: any) {
+      console.error("Lỗi khi refresh:", error?.response?.data || error.message);
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +44,7 @@ const TabHome = () => {
     console.log("onTapBanner", index);
     router.push({
       pathname: "/(tabs)/search",
-      params: { fromHome: true, searchText: searchText.trim() },
+      params: { fromHome: "true", searchText: searchText.trim() },
     });
   };
 
@@ -52,9 +52,9 @@ const TabHome = () => {
     fetchData();
   }, []);
 
-  const onPressFavorite = (serviceId?: number, action: boolean) => {
+  const onPressFavorite = (serviceId: number, action: string) => {
     if (serviceId) {
-      updateFavorite(serviceId, action);
+      updateFavorite(serviceId, action === "true");
     }
   };
 
@@ -62,12 +62,12 @@ const TabHome = () => {
     if (searchText.trim()) {
       router.push({
         pathname: "/(tabs)/search",
-        params: { fromHome: true, searchText: searchText.trim() },
+        params: { fromHome: "true", searchText: searchText.trim() },
       });
     } else {
       router.push({
         pathname: "/(tabs)/search",
-        params: { fromHome: true },
+        params: { fromHome: "true" },
       });
     }
   };
@@ -129,7 +129,9 @@ const TabHome = () => {
           item ? (
             <ServiceCard
               data={item}
-              onPressFavorite={() => onPressFavorite(item.id, !item.is_liked)}
+              onPressFavorite={() =>
+                onPressFavorite(item.id, (!item.is_liked).toString())
+              }
             />
           ) : null
         }
@@ -201,7 +203,7 @@ const TabHome = () => {
                 onPress={() =>
                   router.push({
                     pathname: "/(tabs)/search",
-                    params: { fromHome: true },
+                    params: { fromHome: "true" },
                   })
                 }
               >
@@ -220,6 +222,32 @@ const TabHome = () => {
                 </View>
               </TouchableOpacity>
             </View>
+
+            <View className="flex-row gap-2 mb-5">
+              <TouchableOpacity
+                className="flex-1 aspect-square relative overflow-hidden rounded-2xl shadow-md"
+                onPress={() =>
+                  router.push({
+                    pathname: "/nearby-search",
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: `https://picsum.photos/seed/nearby/400` }}
+                  className="absolute w-full h-full"
+                  resizeMode="cover"
+                />
+                <View className="flex-1 justify-end p-4 bg-black/30">
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="location" size={20} color="white" />
+                    <Text className="font-psemibold text-lg text-white">
+                      Tìm quanh đây
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+
             <View>
               <View className="flex-row items-center">
                 <Text className="font-psemibold text-xl flex-1">Dịch vụ</Text>
@@ -227,7 +255,7 @@ const TabHome = () => {
                   onPress={() =>
                     router.push({
                       pathname: "/(tabs)/search",
-                      params: { fromHome: true },
+                      params: { fromHome: "true" },
                     })
                   }
                 >
