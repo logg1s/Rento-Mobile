@@ -13,8 +13,17 @@ import {
   StatusBar as RNStatusBar,
   Animated,
   Linking,
+  PanResponder,
+  GestureResponderEvent,
+  PanResponderGestureState,
 } from "react-native";
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+} from "react";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import ServiceCard from "@/components/ServiceCard";
@@ -32,6 +41,7 @@ import { Link } from "expo-router";
 import Slider from "@react-native-community/slider";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Kích thước màn hình
 const { width, height } = Dimensions.get("window");
@@ -52,6 +62,11 @@ export default function NearbySearch() {
   const [showRadius, setShowRadius] = useState(false);
   const [mapStyle, setMapStyle] = useState("light");
   const [mapVisible, setMapVisible] = useState(true);
+
+  // Trạng thái của bottom sheet
+  const [listSheetExpanded, setListSheetExpanded] = useState(false);
+  // Animation value cho bottom sheet
+  const listSheetAnimation = useRef(new Animated.Value(0)).current;
 
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const user = useRentoData((state) => state.user);
@@ -354,6 +369,61 @@ export default function NearbySearch() {
     setShowRadius(radiusVisibleRef.current);
   }, []);
 
+  // Hàm mở bản đồ bên ngoài (Google Maps hoặc Apple Maps)
+  const openInMaps = useCallback((lat: number, lng: number, name: string) => {
+    const scheme = Platform.OS === "ios" ? "maps:" : "geo:";
+    const url =
+      Platform.OS === "ios"
+        ? `${scheme}?q=${name}&ll=${lat},${lng}`
+        : `${scheme}${lat},${lng}?q=${name}`;
+
+    Linking.canOpenURL(url).then((supported) => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        // Fallback cho trường hợp không mở được ứng dụng bản đồ
+        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        Linking.openURL(googleMapsUrl);
+      }
+    });
+  }, []);
+
+  // Xử lý đóng popup
+  const handleClosePopup = useCallback(() => {
+    // Animate popup out
+    Animated.timing(popupAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      // Sau khi animation kết thúc, mới reset selectedService
+      setSelectedService(null);
+    });
+  }, [popupAnimation]);
+
+  // Xử lý khi chọn một marker trên bản đồ
+  const handleMarkerPress = useCallback(
+    (service: ServiceWithDistance) => {
+      setSelectedService(service);
+      // Animate popup in
+      Animated.spring(popupAnimation, {
+        toValue: 1,
+        useNativeDriver: true,
+        friction: 8,
+      }).start();
+
+      // Di chuyển camera đến vị trí của dịch vụ được chọn
+      if (cameraRef.current && service.location?.lng && service.location?.lat) {
+        cameraRef.current.setCamera({
+          centerCoordinate: [service.location.lng, service.location.lat],
+          zoomLevel: 15,
+          animationDuration: 500,
+        });
+      }
+    },
+    [popupAnimation]
+  );
+
   // Tạo các marker cho bản đồ
   const renderMarkers = useCallback(() => {
     return services.map((service) => {
@@ -456,7 +526,7 @@ export default function NearbySearch() {
               styles.mapControlButton,
               !selectedService && styles.mapControlButtonActive,
             ]}
-            onPressIn={() => setSelectedService(null)}
+            onPressIn={handleClosePopup}
           >
             <Ionicons
               name="close"
@@ -474,9 +544,10 @@ export default function NearbySearch() {
     showRadius,
     toggleRadiusVisibility,
     selectedService,
+    handleClosePopup,
   ]);
 
-  // Render vòng tròn bán kính tìm kiếm với kích thước chính xác sử dụng công thức Haversine
+  // Render vòng tròn bán kính tìm kiếm với kích thước chính xác
   const renderRadiusCircle = useCallback(() => {
     if (!showRadius || !location.latitude || !location.longitude) return null;
 
@@ -658,11 +729,10 @@ export default function NearbySearch() {
                   },
                 ],
                 opacity: popupAnimation,
-                top: popupPosition.top,
-                bottom: popupPosition.bottom,
-                left: popupPosition.left,
-                right: popupPosition.right,
-                maxHeight: popupPosition.maxHeight,
+                top: height * 0.15,
+                left: width * 0.05,
+                right: width * 0.05,
+                maxHeight: height * 0.7,
               },
             ]}
           >
@@ -757,6 +827,8 @@ export default function NearbySearch() {
     popupAnimation,
     handleClosePopup,
     openInMaps,
+    height,
+    width,
   ]);
 
   // Thêm hàm để xử lý việc mở bản đồ và đi đến vị trí dịch vụ
@@ -768,6 +840,14 @@ export default function NearbySearch() {
       if (selectedService) {
         handleClosePopup();
       }
+
+      // Đóng bottom sheet mượt mà
+      setListSheetExpanded(false);
+      Animated.timing(listSheetAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
 
       // Chuyển sang chế độ xem bản đồ
       setMapVisible(true);
@@ -800,8 +880,20 @@ export default function NearbySearch() {
   );
 
   // Render danh sách dịch vụ
-  const renderItem = ({ item }: { item: ServiceWithDistance }) => (
-    <View style={styles.serviceCard}>
+  const renderItem = ({
+    item,
+    index,
+  }: {
+    item: ServiceWithDistance;
+    index: number;
+  }) => (
+    <View
+      style={[
+        styles.serviceCard,
+        // Nếu là item đầu tiên hoặc thứ hai, tăng zIndex để luôn hiển thị khi bottom sheet thu gọn
+        !listSheetExpanded && index < 2 ? { zIndex: 10 } : {},
+      ]}
+    >
       <View style={styles.serviceCardHeader}>
         <View style={styles.serviceHeaderLeft}>
           {item.distance !== undefined && (
@@ -838,61 +930,6 @@ export default function NearbySearch() {
     </View>
   );
 
-  // Hàm mở bản đồ bên ngoài (Google Maps hoặc Apple Maps)
-  const openInMaps = useCallback((lat: number, lng: number, name: string) => {
-    const scheme = Platform.OS === "ios" ? "maps:" : "geo:";
-    const url =
-      Platform.OS === "ios"
-        ? `${scheme}?q=${name}&ll=${lat},${lng}`
-        : `${scheme}${lat},${lng}?q=${name}`;
-
-    Linking.canOpenURL(url).then((supported) => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        // Fallback cho trường hợp không mở được ứng dụng bản đồ
-        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-        Linking.openURL(googleMapsUrl);
-      }
-    });
-  }, []);
-
-  // Xử lý khi chọn một marker trên bản đồ
-  const handleMarkerPress = useCallback(
-    (service: ServiceWithDistance) => {
-      setSelectedService(service);
-      // Animate popup in
-      Animated.spring(popupAnimation, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 8,
-      }).start();
-
-      // Di chuyển camera đến vị trí của dịch vụ được chọn
-      if (cameraRef.current && service.location?.lng && service.location?.lat) {
-        cameraRef.current.setCamera({
-          centerCoordinate: [service.location.lng, service.location.lat],
-          zoomLevel: 15,
-          animationDuration: 500,
-        });
-      }
-    },
-    [popupAnimation]
-  );
-
-  // Xử lý đóng popup
-  const handleClosePopup = useCallback(() => {
-    // Animate popup out
-    Animated.timing(popupAnimation, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      // Sau khi animation kết thúc, mới reset selectedService
-      setSelectedService(null);
-    });
-  }, [popupAnimation]);
-
   // Tự động ẩn thanh bán kính khi hiển thị popup
   useEffect(() => {
     if (selectedService) {
@@ -922,6 +959,198 @@ export default function NearbySearch() {
       : `${distance.toFixed(1)} km`;
   }, []);
 
+  // Khai báo PanResponder với kiểu đúng để tránh lỗi TypeScript
+  const panResponderRef = useRef<any>(null);
+
+  // Biến lưu trạng thái ban đầu và vị trí bắt đầu kéo
+  const startDragPositionRef = useRef(0);
+  const initialSheetPositionRef = useRef(0);
+
+  // Mở rộng hoặc thu gọn bottom sheet
+  const toggleListSheet = useCallback(() => {
+    setListSheetExpanded(!listSheetExpanded);
+    Animated.spring(listSheetAnimation, {
+      toValue: !listSheetExpanded ? 1 : 0,
+      useNativeDriver: true,
+      friction: 8, // Giá trị cao hơn để animation mượt mà hơn
+      tension: 40, // Điều chỉnh để có hiệu ứng phù hợp
+    }).start();
+  }, [listSheetExpanded, listSheetAnimation]);
+
+  // Khởi tạo PanResponder TRƯỚC khi sử dụng trong renderListSheet
+  useEffect(() => {
+    // Khởi tạo panResponder ngay sau render đầu tiên
+    panResponderRef.current = PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Giảm ngưỡng để nhạy hơn, không giới hạn hướng vuốt
+        return Math.abs(gestureState.dy) > 2;
+      },
+      onPanResponderGrant: () => {
+        // Lưu vị trí hiện tại của animation để tính toán chính xác vị trí mới
+        listSheetAnimation.stopAnimation((value) => {
+          initialSheetPositionRef.current = value;
+        });
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Tính khoảng cách từ vị trí bắt đầu kéo
+        // Chia cho giá trị nhỏ hơn để thấy rõ chuyển động theo ngón tay
+        const dragDistance = gestureState.dy / (height * 0.4);
+
+        // Cập nhật vị trí bottom sheet theo chuyển động ngón tay
+        const newPosition = Math.max(
+          0,
+          Math.min(1, initialSheetPositionRef.current - dragDistance)
+        );
+
+        // Cập nhật animation theo vị trí mới
+        listSheetAnimation.setValue(newPosition);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // Xác định hướng và vận tốc vuốt
+        const isDraggingDown = gestureState.vy > 0;
+        const isMovingFast = Math.abs(gestureState.vy) > 0.3; // Giảm ngưỡng để nhạy hơn
+
+        // Nếu đang kéo xuống, hoặc đã kéo xuống quá một ngưỡng nhất định
+        if (
+          isDraggingDown &&
+          (isMovingFast || gestureState.dy > height * 0.05)
+        ) {
+          // Giảm ngưỡng để nhạy hơn
+          // Thu gọn bottom sheet
+          setListSheetExpanded(false);
+          Animated.spring(listSheetAnimation, {
+            toValue: 0,
+            useNativeDriver: true,
+            friction: 5, // Giảm friction để animation mượt hơn
+            tension: 30, // Giảm tension để animation chậm hơn
+          }).start();
+        }
+        // Nếu đang kéo lên, hoặc đã kéo lên quá một ngưỡng nhất định
+        else if (
+          !isDraggingDown &&
+          (isMovingFast || -gestureState.dy > height * 0.05)
+        ) {
+          // Mở rộng bottom sheet
+          setListSheetExpanded(true);
+          Animated.spring(listSheetAnimation, {
+            toValue: 1,
+            useNativeDriver: true,
+            friction: 5,
+            tension: 30,
+          }).start();
+        }
+        // Nếu không đạt đến ngưỡng hoặc không đủ vận tốc
+        else {
+          // Trở về trạng thái trước đó
+          Animated.spring(listSheetAnimation, {
+            toValue: listSheetExpanded ? 1 : 0,
+            useNativeDriver: true,
+            friction: 5,
+            tension: 30,
+          }).start();
+        }
+      },
+    });
+  }, [height, listSheetExpanded, listSheetAnimation]);
+
+  // Tùy chỉnh styles cho thanh kéo
+  const handleBarStyles = {
+    width: 60, // Tăng chiều rộng thanh kéo
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#0286FF",
+    opacity: 0.8,
+  };
+
+  // Render danh sách dịch vụ
+  const renderListSheet = useCallback(() => {
+    // Sử dụng z-index cố định thay vì nội suy để tránh lỗi precision
+    const zIndex = listSheetExpanded ? 1300 : 900;
+
+    const opacityGradient = listSheetAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.8, 0],
+    });
+
+    return (
+      <Animated.View
+        style={[
+          styles.listSheet,
+          {
+            transform: [
+              {
+                translateY: listSheetAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [height * 0.8, height * 0.15], // Thu gọn: chỉ hiện 20% màn hình, mở rộng: hiện 85% màn hình
+                }),
+              },
+            ],
+            zIndex, // Sử dụng giá trị cố định
+          },
+        ]}
+        {...(panResponderRef.current
+          ? panResponderRef.current.panHandlers
+          : {})}
+      >
+        {/* Gradient preview for collapsed state */}
+        <Animated.View
+          style={[
+            styles.listSheetPreviewGradient,
+            { opacity: opacityGradient },
+          ]}
+        >
+          <LinearGradient
+            colors={["transparent", "rgba(255,255,255,0.9)"]}
+            style={{ width: "100%", height: "100%" }}
+          />
+        </Animated.View>
+
+        <View style={styles.listSheetHandle}>
+          <View style={[styles.listSheetHandleBar, handleBarStyles]} />
+        </View>
+
+        <View style={styles.listSheetHeader}>
+          <Text style={styles.listSheetTitle}>
+            {services.length
+              ? `Đã tìm thấy ${services.length} dịch vụ`
+              : "Không tìm thấy dịch vụ nào"}
+          </Text>
+        </View>
+
+        <FlatList
+          data={services}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.listContainer,
+            { paddingBottom: listSheetExpanded ? 150 : 100 }, // Tăng padding để đảm bảo hiển thị đủ tất cả items
+          ]}
+          showsVerticalScrollIndicator={true}
+        />
+      </Animated.View>
+    );
+  }, [services, listSheetAnimation, listSheetExpanded, height, renderItem]);
+
+  // Định nghĩa style cho nút trạng thái active tại đây thay vì gán trực tiếp
+  const viewModeButtonActiveStyle = {
+    backgroundColor: "#0066CC",
+  };
+
+  // Chỉnh sửa renderViewToggle để đồng bộ với trạng thái bottom sheet mà không cần mũi tên
+  const renderViewToggle = useCallback(() => {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.viewModeButton,
+          listSheetExpanded && viewModeButtonActiveStyle,
+        ]}
+        onPress={toggleListSheet}
+      >
+        <Ionicons name="list" size={22} color="#fff" />
+      </TouchableOpacity>
+    );
+  }, [listSheetExpanded, toggleListSheet]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -936,92 +1165,229 @@ export default function NearbySearch() {
           </Link>
           <Text style={styles.title}>Tìm quanh đây</Text>
         </View>
-        <TouchableOpacity
-          style={styles.viewModeButton}
-          onPressIn={() => setMapVisible(!mapVisible)}
-        >
-          <Ionicons name={mapVisible ? "list" : "map"} size={22} color="#fff" />
-        </TouchableOpacity>
+        {renderViewToggle()}
       </View>
 
-      {/* Map View */}
-      {renderMap()}
-
-      {/* List View */}
-      {!mapVisible && (
-        <FlatList
-          data={services}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
-          refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={onRefresh} />
+      {/* Map View - Luôn hiển thị */}
+      <View style={styles.mapContainer}>
+        <MapboxGL.MapView
+          ref={mapRef}
+          styleURL={
+            mapStyle === "light"
+              ? MapboxGL.StyleURL.Street
+              : MapboxGL.StyleURL.Dark
           }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {loading
-                  ? "Đang tìm kiếm dịch vụ..."
-                  : "Không tìm thấy dịch vụ nào trong khu vực này"}
-              </Text>
-            </View>
-          }
-        />
-      )}
-
-      {/* Radius Slider - đã di chuyển xuống dưới */}
-      {mapVisible && (
-        <View style={styles.bottomRadiusContainer}>
-          <View style={styles.radiusHeader}>
-            <Text style={styles.radiusLabel}>
-              Bán kính:{" "}
-              <Text style={styles.radiusValue}>{displayRadius} km</Text>
-            </Text>
-            <View style={styles.locationInfo}>
-              {location.loading ? (
-                <ActivityIndicator size="small" color="#0286FF" />
-              ) : location.error ? (
-                <View style={styles.locationErrorBadge}>
-                  <Ionicons name="warning-outline" size={14} color="#FFA500" />
-                  <Text style={styles.locationErrorText}>Lỗi định vị</Text>
-                </View>
-              ) : (
-                <View style={styles.locationBadge}>
-                  <Ionicons name="location" size={14} color="#0286FF" />
-                  <Text style={styles.locationText}>Đã định vị</Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <Slider
-            style={styles.slider}
-            minimumValue={1}
-            maximumValue={100}
-            step={1}
-            value={searchRadius}
-            onValueChange={handleRadiusChange}
-            onSlidingComplete={handleSlidingComplete}
-            minimumTrackTintColor="#0286FF"
-            maximumTrackTintColor="#D9D9D9"
-            thumbTintColor="#0286FF"
-            tapToSeek={true}
+          style={styles.map}
+          logoEnabled={false}
+          attributionEnabled={false}
+          compassEnabled={true}
+          onPress={() => handleClosePopup()}
+        >
+          <MapboxGL.Camera
+            ref={cameraRef}
+            zoomLevel={12}
+            centerCoordinate={
+              location.latitude && location.longitude
+                ? [location.longitude, location.latitude]
+                : [106.660172, 10.762622] // Tọa độ mặc định (TP. HCM)
+            }
+            animationMode="flyTo"
+            animationDuration={1000}
           />
-          <View style={styles.radiusMarkers}>
-            <Text style={styles.radiusMarkerText}>1km</Text>
-            <Text style={styles.radiusMarkerText}>50km</Text>
-            <Text style={styles.radiusMarkerText}>100km</Text>
+
+          {/* Hiện vị trí người dùng hiện tại */}
+          {location.latitude && location.longitude && (
+            <MapboxGL.UserLocation visible={true} />
+          )}
+
+          {/* Hiển thị các marker cho các dịch vụ */}
+          {renderMarkers()}
+
+          {/* Render vòng tròn bán kính tìm kiếm */}
+          {renderRadiusCircle()}
+        </MapboxGL.MapView>
+
+        {/* Hiển thị lớp mờ phía sau khi popup hiển thị */}
+        {selectedService && (
+          <Animated.View
+            style={[
+              styles.backdrop,
+              {
+                opacity: popupAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.5],
+                }),
+              },
+            ]}
+          />
+        )}
+
+        {/* Các nút điều khiển bản đồ */}
+        {renderMapControls()}
+
+        {/* Card hiển thị thông tin dịch vụ được chọn */}
+        {selectedService && (
+          <Animated.View
+            style={[
+              styles.selectedServiceCard,
+              styles.centeredCard,
+              {
+                transform: [
+                  {
+                    translateY: popupAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-100, 0],
+                    }),
+                  },
+                ],
+                opacity: popupAnimation,
+                top: height * 0.15,
+                left: width * 0.05,
+                right: width * 0.05,
+                maxHeight: height * 0.7,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.closeButton, styles.centeredCloseButton]}
+              onPressIn={handleClosePopup}
+            >
+              <Ionicons name="close-circle" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/job/[id]",
+                  params: {
+                    id: selectedService.id,
+                    user_name: selectedService.user?.name,
+                    category_name: selectedService.category?.category_name,
+                  },
+                })
+              }
+            >
+              <View style={styles.popupHeader}>
+                <View style={styles.popupDistance}>
+                  {selectedService.distance !== undefined && (
+                    <View style={styles.distanceBadge}>
+                      <Ionicons name="location" size={16} color="#0286FF" />
+                      <Text style={styles.popupDistanceText}>
+                        {selectedService.distance < 1
+                          ? `${Math.round(selectedService.distance * 1000)} m`
+                          : `${selectedService.distance.toFixed(1)} km`}
+                      </Text>
+                    </View>
+                  )}
+                  {selectedService.location?.lat &&
+                    selectedService.location?.lng && (
+                      <TouchableOpacity
+                        style={styles.openMapsButton}
+                        onPress={() =>
+                          openInMaps(
+                            selectedService.location!.lat,
+                            selectedService.location!.lng,
+                            selectedService.service_name
+                          )
+                        }
+                      >
+                        <Ionicons
+                          name={
+                            location.latitude && location.longitude
+                              ? "navigate-circle"
+                              : "map"
+                          }
+                          size={16}
+                          color="#0286FF"
+                        />
+                        <Text style={styles.openMapsText}>
+                          {location.latitude && location.longitude
+                            ? "Chỉ đường"
+                            : "Mở bản đồ"}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                </View>
+              </View>
+              <ServiceCard
+                data={selectedService}
+                onPressFavorite={() =>
+                  onPressFavorite(
+                    selectedService.id,
+                    (!selectedService.is_liked).toString()
+                  )
+                }
+              />
+              <View style={styles.viewDetailButton}>
+                <Text style={styles.viewDetailText}>Xem chi tiết</Text>
+                <Ionicons name="arrow-forward" size={16} color="#0286FF" />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Danh sách dịch vụ dạng bottom sheet */}
+        {renderListSheet()}
+      </View>
+
+      {/* Radius Slider với animation ẩn/hiện dựa trên trạng thái của bottom sheet */}
+      <Animated.View
+        style={[
+          styles.bottomRadiusContainer,
+          {
+            opacity: 1, // Luôn hiển thị với opacity 1
+            zIndex: 800, // Z-index thấp hơn listSheet (900)
+            transform: [
+              {
+                translateY: 0, // Không di chuyển theo bottom sheet
+              },
+            ],
+          },
+        ]}
+        pointerEvents="auto" // Luôn cho phép tương tác
+      >
+        <View style={styles.radiusHeader}>
+          <Text style={styles.radiusLabel}>
+            Bán kính: <Text style={styles.radiusValue}>{displayRadius} km</Text>
+          </Text>
+          <View style={styles.locationInfo}>
+            {location.loading ? (
+              <ActivityIndicator size="small" color="#0286FF" />
+            ) : location.error ? (
+              <View style={styles.locationErrorBadge}>
+                <Ionicons name="warning-outline" size={14} color="#FFA500" />
+                <Text style={styles.locationErrorText}>Lỗi định vị</Text>
+              </View>
+            ) : (
+              <View style={styles.locationBadge}>
+                <Ionicons name="location" size={14} color="#0286FF" />
+                <Text style={styles.locationText}>Đã định vị</Text>
+              </View>
+            )}
           </View>
         </View>
-      )}
+        <Slider
+          style={styles.slider}
+          minimumValue={1}
+          maximumValue={100}
+          step={1}
+          value={searchRadius}
+          onValueChange={handleRadiusChange}
+          onSlidingComplete={handleSlidingComplete}
+          minimumTrackTintColor="#0286FF"
+          maximumTrackTintColor="#D9D9D9"
+          thumbTintColor="#0286FF"
+          tapToSeek={true}
+        />
+        <View style={styles.radiusMarkers}>
+          <Text style={styles.radiusMarkerText}>1km</Text>
+          <Text style={styles.radiusMarkerText}>50km</Text>
+          <Text style={styles.radiusMarkerText}>100km</Text>
+        </View>
+      </Animated.View>
 
       {/* Loading Indicator */}
       {loading && (
-        <View
-          style={[
-            styles.loadingOverlay,
-            mapVisible && styles.mapLoadingOverlay,
-          ]}
-        >
+        <View style={styles.loadingOverlay}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0286FF" />
             <Text style={styles.loadingText}>Đang tìm kiếm dịch vụ...</Text>
@@ -1155,9 +1521,10 @@ const styles = StyleSheet.create({
   },
   mapControlsContainer: {
     position: "absolute",
-    bottom: 140,
-    right: 10,
+    bottom: 210, // Nâng cao vị trí các nút điều khiển để tránh chạm vào bottom sheet khi thu gọn
+    right: 15,
     gap: 10,
+    zIndex: 1200,
   },
   mapControlButton: {
     width: 44,
@@ -1198,9 +1565,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 2000,
-  },
-  mapLoadingOverlay: {
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   loadingContainer: {
     padding: 20,
@@ -1271,21 +1635,21 @@ const styles = StyleSheet.create({
   },
   bottomRadiusContainer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 10,
     left: 0,
     right: 0,
     padding: 15,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 15,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 5,
-    zIndex: 1000,
+    elevation: 10,
+    marginHorizontal: 10,
+    zIndex: 800, // Z-index thấp hơn listSheet (900)
   },
   radiusHeader: {
     flexDirection: "row",
@@ -1418,5 +1782,56 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
+  },
+  listSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: height * 0.8, // Chiều cao tối đa để có thể kéo lên
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 12,
+    zIndex: 900, // Z-index cao hơn bottomRadiusContainer (800)
+  },
+  listSheetHandle: {
+    alignItems: "center",
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  listSheetHandleBar: {
+    width: 60, // Tăng chiều rộng thanh kéo
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#0286FF",
+    opacity: 0.8,
+  },
+  listSheetHeader: {
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f2f2f2",
+    marginBottom: 5,
+    backgroundColor: "white",
+  },
+  listSheetTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  listSheetPreviewGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "35%",
+    zIndex: 5,
+    pointerEvents: "none",
   },
 });
