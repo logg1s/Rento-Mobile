@@ -759,19 +759,76 @@ export default function NearbySearch() {
     openInMaps,
   ]);
 
+  // Thêm hàm để xử lý việc mở bản đồ và đi đến vị trí dịch vụ
+  const viewServiceOnMap = useCallback(
+    (service: ServiceWithDistance) => {
+      if (!service.location?.lat || !service.location?.lng) return;
+
+      // Đóng popup nếu đang mở
+      if (selectedService) {
+        handleClosePopup();
+      }
+
+      // Chuyển sang chế độ xem bản đồ
+      setMapVisible(true);
+
+      // Sử dụng setTimeout để đảm bảo bản đồ đã load và animation trước đó đã hoàn tất
+      setTimeout(() => {
+        if (!isMountedRef.current) return;
+
+        // Đặt dịch vụ được chọn
+        setSelectedService(service);
+
+        // Di chuyển camera đến vị trí dịch vụ
+        if (cameraRef.current) {
+          cameraRef.current.setCamera({
+            centerCoordinate: [service.location!.lng, service.location!.lat],
+            zoomLevel: 15,
+            animationDuration: 800,
+          });
+        }
+
+        // Animate popup in
+        Animated.spring(popupAnimation, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 8,
+        }).start();
+      }, 300);
+    },
+    [selectedService, handleClosePopup, popupAnimation]
+  );
+
   // Render danh sách dịch vụ
   const renderItem = ({ item }: { item: ServiceWithDistance }) => (
     <View style={styles.serviceCard}>
-      {item.distance !== undefined && (
-        <View style={styles.serviceDistance}>
-          <Ionicons name="location" size={14} color="#0286FF" />
-          <Text style={styles.distanceText}>
-            {item.distance < 1
-              ? `${Math.round(item.distance * 1000)} m`
-              : `${item.distance.toFixed(1)} km`}
-          </Text>
+      <View style={styles.serviceCardHeader}>
+        <View style={styles.serviceHeaderLeft}>
+          {item.distance !== undefined && (
+            <View style={styles.serviceDistance}>
+              <Ionicons name="location" size={14} color="#0286FF" />
+              <Text style={styles.distanceText}>
+                {item.distance < 1
+                  ? `${Math.round(item.distance * 1000)} m`
+                  : `${item.distance.toFixed(1)} km`}
+              </Text>
+            </View>
+          )}
         </View>
-      )}
+        {item.location?.lat && item.location?.lng && (
+          <TouchableOpacity
+            style={styles.viewOnMapButton}
+            onPress={() => viewServiceOnMap(item)}
+          >
+            <Ionicons
+              name="navigate-circle-outline"
+              size={16}
+              color="#0286FF"
+            />
+            <Text style={styles.viewOnMapText}>Xem trên bản đồ</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <ServiceCard
         data={item}
         onPressFavorite={() =>
@@ -1171,16 +1228,45 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  serviceCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 8,
+    paddingBottom: 2,
+  },
+  serviceHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   serviceDistance: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 8,
-    paddingBottom: 0,
+    backgroundColor: "rgba(2, 134, 255, 0.08)",
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 6,
   },
   distanceText: {
     fontWeight: "500",
     fontSize: 12,
-    color: "#333",
+    color: "#0286FF",
+    marginLeft: 4,
+  },
+  viewOnMapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(2, 134, 255, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(2, 134, 255, 0.2)",
+  },
+  viewOnMapText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#0286FF",
     marginLeft: 4,
   },
   bottomRadiusContainer: {
