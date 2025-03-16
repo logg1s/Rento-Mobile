@@ -118,10 +118,10 @@ const SearchTab = () => {
               if (listRef?.current && scrollRef?.current) {
                 listRef.current?.scrollToOffset({
                   offset: scrollRef.current,
-                  animated: true,
+                  animated: false,
                 });
               }
-            }, 300);
+            }, 100);
 
             return;
           }
@@ -968,10 +968,7 @@ const SearchTab = () => {
                       ],
                 }}
                 onPressFavorite={() => {
-                  // Tránh việc re-render không cần thiết
-                  requestAnimationFrame(() => {
-                    updateServiceFavorite(item.id, item.is_liked);
-                  });
+                  updateServiceFavorite(item.id, item.is_liked);
                 }}
                 containerStyles="mb-4"
               />

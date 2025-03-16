@@ -17,6 +17,7 @@ import CustomButton from "@/components/CustomButton";
 import { PriceType, Rules, ServiceType } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
 import useRentoData from "@/stores/dataStore";
+import CustomModal from "../components/CustomModal";
 
 const OrderService = () => {
   // TODO: replace with database
@@ -33,7 +34,11 @@ const OrderService = () => {
     if (user) {
       setFormData((prev) => ({
         ...prev,
-        address: user.location?.address || prev.address,
+        address:
+          user.location?.location_name ||
+          user.location?.real_location_name ||
+          user.location?.address ||
+          prev.address,
         phone_number: user.phone_number || prev.phone_number,
       }));
     }
@@ -75,6 +80,7 @@ const OrderService = () => {
       },
     ],
   };
+  const [modalVisible, setModalVisible] = useState(false);
 
   const [isValid, setIsValid] = useState(false);
   useEffect(() => {
@@ -100,16 +106,17 @@ const OrderService = () => {
         message: formData.note,
       });
 
-      Alert.alert(
-        "Đặt dịch vụ thành công",
-        "Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi",
-        [
-          {
-            text: "OK",
-            onPress: () => router.push("/(tabs)/home"),
-          },
-        ]
-      );
+      // Alert.alert(
+      //   "Đặt dịch vụ thành công",
+      //   "Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi",
+      //   [
+      //     {
+      //       text: "OK",
+      //       onPress: () => router.push("/(tabs)/home"),
+      //     },
+      //   ]
+      // );
+      setModalVisible(true);
     } catch (error) {
       Alert.alert("Đặt dịch vụ thất bại", "Vui lòng thử lại sau");
       console.error(error?.response?.data);
@@ -122,7 +129,11 @@ const OrderService = () => {
         <View className="gap-5">
           <OrderServiceDetails service={service} price={price} />
 
-          {((user?.location?.address || user?.phone_number) ?? null) ? (
+          {((user?.location?.location_name ||
+            user?.location?.real_location_name ||
+            user?.location?.address ||
+            user?.phone_number) ??
+          null) ? (
             <View className="bg-primary-100 p-4 rounded-lg">
               <View className="flex-row justify-between items-center mb-3">
                 <Text className="font-pmedium text-base text-primary-900">
@@ -135,9 +146,14 @@ const OrderService = () => {
                   <Text className="font-pmedium text-white">Áp dụng</Text>
                 </TouchableOpacity>
               </View>
-              {user?.location?.address && (
+              {(user?.location?.location_name ||
+                user?.location?.real_location_name ||
+                user?.location?.address) && (
                 <Text className="text-gray-600 mb-1">
-                  Địa chỉ: {user.location.address}
+                  Địa chỉ:{" "}
+                  {user.location?.location_name ||
+                    user?.location?.real_location_name ||
+                    user?.location?.address}
                 </Text>
               )}
               {user?.phone_number && (
@@ -188,6 +204,16 @@ const OrderService = () => {
           containerStyles={`${isValid ? "bg-primary-500" : "bg-primary-400"}`}
         />
       </View>
+      <CustomModal
+        visible={modalVisible}
+        title="Đặt dịch vụ thành công"
+        message="Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi"
+        type="success"
+        onClose={() => {
+          setModalVisible(false);
+          router.back();
+        }}
+      />
     </>
   );
 };

@@ -92,12 +92,13 @@ const DetailJob = () => {
     await fetchData();
     setIsRefreshing(false);
   };
+
   useEffect(() => {
     navigation.setOptions({
       headerTitle: `${user_name} - ${category_name}` || "Thông tin dịch vụ",
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => {
+          onPressIn={() => {
             if (data?.id) {
               onPressFavorite(data.id, !data?.is_liked);
             }
@@ -121,12 +122,9 @@ const DetailJob = () => {
     }
   };
 
-  const onPressFavorite = async (
-    serviceId: number | undefined,
-    action: boolean
-  ) => {
+  const onPressFavorite = (serviceId: number | undefined, action: boolean) => {
     if (serviceId) {
-      await updateFavorite(serviceId, action);
+      updateFavorite(serviceId, action);
     }
   };
 
@@ -542,7 +540,9 @@ const DetailJob = () => {
                   <SmallerServiceCard
                     key={item.id}
                     data={item}
-                    onPressFavorite={() => onPressFavorite(item.id, true)}
+                    onPressFavorite={() =>
+                      onPressFavorite(item.id, !item.is_liked)
+                    }
                   />
                 ))}
               </ScrollView>
@@ -560,7 +560,9 @@ const DetailJob = () => {
                   <SmallerServiceCard
                     key={item.id}
                     data={item}
-                    onPressFavorite={() => onPressFavorite(item.id, true)}
+                    onPressFavorite={() =>
+                      onPressFavorite(item.id, !item.is_liked)
+                    }
                   />
                 ))}
               </ScrollView>

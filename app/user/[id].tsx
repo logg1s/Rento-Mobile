@@ -139,16 +139,19 @@ const UserProfile = () => {
             <TouchableOpacity
               className="flex-row items-center gap-2"
               onPress={async () => {
-                if (userData?.address) {
-                  await Clipboard.setStringAsync(userData.address);
+                if (userData?.location?.location_name) {
+                  await Clipboard.setStringAsync(
+                    userData.location.location_name
+                  );
                 }
               }}
             >
-              {userData?.address && userData.address.length > 0 ? (
+              {userData?.location?.location_name &&
+              userData?.location?.location_name.length > 0 ? (
                 <>
                   <Ionicons name="location-outline" size={16} color="gray" />
                   <Text className="font-pmedium text-gray-600">
-                    {userData.address}
+                    {userData.location.location_name}
                   </Text>
                 </>
               ) : null}
