@@ -26,7 +26,7 @@ const Login = () => {
       if (result.success) {
         const user = useRentoData.getState().user;
         if (user?.role?.some((r) => r.id === "provider")) {
-          router.replace("/provider/dashboard");
+          router.replace("/provider/services");
         } else {
           router.replace("/(tabs)/home");
         }

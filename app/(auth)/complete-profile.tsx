@@ -139,7 +139,7 @@ const CompleteProfile = () => {
 
       if (success) {
         if (selectedRole === "provider") {
-          router.replace("/provider/dashboard");
+          router.replace("/provider/services");
         } else {
           router.replace("/(tabs)/home");
         }

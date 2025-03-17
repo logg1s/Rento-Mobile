@@ -7,15 +7,6 @@ const TabProvider = () => {
   return (
     <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: "Tổng quan",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="services"
         options={{
           title: "Dịch vụ",
@@ -52,7 +43,7 @@ const TabProvider = () => {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="account"
         options={{
           title: "Tài khoản",
           tabBarIcon: ({ color, size }) => (

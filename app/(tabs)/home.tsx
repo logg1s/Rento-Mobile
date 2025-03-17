@@ -40,6 +40,10 @@ const TabHome = () => {
     }
   };
 
+  const openChatbotAI = () => {
+    router.push("/chatbot/chatbot");
+  };
+
   const onTapBanner = (index: number) => {
     console.log("onTapBanner", index);
     router.push({
@@ -75,6 +79,7 @@ const TabHome = () => {
   return (
     <SafeAreaView className="flex-1 bg-general-500">
       <View className="px-5">
+        {/* heading */}
         <View className="flex-row">
           <View className="flex-1 flex-row gap-2">
             <View className={`rounded-full border border-gray-300 p-2`}>
@@ -90,7 +95,11 @@ const TabHome = () => {
               <Text className="font-psemibold text-lg">{user?.name}</Text>
             </View>
           </View>
+          <TouchableOpacity onPressIn={openChatbotAI}>
+            <Text>Chat với AI</Text>
+          </TouchableOpacity>
         </View>
+
         <View className="flex-row items-center bg-white rounded-2xl px-4 py-5 mt-5 border-2 border-gray-400 -mb-5">
           <Ionicons name="search" size={20} color="gray" />
           <TextInput

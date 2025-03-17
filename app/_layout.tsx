@@ -32,7 +32,7 @@ const Layout = () => {
       const currentUser = useRentoData.getState().user;
       if (currentUser) {
         if (currentUser.role?.some((r) => r.id === "provider")) {
-          router.replace("/provider/dashboard");
+          router.replace("/provider/services");
         } else {
           router.replace("/(tabs)/home");
         }

@@ -56,9 +56,9 @@ const TabLayout = () => {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="account"
         options={{
-          tabBarLabel: "Cá nhân",
+          tabBarLabel: "Tài khoản",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),

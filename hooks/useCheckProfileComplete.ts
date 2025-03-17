@@ -8,7 +8,7 @@ export const useCheckProfileComplete = () => {
   useEffect(() => {
     if (user) {
       if (user.role?.some((r) => r.id === "provider")) {
-        router.replace("/provider/dashboard");
+        router.replace("/provider/services");
       } else if (
         !user.phone_number ||
         !user.location?.location_name ||
