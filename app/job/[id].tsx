@@ -31,7 +31,7 @@ import {
 } from "@/utils/utils";
 
 const DetailJob = () => {
-  const { id, user_name, category_name } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const navigation = useNavigation();
   const [data, setData] = useState<ServiceType | null>(null);
   const [selectedPricing, setSelectedPricing] = useState(-1);
@@ -93,9 +93,14 @@ const DetailJob = () => {
     setIsRefreshing(false);
   };
 
+  const headerTitle =
+    data?.user?.name && data?.category?.category_name
+      ? `${data?.user?.name} - ${data?.category?.category_name}`
+      : "Thông tin dịch vụ";
+
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: `${user_name} - ${category_name}` || "Thông tin dịch vụ",
+      headerTitle,
       headerRight: () => (
         <TouchableOpacity
           onPressIn={() => {
@@ -114,7 +119,7 @@ const DetailJob = () => {
         </TouchableOpacity>
       ),
     });
-  }, [id, user_name, category_name, data]);
+  }, [id, data]);
 
   const onPressCardPrice = (index: number) => {
     if (index !== undefined) {

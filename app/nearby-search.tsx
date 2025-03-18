@@ -748,8 +748,6 @@ export default function NearbySearch() {
                   pathname: "/job/[id]",
                   params: {
                     id: selectedService.id,
-                    user_name: selectedService.user?.name,
-                    category_name: selectedService.category?.category_name,
                   },
                 })
               }
@@ -1260,8 +1258,6 @@ export default function NearbySearch() {
                   pathname: "/job/[id]",
                   params: {
                     id: selectedService.id,
-                    user_name: selectedService.user?.name,
-                    category_name: selectedService.category?.category_name,
                   },
                 })
               }

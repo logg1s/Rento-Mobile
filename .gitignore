@@ -52,3 +52,7 @@ GoogleService-Info.plist
 
 backend-for-references/
 Backend/
+
+lib/dbtable/
+app/chatbot/chat_history.ts
+app/chatbot/chat_instruction.ts

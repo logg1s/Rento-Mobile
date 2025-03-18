@@ -4,11 +4,11 @@ export type ChatBotResponseSql = {
   message: string;
 };
 
-export type ChatBotResponseText = {
+export type ChatBotResponseData = {
   type: "text";
   message: string;
   data: any[];
   dataType: "order" | "service" | "category";
 };
 
-export type ChatBotResponseType = ChatBotResponseSql | ChatBotResponseText;
+export type ChatBotResponseType = ChatBotResponseSql | ChatBotResponseData;

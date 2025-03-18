@@ -34,8 +34,6 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         pathname: "/job/[id]",
         params: {
           id,
-          user_name: user?.name,
-          category_name: category?.category_name,
         },
       });
     }

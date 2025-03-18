@@ -85,8 +85,6 @@ export const OrderCard = ({
       pathname: "/job/[id]",
       params: {
         id: provider.id,
-        user_name: provider?.name,
-        category_name: service?.category?.category_name,
       },
     });
   };
