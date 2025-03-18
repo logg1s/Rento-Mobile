@@ -16,6 +16,22 @@ export const chatHistory = [
     role: "user",
     parts: [
       {
+        text: "Yêu cầu luôn trả về JSON",
+      },
+    ],
+  },
+  {
+    role: "model",
+    parts: [
+      {
+        text: '```json\n{\n  "type": "text",\n  "message": "Được, tôi sẽ trả về JSON nhé! 😊",\n  "data": [],\n  "dataType": null\n}\n```\n',
+      },
+    ],
+  },
+  {
+    role: "user",
+    parts: [
+      {
         text: `### Đây là cấu trúc bảng của tôi trong MySQL, bạn cần tuân thủ hướng dẫn hệ thống và tuân theo cấu trúc này:
 -- rento.cache definition
 
@@ -503,7 +519,14 @@ CREATE TABLE orders (
       },
     ],
   },
-
+  {
+    role: "model",
+    parts: [
+      {
+        text: '```json\n{\n  "type": "text",\n  "message": "Được, tôi sẽ trả về JSON nhé! 😊",\n  "data": [],\n  "dataType": null\n}\n```\n',
+      },
+    ],
+  },
   {
     role: "user",
     parts: [
@@ -516,7 +539,7 @@ CREATE TABLE orders (
     role: "model",
     parts: [
       {
-        text: '```json\n{\n  "type": "text",\n  "message": "Xin lỗi, mình không thể trả lời câu hỏi này. Vui lòng thử lại sau nhé! 😊",\n  "data": [],\n  "dataType": null\n}\n```\n',
+        text: '```json\n{\n  "type": "text",\n  "message": "Được, tôi sẽ trả về JSON nhé! 😊",\n  "data": [],\n  "dataType": null\n}\n```\n',
       },
     ],
   },

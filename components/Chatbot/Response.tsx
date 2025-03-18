@@ -12,6 +12,7 @@ import { chatInstruction } from "@/app/chatbot/chat_instruction";
 import { axiosFetch } from "@/stores/dataStore";
 import LaterResponseChat from "./LaterResponse";
 import { UserType } from "@/types/type";
+import { first } from "lodash";
 
 export default function Response({
   onTextResponse,
@@ -25,27 +26,21 @@ export default function Response({
   time: string;
 }) {
   return (
-    <View style={styles.response}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+    <View className="bg-white p-4 shadow shadow-gray-300 rounded-2xl">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
           <Image
             source={require("@/assets/icons/robot.png")}
-            style={styles.icon}
+            className="w-8 h-8 rounded-full"
           />
-          <Text style={{ fontWeight: 600 }}>Rento</Text>
+          <Text className="font-medium">Rento</Text>
         </View>
-        <Text style={{ fontSize: 10, fontWeight: "600" }}>{time}</Text>
+        <Text className="text-sm font-medium">{time}</Text>
       </View>
       {firstResponse?.message.trim() !== "" && (
         <Markdown>{firstResponse?.message}</Markdown>
       )}
-      {laterResponseData?.length > 0 && (
+      {firstResponse?.type === "sql" && (
         <LaterResponseChat
           laterResponse={laterResponseData}
           onTextResponse={onTextResponse}
@@ -54,18 +49,3 @@ export default function Response({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  response: {
-    flexDirection: "column",
-    gap: 8,
-    backgroundColor: "#fafafa",
-    marginBottom: 8,
-    padding: 16,
-    borderRadius: 16,
-  },
-  icon: {
-    width: 28,
-    height: 28,
-  },
-});

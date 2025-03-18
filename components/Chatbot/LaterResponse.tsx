@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import React, { useEffect } from "react";
 import Markdown from "react-native-markdown-display";
 import { ChatBotResponseData } from "@/types/chatbot";
@@ -13,7 +13,11 @@ const LaterResponseChat = ({
 }) => {
   // #useEffect
   useEffect(() => {
-    onTextResponse?.();
+    const timeout = setTimeout(() => {
+      onTextResponse?.();
+    }, 50);
+
+    return () => clearTimeout(timeout);
   }, [laterResponse]);
   return (
     <View>

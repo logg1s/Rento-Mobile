@@ -18,14 +18,17 @@ const CardItemData = ({
       {dataType === "order" && (
         <View>
           {data.map((item) => (
-            <OrderCard order={item} />
+            <View key={item.id}>
+              <Text>{item.id}</Text>
+              <Text>{item.service_id}</Text>
+            </View>
           ))}
         </View>
       )}
       {dataType === "service" &&
-        data.map((item) => (
+        data.map((item, index) => (
           <TouchableOpacity
-            key={item.id}
+            key={index}
             onPress={() => {
               router.push({
                 pathname: "/job/[id]",
@@ -48,8 +51,8 @@ const CardItemData = ({
           </TouchableOpacity>
         ))}
       {dataType === "category" &&
-        data.map((item) => (
-          <View key={item.id}>
+        data.map((item, index) => (
+          <View key={index}>
             <Text>{item.category_name}</Text>
           </View>
         ))}

@@ -85,6 +85,7 @@ export const axiosFetch = async (
     });
   } catch (error: any) {
     const refreshResult = await useAuthStore.getState().refreshAccessToken();
+    console.log("refreshResult", refreshResult);
     if (refreshResult) {
       return axiosFetch(url, method, data, isUpload);
     }
