@@ -33,10 +33,11 @@ import {
   getImageSource,
 } from "@/utils/utils";
 import { useRouter } from "expo-router";
-import { axiosFetch } from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import CommentCard from "@/components/CommentCard";
 import LocationInputField from "@/components/LocationInputField";
 import { PaginationType } from "@/types/pagination";
+import useAuthStore from "@/stores/authStore";
 
 type ValidationRule = {
   isValid: boolean;
@@ -212,6 +213,7 @@ export default function ProviderServices() {
 
   // Load initial data
   useEffect(() => {
+    useRentoData.getState().fetchCategories();
     loadInitialServices();
     fetchCategoryCounts(); // Fetch category counts on initial load
   }, []);

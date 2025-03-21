@@ -93,10 +93,10 @@ export const axiosFetch = async (
       retry++;
       return await axiosFetch(url, method, data, isUpload);
     }
+    await useAuthStore.getState().refreshAccessToken();
     throw error;
   } finally {
     retry = 0;
-    await useAuthStore.getState().refreshAccessToken();
   }
 };
 
