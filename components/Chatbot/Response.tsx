@@ -3,16 +3,9 @@ import { StyleSheet, View, Image, Text, ActivityIndicator } from "react-native";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Markdown from "react-native-markdown-display";
 import { chatHistory } from "@/app/chatbot/chat_history";
-import {
-  ChatBotResponseData,
-  ChatBotResponseSql,
-  ChatBotResponseType,
-} from "@/types/chatbot";
-import { chatInstruction } from "@/app/chatbot/chat_instruction";
-import { axiosFetch } from "@/stores/dataStore";
+import { ChatBotResponseData, ChatBotResponseSql } from "@/types/chatbot";
+
 import LaterResponseChat from "./LaterResponse";
-import { UserType } from "@/types/type";
-import { first } from "lodash";
 
 export default function Response({
   onTextResponse,

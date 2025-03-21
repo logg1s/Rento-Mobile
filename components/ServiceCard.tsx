@@ -5,7 +5,9 @@ import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
 import { convertedPrice, getImageSource } from "@/utils/utils";
 import { twMerge } from "tailwind-merge";
-
+import useRentoData from "@/stores/dataStore";
+import { useEffect } from "react";
+import { useState } from "react";
 const ServiceCard: React.FC<ServiceCardProps> = ({
   data: {
     id,
@@ -19,12 +21,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     updated_at,
     deleted_at,
     comment_count,
-    is_liked,
     average_rate,
   },
   containerStyles,
-  onPressFavorite,
+
   onPress,
+  showFavorite = true,
 }) => {
   const onPressServiceCard = () => {
     if (onPress) {
@@ -38,6 +40,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       });
     }
   };
+  const isLiked = useRentoData((state) => state.favIds.includes(id));
+  const updateFavorite = useRentoData((state) => state.updateFavorite);
 
   return (
     <TouchableOpacity
@@ -69,13 +73,18 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
             </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={onPressFavorite} className="p-2">
-          <FontAwesome
-            name={is_liked ? "heart" : "heart-o"}
-            size={24}
-            color={is_liked ? "#c40000" : "gray"}
-          />
-        </TouchableOpacity>
+        {showFavorite && (
+          <TouchableOpacity
+            onPress={() => updateFavorite(id, !isLiked)}
+            className="p-2"
+          >
+            <FontAwesome
+              name={isLiked ? "heart" : "heart-o"}
+              size={24}
+              color={isLiked ? "#c40000" : "gray"}
+            />
+          </TouchableOpacity>
+        )}
       </View>
       <Text className="font-pmedium text-sm" numberOfLines={2}>
         {service_description}

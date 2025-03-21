@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -26,9 +26,30 @@ const ProfileScreen = () => {
     user?.user_setting?.is_notification === 1
   );
 
+  const retryCount = useRef(0);
+
+  const fetchUserWithRetry = async () => {
+    try {
+      await fetchUser();
+      if (user) {
+        retryCount.current = 0;
+      } else if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchUserWithRetry();
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi fetch user:", error?.response?.data);
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchUserWithRetry();
+      }
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
-      fetchUser();
+      retryCount.current = 0;
+      fetchUserWithRetry();
     }, [])
   );
 
@@ -48,8 +69,12 @@ const ProfileScreen = () => {
   };
 
   const handleNotificationsChange = async (value: boolean) => {
-    axiosFetch("/users/setting", "post", { is_notification: value });
-    setNotificationsEnabled(value);
+    try {
+      await axiosFetch("/users/setting", "post", { is_notification: value });
+      setNotificationsEnabled(value);
+    } catch (error) {
+      console.error("Lỗi khi cập nhật thông báo:", error);
+    }
   };
 
   const handleImageUpload = async (result: ImagePicker.ImagePickerResult) => {
@@ -109,8 +134,19 @@ const ProfileScreen = () => {
 
   const logout = useAuthStore((state) => state.logout);
   const handleLogout = async () => {
-    await logout();
-    router.replace("/");
+    Alert.alert("Đăng xuất", "Bạn có muốn đăng xuất?", [
+      {
+        text: "Đăng xuất",
+        onPress: async () => {
+          await logout();
+          router.replace("/");
+        },
+      },
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+    ]);
   };
 
   const ProfileSection = ({ title, onPress, icon }) => (
@@ -146,7 +182,7 @@ const ProfileScreen = () => {
         <View className="bg-white rounded-lg shadow-sm mb-6">
           <View className="bg-white rounded-lg shadow-sm mb-6">
             <ProfileSection
-              title="Lịch sử đơn hàng"
+              title="Lịch sử đơn dịch vụ"
               onPress={() => router.push("/profile/order-history")}
               icon="list-outline"
             />

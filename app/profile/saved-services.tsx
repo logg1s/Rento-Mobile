@@ -1,45 +1,86 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import useRentoData from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { ServiceType } from "@/types/type";
 import ServiceCard from "@/components/ServiceCard";
+import { PaginationType } from "@/types/pagination";
 
 const SavedServicesScreen = () => {
-  const favorites = useRentoData((state) => state.favorites);
-  const updateFavorite = useRentoData((state) => state.updateFavorite);
-  const fetchFavorites = useRentoData((state) => state.fetchFavorites);
+  const [favorites, setFavorites] = useState<ServiceType[]>([]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const retryCount = useRef(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const nextCursor = useRef<string | null>(null);
+  const favIds = useRentoData((state) => state.favIds);
 
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
-
-  const onRefresh = async () => {
+  const fetchFavoritesWithRetry = async () => {
     try {
       setIsRefreshing(true);
-      await fetchFavorites();
+      let url = "/favorites";
+      if (nextCursor.current) {
+        url += `?next_cursor=${nextCursor.current}`;
+      }
+      const response = await axiosFetch(url, "get");
+      const paginateData: PaginationType<ServiceType> = response?.data;
+      const data = paginateData?.data || [];
+      if (data?.length > 0) {
+        setFavorites((prev) => [...prev, ...data]);
+        nextCursor.current = paginateData?.next_cursor || null;
+      } else if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchFavoritesWithRetry();
+      }
     } catch (error: any) {
-      console.error("Lỗi khi refresh:", error?.response?.data);
+      console.error("Lỗi khi fetch favorites:", error?.response?.data);
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchFavoritesWithRetry();
+      }
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const onPressFavorite = (serviceId: number, action: boolean) => {
-    if (serviceId) {
-      updateFavorite(serviceId, action);
+  const fetchMore = async () => {
+    if (nextCursor.current) {
+      setIsLoadingMore(true);
+      await fetchFavoritesWithRetry();
+      setIsLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFavoritesWithRetry();
+  }, []);
+
+  useEffect(() => {
+    setFavorites((prev) =>
+      prev.filter((favorite) => favIds.includes(favorite.id))
+    );
+  }, [favIds]);
+
+  const onRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      setFavorites([]);
+      await fetchFavoritesWithRetry();
+    } catch (error: any) {
+      console.error("Lỗi khi refresh:", error?.response?.data);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -50,7 +91,6 @@ const SavedServicesScreen = () => {
         is_liked: true,
       }}
       containerStyles="mb-4"
-      onPressFavorite={() => onPressFavorite(item.id, false)}
     />
   );
 
@@ -69,9 +109,14 @@ const SavedServicesScreen = () => {
       <FlatList
         data={favorites}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => index.toString()}
+        onEndReached={fetchMore}
+        onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16 }}
+        ListFooterComponent={
+          isLoadingMore ? <ActivityIndicator size="small" color="#000" /> : null
+        }
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }

@@ -26,7 +26,6 @@ type AuthState = {
     password: string
   ) => Promise<{ success: boolean; status: number | null }>;
   logout: () => Promise<void>;
-  initialize: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   setToken: (token: string) => Promise<void>;
   loginWithGoogle: () => Promise<boolean>;
@@ -83,7 +82,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         await AsyncStorage.setItem("jwtToken", newToken);
-        await useRentoData.getState().fetchData();
         set({ token: newToken, isLoggedIn: true });
         return { success: true, status: userStatus };
       }
@@ -108,17 +106,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
       set({ token: null, isLoggedIn: false });
     }
   },
-
-  initialize: async () => {
-    const result = await get().refreshAccessToken();
-    if (result) {
-      await useRentoData.getState().fetchData();
-    }
-    // const tokenSaved = await AsyncStorage.getItem(key);
-    // if (tokenSaved) {
-    //   set({ token: tokenSaved, isLoggedIn: true });
-    // }
-  },
   refreshAccessToken: async () => {
     try {
       const storedToken = await AsyncStorage.getItem(key);
@@ -137,10 +124,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
         set({ token: newToken, isLoggedIn: true });
         return true;
       }
+      return false;
     } catch (error) {
       console.error("Lỗi khi refresh token: ", error?.response?.data);
+      return false;
     }
-    return false;
   },
   setToken: async (token) => {
     await AsyncStorage.setItem("jwtToken", token);
@@ -177,7 +165,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
       if (newToken) {
         await AsyncStorage.setItem("jwtToken", newToken);
-        await useRentoData.getState().fetchData();
         set({ token: newToken, isLoggedIn: true });
         return true;
       }
@@ -222,7 +209,6 @@ const useAuthStore = create<AuthState>((set, get) => ({
         const newToken = loginResult?.data?.access_token;
         if (newToken) {
           await AsyncStorage.setItem("jwtToken", newToken);
-          await useRentoData.getState().fetchData();
           set({ token: newToken, isLoggedIn: true, tempPassword: null });
           return { success: true, token: newToken };
         }

@@ -31,16 +31,19 @@ const CustomButton = ({
 }) => {
   return (
     <TouchableOpacity
-      onPress={isDisabled ? () => {} : onPress}
+      onPressIn={isDisabled ? () => {} : onPress}
       activeOpacity={isDisabled ? 1 : 0.7}
       className={twMerge(
         `justify-center items-center flex-row gap-2 rounded-xl p-3.5 ${outline ? "bg-white" : "bg-primary-500"}`,
-        containerStyles,
+        containerStyles
       )}
     >
       {iconLeft}
       <Text
-        className={`font-pmedium text-xl ${outline ? "text-black" : "text-white"} ${textStyles}`}
+        className={twMerge(
+          `font-pmedium text-xl ${outline ? "text-black" : "text-white"}`,
+          textStyles
+        )}
       >
         {title}
       </Text>

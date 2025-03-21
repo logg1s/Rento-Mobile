@@ -399,8 +399,8 @@ const MessageScreen = () => {
   // Memoize rendering functions
   const renderConversation = useCallback(
     ({ item }) =>
-      normalizeVietnamese(item?.name as string).includes(
-        normalizeVietnamese(filterMesasgeInput.trim().toLowerCase())
+      normalizeVietnamese((item?.name as string) || "")?.includes(
+        normalizeVietnamese(filterMesasgeInput?.trim()?.toLowerCase() || "")
       ) ? (
         <TouchableOpacity
           className="flex-row items-center p-4 border-b border-gray-200"
@@ -760,7 +760,24 @@ const MessageScreen = () => {
       </TouchableOpacity>
     </Modal>
   );
-
+  const retryCount = useRef(0);
+  const fetchUser = async (otherUserId: number) => {
+    try {
+      const response = await axiosFetch(`/users/${otherUserId}`, "get");
+      if (response?.data) {
+        retryCount.current = 0;
+        return response.data as UserType;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchUser(otherUserId);
+      }
+      return null;
+    }
+  };
   const fetchConversations = async () => {
     if (chatsData.length === 0) return;
     const conversationsData = await Promise.all(
@@ -778,8 +795,17 @@ const MessageScreen = () => {
           const id2 = Number.parseInt(roomParts[2]);
           const otherUserId = user?.id === id1 ? id2 : id1;
 
-          const response = await axiosFetch(`/users/${otherUserId}`, "get");
-          const otherUserData = response?.data as UserType;
+          let otherUserData;
+          try {
+            retryCount.current = 0;
+            otherUserData = await fetchUser(otherUserId);
+          } catch (error) {
+            console.error("Error fetching conversation:", error);
+            if (retryCount.current < 10) {
+              retryCount.current++;
+              fetchConversations();
+            }
+          }
           const lastMsg =
             chat.messages.length > 0
               ? chat.messages[chat.messages.length - 1]
@@ -976,7 +1002,7 @@ const MessageScreen = () => {
           <FlatList
             data={conversations}
             renderItem={renderConversation}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item, index) => index.toString()}
             refreshControl={
               <RefreshControl
                 refreshing={isLoading}
@@ -1019,7 +1045,7 @@ const MessageScreen = () => {
                 </Text>
               )}
             </View>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() =>
                 router.push({
                   pathname: "/message/call",
@@ -1032,7 +1058,7 @@ const MessageScreen = () => {
               className="mr-4"
             >
               <Ionicons name="call" size={24} color="#0286FF" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity onPress={() => setShowConversationOptions(true)}>
               <Ionicons name="ellipsis-vertical" size={24} color="black" />
             </TouchableOpacity>
@@ -1043,7 +1069,7 @@ const MessageScreen = () => {
             <FlatList
               ref={flatListRef}
               data={messages}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item, index) => index.toString()}
               renderItem={renderMessage}
               // Thêm các thuộc tính để cải thiện hiệu suất
               removeClippedSubviews={true}

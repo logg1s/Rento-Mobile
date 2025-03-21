@@ -891,8 +891,7 @@ export default function ProviderServices() {
               <View className="flex-1">
                 <ServiceCard
                   data={item}
-                  containerStyles=""
-                  onPressFavorite={() => {}}
+                  showFavorite={false}
                   onPress={() => {
                     router.push({
                       pathname: "/provider/service/[id]",
@@ -927,7 +926,7 @@ export default function ProviderServices() {
             </View>
           </View>
         )}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => index.toString()}
         contentContainerClassName="pt-4 pb-20"
         refreshControl={
           <RefreshControl
@@ -1265,7 +1264,7 @@ export default function ProviderServices() {
           ) : (
             <FlatList
               data={serviceComments}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item, index) => index.toString()}
               renderItem={({ item }) => (
                 <CommentCard
                   data={item}

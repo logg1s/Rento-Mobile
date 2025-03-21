@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import { ServiceType } from "@/types/type";
@@ -26,6 +26,7 @@ const UserServices = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const updateFavorite = useRentoData((state) => state.updateFavorite);
+  const retryCount = useRef(0);
 
   const fetchServices = async () => {
     if (!id) {
@@ -40,11 +41,16 @@ const UserServices = () => {
       if (response?.data?.services) {
         setServices(response.data.services);
         setFilteredServices(response.data.services);
-      } else {
-        setServices([]);
-        setFilteredServices([]);
+        retryCount.current = 0;
+      } else if (retryCount.current < 5) {
+        retryCount.current++;
+        fetchServices();
       }
     } catch (error) {
+      if (retryCount.current < 5) {
+        retryCount.current++;
+        fetchServices();
+      }
       console.error("Error fetching services:", error);
       Alert.alert("Lỗi", "Không thể tải dịch vụ. Vui lòng thử lại sau.");
       setServices([]);
@@ -73,7 +79,7 @@ const UserServices = () => {
       console.error("Error updating favorite:", error);
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật trạng thái yêu thích. Vui lòng thử lại sau.",
+        "Không thể cập nhật trạng thái yêu thích. Vui lòng thử lại sau."
       );
     }
   };
@@ -87,9 +93,7 @@ const UserServices = () => {
 
     if (searchQuery) {
       const filtered = services.filter((service) =>
-        service?.service_name
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()),
+        service?.service_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredServices(filtered);
     } else {
@@ -141,15 +145,9 @@ const UserServices = () => {
                 key={service.id}
                 style={{ width: (Dimensions.get("window").width - 40) / 2 }}
               >
-                <SmallerServiceCard
-                  data={service}
-                  containerStyles="mb-4"
-                  onPressFavorite={() =>
-                    onPressFavorite(service.id, !service.is_liked)
-                  }
-                />
+                <SmallerServiceCard data={service} containerStyles="mb-4" />
               </View>
-            ) : null,
+            ) : null
           )}
           {!filteredServices?.length && (
             <Text className="text-center text-gray-500 w-full mt-4">

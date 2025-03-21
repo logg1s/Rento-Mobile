@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import CommentCard from "@/components/CommentCard";
 import { axiosFetch } from "@/stores/dataStore";
 import { Ionicons } from "@expo/vector-icons";
 import { CommentType } from "@/types/type";
+import { PaginationType } from "@/types/pagination";
 
 type SortOption = "newest" | "oldest";
 type RatingOption = 1 | 2 | 3 | 4 | 5;
@@ -26,6 +27,9 @@ const AllComments = () => {
   const [selectedRatings, setSelectedRatings] = useState<RatingOption[]>([]);
   const [originalComments, setOriginalComments] = useState<CommentType[]>([]);
   const navigation = useNavigation();
+  const retryCount = useRef(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const nextCursor = useRef<string | null>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -36,13 +40,28 @@ const AllComments = () => {
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const response = await axiosFetch(`/services/${id}/comments`);
-      if (response?.data) {
-        setOriginalComments(response.data);
-        setComments(response.data);
+      let url = `/services/${id}/comments`;
+      if (nextCursor.current) {
+        url += `?cursor=${nextCursor.current}`;
+      }
+      const response = await axiosFetch(url, "get");
+      const paginateData: PaginationType<CommentType> = response?.data || [];
+      const data = paginateData?.data || [];
+      if (data?.length > 0) {
+        retryCount.current = 0;
+        nextCursor.current = paginateData?.next_cursor || null;
+        setOriginalComments((prev) => [...prev, ...data]);
+        setComments((prev) => [...prev, ...data]);
+      } else if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchComments();
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchComments();
+      }
     } finally {
       setLoading(false);
     }
@@ -52,8 +71,19 @@ const AllComments = () => {
     fetchComments();
   }, [id]);
 
+  const onLoadMore = async () => {
+    if (nextCursor.current) {
+      console.log("load more");
+      setIsLoadingMore(true);
+      await fetchComments();
+      setIsLoadingMore(false);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
+    setComments([]);
+    setOriginalComments([]);
     await fetchComments();
     setRefreshing(false);
   };
@@ -246,9 +276,7 @@ const AllComments = () => {
       ) : (
         <FlatList
           data={comments}
-          keyExtractor={(item) =>
-            item?.id?.toString() || `comment-${Math.random()}`
-          }
+          keyExtractor={(item, index) => index.toString()}
           renderItem={({ item }) => (
             <View className="px-4 py-2">
               {item && (
@@ -260,6 +288,13 @@ const AllComments = () => {
               )}
             </View>
           )}
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={() =>
+            isLoadingMore ? (
+              <ActivityIndicator size="small" color="black" />
+            ) : null
+          }
           contentContainerClassName="pb-10"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

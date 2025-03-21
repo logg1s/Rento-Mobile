@@ -1,12 +1,12 @@
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import React from "react";
 import Fontisto from "@expo/vector-icons/Fontisto";
-import { FontAwesome } from "@expo/vector-icons";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
 import { convertedPrice, getServiceImageSource } from "@/utils/utils";
 import { twMerge } from "tailwind-merge";
-
+import useRentoData from "@/stores/dataStore";
 const SmallerServiceCard: React.FC<ServiceCardProps> = ({
   data: {
     id,
@@ -19,12 +19,10 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
     created_at,
     updated_at,
     deleted_at,
-    is_liked,
     comment_count,
     images,
   },
   containerStyles,
-  onPressFavorite,
 }) => {
   // TODO: write logic press service card
   const onPressServiceCard = () => {
@@ -35,6 +33,9 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
       },
     });
   };
+
+  const isLiked = useRentoData((state) => state.favIds.includes(id));
+  const updateFavorite = useRentoData((state) => state.updateFavorite);
 
   // TODO: write long press service card
   const onLongPressServiceCard = () => {};
@@ -47,17 +48,21 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
       onPress={onPressServiceCard}
       onLongPress={onLongPressServiceCard}
     >
-      <Image
-        source={
-          service_name && images && images.length > 0
-            ? getServiceImageSource(images[0].image_url)
-            : {
-                uri: `https://picsum.photos/seed/services/400`,
-              }
-        }
-        className="w-full h-40"
-        resizeMode="cover"
-      />
+      {service_name && images && images.length > 0 ? (
+        <Image
+          source={getServiceImageSource(images[0].image_url)}
+          defaultSource={{
+            uri: `https://picsum.photos/seed/services/400`,
+          }}
+          className="w-full h-40"
+          resizeMode="cover"
+        />
+      ) : (
+        <View className="bg-white h-32 justify-center items-center rounded-full">
+          <Ionicons name="image-outline" size={32} color="gray" />
+        </View>
+      )}
+
       <View className="px-3 gap-3 justify-between flex-1">
         <View className="flex-row items-center">
           <View className="flex-row gap-1 flex-1 items-center">
@@ -67,11 +72,11 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
               <Text className="font-pregular text-sm">({comment_count})</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={onPressFavorite}>
+          <TouchableOpacity onPress={() => updateFavorite(id, !isLiked)}>
             <FontAwesome
-              name={is_liked ? "heart" : "heart-o"}
+              name={isLiked ? "heart" : "heart-o"}
               size={24}
-              color={is_liked ? "#c40000" : "gray"}
+              color={isLiked ? "#c40000" : "gray"}
               className="mb-2"
             />
           </TouchableOpacity>

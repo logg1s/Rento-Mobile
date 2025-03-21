@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -25,21 +25,45 @@ const NotificationScreen = () => {
     (state) => state.markAllNotificationsAsRead
   );
   const [refreshing, setRefreshing] = useState(false);
+  const retryCount = useRef(0);
+
+  const fetchNotificationsWithRetry = async () => {
+    try {
+      setRefreshing(true);
+      await fetchNotifications();
+      if (notifications?.length > 0) {
+        retryCount.current = 0;
+      } else if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchNotificationsWithRetry();
+      }
+    } catch (error: any) {
+      console.error("Error fetching notifications:", error?.response?.data);
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchNotificationsWithRetry();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    fetchNotifications();
+    retryCount.current = 0;
+    fetchNotificationsWithRetry();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchNotifications();
+    retryCount.current = 0;
+    await fetchNotificationsWithRetry();
     setRefreshing(false);
   };
 
   const deleteNotification = async (id: number) => {
     try {
       await axiosFetch(`/notifications/${id}`, "delete");
-      fetchNotifications();
+      fetchNotificationsWithRetry();
     } catch (error) {
       console.error("Error deleting notification:", error);
     }
@@ -105,7 +129,7 @@ const NotificationScreen = () => {
       <FlatList
         data={notifications}
         renderItem={renderNotificationItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={{ flexGrow: 1 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

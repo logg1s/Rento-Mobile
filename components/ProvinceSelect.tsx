@@ -157,7 +157,7 @@ const ProvinceSelect = ({
 
                 <FlatList
                   data={filteredProvinces}
-                  keyExtractor={(item) => item.id.toString()}
+                  keyExtractor={(item, index) => index.toString()}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       className={`p-4 border-b border-gray-100 ${

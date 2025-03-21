@@ -226,9 +226,9 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
       set({ isLoading: false });
       return true;
     } catch (error) {
-      console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
+      console.error("Lỗi khi cập nhật trạng thái đơn dịch vụ:", error);
       set({
-        error: "Không thể cập nhật trạng thái đơn hàng",
+        error: "Không thể cập nhật trạng thái đơn dịch vụ",
         isLoading: false,
       });
       throw error;

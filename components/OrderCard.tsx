@@ -40,8 +40,8 @@ export const OrderCard = ({
 
   const handleCancelOrder = async () => {
     Alert.alert(
-      "Xác nhận hủy đơn",
-      "Bạn có chắc chắn muốn hủy đơn hàng này không?",
+      "Xác nhận huỷ đơn",
+      "Bạn có chắc chắn muốn huỷ đơn hàng này không?",
       [
         {
           text: "Không",
@@ -60,16 +60,16 @@ export const OrderCard = ({
                   OrderStatus.CANCELLED
                 );
                 if (success) {
-                  Alert.alert("Thành công", "Đã hủy đơn hàng thành công");
+                  Alert.alert("Thành công", "Đã huỷ đơn hàng thành công");
                   onOrderUpdate?.();
                 } else {
-                  throw new Error("Không thể hủy đơn hàng");
+                  throw new Error("Không thể huỷ đơn hàng");
                 }
               }
             } catch (error) {
               Alert.alert(
                 "Lỗi",
-                "Không thể hủy đơn hàng. Vui lòng thử lại sau"
+                "Không thể huỷ đơn hàng. Vui lòng thử lại sau"
               );
             }
           },
@@ -128,7 +128,7 @@ export const OrderCard = ({
               }}
             >
               <Ionicons name="close-circle-outline" size={20} color="#dc2626" />
-              <Text className="text-red-600 font-bold">Hủy đơn</Text>
+              <Text className="text-red-600 font-bold">Huỷ đơn</Text>
             </TouchableOpacity>
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center space-x-2 bg-blue-100 py-3 rounded-xl border border-blue-300 shadow-sm"
@@ -191,7 +191,7 @@ export const OrderCard = ({
               }}
             >
               <Ionicons name="close-circle-outline" size={20} color="#dc2626" />
-              <Text className="text-red-600 font-bold">Hủy đơn</Text>
+              <Text className="text-red-600 font-bold">Huỷ đơn</Text>
             </TouchableOpacity>
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center space-x-2 bg-blue-100 py-3 rounded-xl border border-blue-300 shadow-sm"

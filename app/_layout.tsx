@@ -17,30 +17,10 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
-import useRentoData from "@/stores/dataStore";
 
 SplashScreen.preventAutoHideAsync();
 
 const Layout = () => {
-  const router = useRouter();
-  const initialize = useAuthStore((state) => state.initialize);
-  const user = useRentoData((state) => state.user);
-
-  useEffect(() => {
-    const init = async () => {
-      await initialize();
-      const currentUser = useRentoData.getState().user;
-      if (currentUser) {
-        if (currentUser.role?.some((r) => r.id === "provider")) {
-          router.replace("/provider/services");
-        } else {
-          router.replace("/(tabs)/home");
-        }
-      }
-    };
-    init();
-  }, []);
-
   const [loaded, error] = useFonts({
     Poppins_100Thin,
     Poppins_200ExtraLight,

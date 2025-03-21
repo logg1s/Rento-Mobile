@@ -12,7 +12,7 @@ const OrderServiceDetails = ({
 }) => {
   return (
     <View className="mt-5">
-      <Text className="font-pbold text-xl mb-3">Thông tin đơn hàng</Text>
+      <Text className="font-pbold text-xl mb-3">Thông tin đơn dịch vụ</Text>
       <View className="bg-white p-4 rounded-xl">
         <Text className="font-pmedium">Dịch vụ: {service?.service_name}</Text>
         <Text className="font-pmedium">Gói: {price?.price_name}</Text>

@@ -794,15 +794,7 @@ export default function NearbySearch() {
                     )}
                 </View>
               </View>
-              <ServiceCard
-                data={selectedService}
-                onPressFavorite={() =>
-                  onPressFavorite(
-                    selectedService.id,
-                    (!selectedService.is_liked).toString()
-                  )
-                }
-              />
+              <ServiceCard data={selectedService} />
               <View style={styles.viewDetailButton}>
                 <Text style={styles.viewDetailText}>Xem chi tiết</Text>
                 <Ionicons name="arrow-forward" size={16} color="#0286FF" />
@@ -919,12 +911,7 @@ export default function NearbySearch() {
           </TouchableOpacity>
         )}
       </View>
-      <ServiceCard
-        data={item}
-        onPressFavorite={() =>
-          onPressFavorite(item.id, (!item.is_liked).toString())
-        }
-      />
+      <ServiceCard data={item} />
     </View>
   );
 
@@ -1117,7 +1104,7 @@ export default function NearbySearch() {
 
         <FlatList
           data={services}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => index.toString()}
           renderItem={renderItem}
           contentContainerStyle={[
             styles.listContainer,
@@ -1304,15 +1291,7 @@ export default function NearbySearch() {
                     )}
                 </View>
               </View>
-              <ServiceCard
-                data={selectedService}
-                onPressFavorite={() =>
-                  onPressFavorite(
-                    selectedService.id,
-                    (!selectedService.is_liked).toString()
-                  )
-                }
-              />
+              <ServiceCard data={selectedService} />
               <View style={styles.viewDetailButton}>
                 <Text style={styles.viewDetailText}>Xem chi tiết</Text>
                 <Ionicons name="arrow-forward" size={16} color="#0286FF" />

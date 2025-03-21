@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   View,
   FlatList,
@@ -58,7 +58,7 @@ const sortOptions = [
 const searchFilterOptions = [
   { key: "service", value: "Tên dịch vụ", icon: "construct" },
   { key: "customer", value: "Tên khách hàng", icon: "person" },
-  { key: "order_id", value: "Mã đơn hàng", icon: "receipt" },
+  { key: "order_id", value: "Mã đơn dịch vụ", icon: "receipt" },
   { key: "phone", value: "Số điện thoại", icon: "call" },
   { key: "address", value: "Địa chỉ", icon: "location" },
   { key: "email", value: "Email", icon: "mail" },
@@ -103,6 +103,7 @@ export default function ProviderOrders() {
     cancelled: 0,
   });
   const [totalCompletedRevenue, setTotalCompletedRevenue] = useState(0);
+  const retryCount = useRef(0);
 
   // Initial load orders
   const loadOrders = async (refresh = true) => {
@@ -144,20 +145,24 @@ export default function ProviderOrders() {
           if (response.total_revenue !== undefined) {
             setTotalCompletedRevenue(response.total_revenue);
           }
+          retryCount.current = 0;
         } else {
           if (refresh) {
             setOrders([]);
           }
         }
       } else {
-        if (refresh) {
+        if (retryCount.current < 5) {
+          retryCount.current++;
+          loadOrders(refresh);
+        } else if (refresh) {
           setOrders([]);
           setNextCursor(null);
           setHasMore(false);
         }
       }
     } catch (error) {
-      console.error("Lỗi khi tải đơn hàng:", error);
+      console.error("Lỗi khi tải đơn dịch vụ:", error);
       if (refresh) {
         setOrders([]);
         setNextCursor(null);
@@ -165,7 +170,7 @@ export default function ProviderOrders() {
       }
       Alert.alert(
         "Lỗi",
-        "Không thể tải danh sách đơn hàng. Vui lòng thử lại sau."
+        "Không thể tải danh sách đơn dịch vụ. Vui lòng thử lại sau."
       );
     } finally {
       setRefreshing(false);
@@ -222,7 +227,7 @@ export default function ProviderOrders() {
     try {
       const success = await updateOrderStatus(orderId, newStatus);
       if (success) {
-        Alert.alert("Thành công", "Trạng thái đơn hàng đã được cập nhật");
+        Alert.alert("Thành công", "Trạng thái đơn dịch vụ đã được cập nhật");
         await loadOrders(true);
         try {
           await fetchStatistics();
@@ -240,7 +245,7 @@ export default function ProviderOrders() {
       console.error("Error updating order status:", error);
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại sau."
+        "Không thể cập nhật trạng thái đơn dịch vụ. Vui lòng thử lại sau."
       );
     }
   };
@@ -384,7 +389,7 @@ export default function ProviderOrders() {
       <View className="py-4 items-center">
         <ActivityIndicator size="small" color="#3b82f6" />
         <Text className="text-gray-500 mt-2 text-sm">
-          Đang tải thêm đơn hàng...
+          Đang tải thêm đơn dịch vụ...
         </Text>
       </View>
     );
@@ -457,7 +462,7 @@ export default function ProviderOrders() {
     <SafeAreaView className="flex-1 bg-general-500">
       {/* Stats section */}
       <View className="bg-white px-4 py-3">
-        <Text className="text-2xl font-pbold mb-3">Quản lý đơn hàng</Text>
+        <Text className="text-2xl font-pbold mb-3">Quản lý đơn dịch vụ</Text>
 
         {/* Overview stats */}
         <View className="bg-blue-50 p-3 rounded-xl border border-blue-100 mb-3">
@@ -471,7 +476,7 @@ export default function ProviderOrders() {
           </View>
           <Text className="text-xs text-gray-500">
             Từ {orderCounts.completed} đơn hoàn thành • {orderCounts.total} tổng
-            đơn hàng
+            đơn dịch vụ
           </Text>
         </View>
 
@@ -610,7 +615,7 @@ export default function ProviderOrders() {
       <FlatList
         data={orders}
         renderItem={renderOrderItem}
-        keyExtractor={(item) => `order-${item.id}`}
+        keyExtractor={(item, index) => index.toString()}
         contentContainerClassName="p-4"
         refreshControl={
           <RefreshControl
@@ -630,7 +635,7 @@ export default function ProviderOrders() {
               <View>
                 <ActivityIndicator size="large" color="#3b82f6" />
                 <Text className="text-gray-500 mt-4 font-pmedium">
-                  Đang tải đơn hàng...
+                  Đang tải đơn dịch vụ...
                 </Text>
               </View>
             ) : (
@@ -638,8 +643,8 @@ export default function ProviderOrders() {
                 <MaterialIcons name="inbox" size={48} color="gray" />
                 <Text className="text-gray-500 mt-2 font-pmedium">
                   {searchQuery || statusFilter !== "all"
-                    ? "Không tìm thấy đơn hàng nào"
-                    : "Chưa có đơn hàng nào"}
+                    ? "Không tìm thấy đơn dịch vụ nào"
+                    : "Chưa có đơn dịch vụ nào"}
                 </Text>
               </>
             )}

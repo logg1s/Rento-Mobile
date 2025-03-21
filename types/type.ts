@@ -94,6 +94,7 @@ export type ServiceType = {
   id: number;
   service_name: string;
   service_description: string;
+  ordered_by_me?: boolean;
   user?: UserType;
   location?: LocationType;
   category?: CategoryType;

@@ -49,11 +49,11 @@ export const formatDateToVietnamese = (date: Date) => {
   return `${day}, ${dayOfMonth}/${month}/${year}`;
 };
 
-export const formatToVND = (price: number) => {
+export const formatToVND = (price: number | null | undefined) => {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
-  }).format(price);
+  }).format(price ?? 0);
 };
 
 export const getImagePath = (path: string | null | undefined) => {
@@ -106,7 +106,7 @@ export const getImageSource = (
 
 export const normalizeVietnamese = (str: string) => {
   return str
-    .toLowerCase()
+    ?.toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 };

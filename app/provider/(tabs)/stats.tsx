@@ -297,7 +297,7 @@ const StatsScreen = () => {
                 color="#f59e0b"
               />
             }
-            title="Đơn hàng"
+            title="Đơn dịch vụ"
             value={stats.orders.total.toString()}
             trend={0}
           />
@@ -386,7 +386,7 @@ const StatsScreen = () => {
           {/* Order Status Chart */}
           <View className="bg-white p-4 rounded-lg shadow-sm w-full mb-4">
             <Text className="text-xl font-pbold text-gray-800 mb-4">
-              Trạng thái đơn hàng
+              Trạng thái đơn dịch vụ
             </Text>
 
             {stats.orders.total > 0 ? (
@@ -403,7 +403,7 @@ const StatsScreen = () => {
             ) : (
               <View className="h-[200] justify-center items-center">
                 <Text className="text-gray-500 font-pmedium">
-                  Không có đơn hàng
+                  Không có đơn dịch vụ
                 </Text>
               </View>
             )}
@@ -460,7 +460,7 @@ const StatsScreen = () => {
         {/* Order Trends */}
         <View className="bg-white mt-2 p-4 mx-4 rounded-lg shadow-sm">
           <Text className="text-xl font-pbold text-gray-800 mb-4">
-            Xu hướng đơn hàng
+            Xu hướng đơn dịch vụ
           </Text>
 
           {stats.orders.trends.data.length > 1 ? (
@@ -593,7 +593,7 @@ const StatsScreen = () => {
                   </View>
                   <View className="flex-row justify-between mt-2">
                     <Text className="text-xs text-gray-500">
-                      {service.order_count} đơn hàng
+                      {service.order_count} đơn dịch vụ
                     </Text>
                     <Text className="text-xs text-gray-500">
                       {service.review_count} đánh giá

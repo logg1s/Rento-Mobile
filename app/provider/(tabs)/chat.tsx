@@ -867,7 +867,7 @@ const ChatScreen = () => {
           <FlatList
             data={conversations}
             renderItem={renderConversation}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item, index) => index.toString()}
             refreshControl={
               <RefreshControl
                 refreshing={isLoading}
@@ -914,7 +914,7 @@ const ChatScreen = () => {
                 </Text>
               )}
             </View>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() =>
                 router.push({
                   pathname: "/message/call",
@@ -927,7 +927,7 @@ const ChatScreen = () => {
               className="mr-4"
             >
               <Ionicons name="call" size={24} color="#0286FF" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity onPress={() => setShowConversationOptions(true)}>
               <Ionicons name="ellipsis-vertical" size={24} color="black" />
             </TouchableOpacity>
@@ -939,7 +939,7 @@ const ChatScreen = () => {
               <FlatList
                 ref={flatListRef}
                 data={messages}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item, index) => index.toString()}
                 renderItem={renderMessage}
                 removeClippedSubviews={true}
                 maxToRenderPerBatch={15}

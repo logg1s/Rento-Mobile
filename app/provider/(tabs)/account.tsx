@@ -109,7 +109,7 @@ const ProfileScreen = () => {
 
   const logout = useAuthStore((state) => state.logout);
   const handleLogout = async () => {
-    Alert.alert("Đăng xuất", "Bạn có muốn đăng xuất", [
+    Alert.alert("Đăng xuất", "Bạn có muốn đăng xuất?", [
       {
         text: "Đăng xuất",
         onPress: async () => {

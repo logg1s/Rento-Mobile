@@ -8,6 +8,7 @@ import {
   View,
   TextInput,
   Alert,
+  ToastAndroid,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
@@ -19,7 +20,7 @@ import { benefit_data, price_data } from "@/lib/dummy";
 import SmallerServiceCard from "@/components/SmallerServiceCard";
 import RatingStar from "@/components/RatingStar";
 import CommentCard from "@/components/CommentCard";
-import { ServiceType } from "@/types/type";
+import { ServiceType, CommentType } from "@/types/type";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import InputField from "@/components/InputField";
 import * as ImagePicker from "expo-image-picker";
@@ -29,6 +30,7 @@ import {
   getImageSource,
   getServiceImageSource,
 } from "@/utils/utils";
+import { PaginationType } from "@/types/pagination";
 
 const DetailJob = () => {
   const { id } = useLocalSearchParams();
@@ -39,45 +41,99 @@ const DetailJob = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const updateFavorite = useRentoData((state) => state.updateFavorite);
-  const services = useRentoData((state) => state.services);
   const favorites = useRentoData((state) => state.favorites);
   const [comment, setComment] = useState("");
   const [selectedRating, setSelectedRating] = useState<number>(0);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const user = useRentoData((state) => state.user);
-  const viewedService = services.filter(
-    (item) =>
-      item.id.toString() !== id &&
-      user?.viewed_service_log?.some((viewed) => viewed.service_id === item.id)
-  );
-  const suggestedServices = services.filter((item) =>
-    data?.suggested_services?.includes(item.id)
-  );
+  const [recentComment, setRecentComment] = useState<CommentType[]>([]);
+  const [suggestedServices, setSuggestedServices] = useState<ServiceType[]>([]);
+  const [viewedService, setViewedService] = useState<ServiceType[]>([]);
+  const isLiked = useRentoData((state) => state.favIds.includes(Number(id)));
+  const retryCount = useRef(0);
 
-  const fetchData = async () => {
-    const serviceRes = await axiosFetch(`/services/${id}`);
-
-    const service = serviceRes?.data;
-    service.is_liked =
-      favorites?.some((item) => item.id === service.id) ?? false;
-    setComment(service?.comment_by_you?.comment_body ?? "");
-    setSelectedRating(service?.comment_by_you?.rate ?? 0);
-
-    // Xử lý dữ liệu ảnh
-    if (service?.image && Array.isArray(service.image)) {
-      service.images = service.image.map(
-        (img: { id: number; path: string }) => ({
-          id: img.id,
-          image_url: img.path,
-        })
-      );
+  const fetchViewedService = async () => {
+    try {
+      let url = `/services/viewed`;
+      const response = await axiosFetch(url, "get");
+      const data = response?.data?.data;
+      if (data?.length > 0) {
+        setViewedService(data);
+      }
+    } catch (error) {
+      console.error("Error fetching viewed service:", error);
     }
+  };
 
-    setData(service);
+  const fetchSuggestedService = async () => {
+    if (!data?.suggested_services?.length) return;
+
+    try {
+      const requests = data.suggested_services.map((id) =>
+        axiosFetch(`/services/get/${id}`)
+      );
+
+      const responses = await Promise.all(requests);
+
+      const services = responses
+        .map((response) => response?.data)
+        .filter((data) => data);
+
+      setSuggestedServices(services);
+    } catch (error) {
+      console.error("Error fetching suggested services:", error);
+    }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchSuggestedService();
+  }, [data]);
+
+  const fetchData = async () => {
+    try {
+      const serviceRes = await axiosFetch(`/services/get/${id}`);
+      const service = serviceRes?.data;
+      service.is_liked =
+        favorites?.some((item) => item.id === service.id) ?? false;
+      setComment(service?.comment_by_you?.comment_body ?? "");
+      setSelectedRating(service?.comment_by_you?.rate ?? 0);
+
+      // Xử lý dữ liệu ảnh
+      if (service?.image && Array.isArray(service.image)) {
+        service.images = service.image.map(
+          (img: { id: number; path: string }) => ({
+            id: img.id,
+            image_url: img.path,
+          })
+        );
+      }
+      setData(service);
+      retryCount.current = 0;
+    } catch (error: any) {
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchData();
+      }
+      console.error("Error fetching data:", error?.response?.data);
+    }
+  };
+
+  const fetchRecentComment = async () => {
+    const response = await axiosFetch(`/services/${id}/comments`);
+    const paginateData: PaginationType<CommentType> = response?.data || [];
+    const data = paginateData?.data || [];
+    if (data?.length > 0) {
+      setRecentComment(data);
+    }
+  };
+
+  useEffect(() => {
+    retryCount.current = 0;
+    const fetchAllData = async () => {
+      await fetchData();
+      fetchRecentComment();
+      fetchViewedService();
+    };
+    fetchAllData();
   }, [id, favorites]);
 
   const onPressOrder = () => {
@@ -89,7 +145,15 @@ const DetailJob = () => {
 
   const onRefresh = async () => {
     setIsRefreshing(true);
+    retryCount.current = 0;
+    setSuggestedServices([]);
+    setViewedService([]);
+    setRecentComment([]);
+    setData(null);
     await fetchData();
+    fetchRecentComment();
+    fetchViewedService();
+    fetchSuggestedService();
     setIsRefreshing(false);
   };
 
@@ -105,21 +169,21 @@ const DetailJob = () => {
         <TouchableOpacity
           onPressIn={() => {
             if (data?.id) {
-              onPressFavorite(data.id, !data?.is_liked);
+              onPressFavorite();
             }
           }}
         >
           {data ? (
             <FontAwesome
-              name={data?.is_liked ? "heart" : "heart-o"}
+              name={isLiked ? "heart" : "heart-o"}
               size={24}
-              color={data?.is_liked ? "#c40000" : "gray"}
+              color={isLiked ? "#c40000" : "gray"}
             />
           ) : null}
         </TouchableOpacity>
       ),
     });
-  }, [id, data]);
+  }, [id, data, isLiked]);
 
   const onPressCardPrice = (index: number) => {
     if (index !== undefined) {
@@ -127,10 +191,12 @@ const DetailJob = () => {
     }
   };
 
-  const onPressFavorite = (serviceId: number | undefined, action: boolean) => {
-    if (serviceId) {
-      updateFavorite(serviceId, action);
-    }
+  const onPressFavorite = () => {
+    updateFavorite(Number(id), !isLiked);
+    ToastAndroid.show(
+      !isLiked ? "Đã thêm vào yêu thích" : "Đã xóa khỏi yêu thích",
+      ToastAndroid.SHORT
+    );
   };
 
   useEffect(() => {
@@ -237,21 +303,21 @@ const DetailJob = () => {
           }
         >
           <View className="gap-1">
-            <Swiper
-              className="h-60 w-full"
-              renderPagination={(index, total) => (
-                <View className="rounded-2xl pt-[3px] w-auto px-3 h-[25px] bg-neutral-900 justify-center items-center absolute bottom-5 right-5">
-                  <Text
-                    className="font-pmedium text-white text-center"
-                    numberOfLines={1}
-                  >
-                    {index + 1}/{total}
-                  </Text>
-                </View>
-              )}
-            >
-              {data?.images && data.images.length > 0 ? (
-                data.images.map((image, index) => (
+            {data?.images && data.images.length > 0 ? (
+              <Swiper
+                className="h-60 w-full"
+                renderPagination={(index, total) => (
+                  <View className="rounded-2xl pt-[3px] w-auto px-3 h-[25px] bg-neutral-900 justify-center items-center absolute bottom-5 right-5">
+                    <Text
+                      className="font-pmedium text-white text-center"
+                      numberOfLines={1}
+                    >
+                      {index + 1}/{total}
+                    </Text>
+                  </View>
+                )}
+              >
+                {data?.images?.map((image, index) => (
                   <Image
                     key={index}
                     source={getServiceImageSource(image.image_url)}
@@ -268,16 +334,14 @@ const DetailJob = () => {
                       uri: `https://picsum.photos/seed/services/400`,
                     }}
                   />
-                ))
-              ) : (
-                <Image
-                  source={{
-                    uri: `https://picsum.photos/seed/services/400`,
-                  }}
-                  className="h-full w-full"
-                />
-              )}
-            </Swiper>
+                ))}
+              </Swiper>
+            ) : (
+              <View className="bg-white h-64 justify-center items-center">
+                <Ionicons name="image-outline" size={64} color="gray" />
+                <Text className="text-gray-500 mt-2">Không có hình ảnh</Text>
+              </View>
+            )}
             <View className="p-5 bg-white flex-row justify-between items-center">
               <TouchableOpacity
                 className="flex-row gap-3 items-center flex-1"
@@ -426,25 +490,13 @@ const DetailJob = () => {
               contentContainerClassName="gap-5 py-5"
               showsHorizontalScrollIndicator={false}
             >
-              {data?.comment && data.comment.length > 0 ? (
-                data.comment
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      new Date(b.created_at || 0).getTime() -
-                      new Date(a.created_at || 0).getTime()
-                  )
-                  .slice(0, 5)
-                  .map(
-                    (item) =>
-                      item && (
-                        <CommentCard
-                          key={item.id || `comment-${Math.random()}`}
-                          data={item}
-                          user={item?.user}
-                        />
-                      )
-                  )
+              {recentComment.length > 0 ? (
+                recentComment.map(
+                  (item, index) =>
+                    item && (
+                      <CommentCard key={index} data={item} user={item?.user} />
+                    )
+                )
               ) : (
                 <Text className="font-pmedium text-gray-500 px-5">
                   Chưa có đánh giá nào
@@ -542,13 +594,7 @@ const DetailJob = () => {
                 contentContainerClassName="gap-5 py-5"
               >
                 {suggestedServices.map((item) => (
-                  <SmallerServiceCard
-                    key={item.id}
-                    data={item}
-                    onPressFavorite={() =>
-                      onPressFavorite(item.id, !item.is_liked)
-                    }
-                  />
+                  <SmallerServiceCard key={item.id} data={item} />
                 ))}
               </ScrollView>
             </View>
@@ -562,13 +608,7 @@ const DetailJob = () => {
                 contentContainerClassName="gap-5 py-5"
               >
                 {viewedService.map((item) => (
-                  <SmallerServiceCard
-                    key={item.id}
-                    data={item}
-                    onPressFavorite={() =>
-                      onPressFavorite(item.id, !item.is_liked)
-                    }
-                  />
+                  <SmallerServiceCard key={item.id} data={item} />
                 ))}
               </ScrollView>
             </View>

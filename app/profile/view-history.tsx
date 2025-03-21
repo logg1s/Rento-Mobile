@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,23 +8,24 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { ServiceType } from "@/types/type";
 import ServiceCard from "@/components/ServiceCard";
 import { useNavigation } from "expo-router";
-interface ViewHistoryItem {
-  service_id: number;
-  service: ServiceType;
-}
+import { PaginationType } from "@/types/pagination";
 
 const ViewHistoryScreen = () => {
   const user = useRentoData((state) => state.user);
-  const services = useRentoData((state) => state.services);
-  const [viewHistory, setViewHistory] = useState<ViewHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
+  const retryCount = useRef(0);
+  const [viewHistory, setViewHistory] = useState<ServiceType[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const nextCursor = useRef<string | null>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -39,25 +40,60 @@ const ViewHistoryScreen = () => {
     });
   }, [viewHistory]);
 
-  useEffect(() => {
-    if (user?.viewed_service_log && services) {
-      const historyItems = user.viewed_service_log
-        .map((item) => {
-          const service = services.find((s) => s.id === item.service_id);
-          if (service) {
-            return {
-              service_id: item.service_id,
-              service,
-            };
-          }
-          return null;
-        })
-        .filter((item): item is ViewHistoryItem => item !== null);
-      setViewHistory(historyItems);
-    }
+  const fetchServiceWithRetry = async () => {
+    try {
+      let url = `/services/viewed`;
+      if (nextCursor.current) {
+        url += `?cursor=${nextCursor.current}`;
+      }
+      const response = await axiosFetch(url, "get");
 
-    setLoading(false);
-  }, [user, services]);
+      const paginateData: PaginationType<ServiceType> = response?.data || [];
+      const data = paginateData?.data || [];
+      console.log("data", data);
+      if (data?.length > 0) {
+        retryCount.current = 0;
+        nextCursor.current = paginateData?.next_cursor || null;
+        setViewHistory((prev) => [...prev, ...data]);
+      } else if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchServiceWithRetry();
+      }
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi fetch dịch vụ:",
+        error?.response?.data || error.message
+      );
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchServiceWithRetry();
+      }
+    }
+  };
+
+  const onLoadMore = async () => {
+    if (nextCursor.current) {
+      setIsLoadingMore(true);
+      await fetchServiceWithRetry();
+      setIsLoadingMore(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setIsLoading(true);
+      retryCount.current = 0;
+      setViewHistory([]);
+      await fetchServiceWithRetry();
+    } catch (error: any) {
+      console.error("Lỗi khi refresh:", error?.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchServiceWithRetry();
+  }, []);
 
   const handleDeleteItem = async (serviceId: number) => {
     Alert.alert("Xác nhận", "Bạn có chắc chắn muốn xóa mục này khỏi lịch sử?", [
@@ -71,9 +107,7 @@ const ViewHistoryScreen = () => {
         onPress: async () => {
           try {
             await axiosFetch(`/users/viewed/${serviceId}`, "delete");
-            setViewHistory(
-              viewHistory.filter((item) => item.service_id !== serviceId)
-            );
+            setViewHistory(viewHistory.filter((item) => item.id !== serviceId));
           } catch (error) {
             Alert.alert("Lỗi", "Không thể xóa mục này");
           }
@@ -103,15 +137,11 @@ const ViewHistoryScreen = () => {
     ]);
   };
 
-  const renderItem = ({ item }: { item: ViewHistoryItem }) => (
+  const renderItem = ({ item }: { item: ServiceType }) => (
     <View className="relative">
-      <ServiceCard
-        data={item.service}
-        containerStyles="mb-4"
-        onPressFavorite={() => {}}
-      />
+      <ServiceCard data={item} containerStyles="mb-4" />
       <TouchableOpacity
-        onPress={() => handleDeleteItem(item.service_id)}
+        onPress={() => handleDeleteItem(item.id)}
         className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-full py-1 px-3 flex-row items-center"
       >
         <Ionicons name="trash-outline" size={20} color="#FF3B30" />
@@ -122,7 +152,7 @@ const ViewHistoryScreen = () => {
 
   return (
     <View className="flex-1 bg-gray-50">
-      {loading ? (
+      {isLoading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#0286FF" />
         </View>
@@ -137,8 +167,18 @@ const ViewHistoryScreen = () => {
         <FlatList
           data={viewHistory}
           renderItem={renderItem}
-          keyExtractor={(item) => item.service_id.toString()}
+          keyExtractor={(item, index) => index.toString()}
           contentContainerClassName="p-4"
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={() =>
+            isLoadingMore ? (
+              <ActivityIndicator size="small" color="black" />
+            ) : null
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       )}
     </View>

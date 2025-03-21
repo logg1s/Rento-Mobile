@@ -1,11 +1,12 @@
 import ServiceCard from "@/components/ServiceCard";
-import useRentoData from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { getImageSource } from "@/utils/utils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Notifications from "expo-notifications";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   RefreshControl,
@@ -18,21 +19,66 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from "react-native-swiper";
 import { useCheckProfileComplete } from "@/hooks/useCheckProfileComplete";
+import { ServiceType } from "@/types/type";
+import { Service } from "@/lib/dummy";
+import { PaginationType } from "@/types/pagination";
 
 const TabHome = () => {
-  useCheckProfileComplete();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const data = useRentoData((state) => state.services);
+  const [data, setData] = useState<ServiceType[]>([]);
   const user = useRentoData((state) => state.user);
-  const fetchData = useRentoData((state) => state.fetchData);
   const updateFavorite = useRentoData((state) => state.updateFavorite);
-  const fetchServices = useRentoData((state) => state.fetchServices);
+  const retryCount = useRef(0);
+  const nextCursor = useRef<string | null>(null);
+  const favIds = useRentoData((state) => state.favIds);
+  console.log("favIds", favIds);
+
+  const fetchServiceWithRetry = async () => {
+    try {
+      let url = `/services`;
+      if (nextCursor.current) {
+        url += `?cursor=${nextCursor.current}`;
+      }
+      const response = await axiosFetch(url, "get");
+
+      const paginateData: PaginationType<ServiceType> = response?.data || [];
+      const data = paginateData?.data || [];
+      if (data?.length > 0) {
+        retryCount.current = 0;
+        nextCursor.current = paginateData?.next_cursor || null;
+        setData((prev) => [...prev, ...data]);
+      } else if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchServiceWithRetry();
+      }
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi fetch dịch vụ:",
+        error?.response?.data || error.message
+      );
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchServiceWithRetry();
+      }
+    }
+  };
+
+  const onLoadMore = async () => {
+    if (nextCursor.current) {
+      setIsLoadingMore(true);
+      await fetchServiceWithRetry();
+      setIsLoadingMore(false);
+    }
+  };
 
   const onRefresh = async () => {
     try {
       setIsLoading(true);
-      await fetchServices();
+      retryCount.current = 0;
+      setData([]);
+      await fetchServiceWithRetry();
     } catch (error: any) {
       console.error("Lỗi khi refresh:", error?.response?.data || error.message);
     } finally {
@@ -53,7 +99,9 @@ const TabHome = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    setIsLoading(true);
+    fetchServiceWithRetry();
+    setIsLoading(false);
   }, []);
 
   const onPressFavorite = (serviceId: number, action: string) => {
@@ -95,8 +143,16 @@ const TabHome = () => {
               <Text className="font-psemibold text-lg">{user?.name}</Text>
             </View>
           </View>
-          <TouchableOpacity onPressIn={openChatbotAI}>
-            <Text>Chat với AI</Text>
+          <TouchableOpacity
+            onPressIn={openChatbotAI}
+            className="flex-row bg-primary-100 items-center gap-2 border border-gray-400 shadow rounded-2xl px-4 py-2"
+          >
+            <Image
+              source={require("@/assets/icons/robot.png")}
+              className="w-6 h-6"
+              resizeMode="contain"
+            />
+            <Text className="font-pmedium text-sm">Chat với AI</Text>
           </TouchableOpacity>
         </View>
 
@@ -124,26 +180,25 @@ const TabHome = () => {
       <FlatList
         data={data}
         contentContainerClassName="px-5 gap-5 pb-5"
+        keyExtractor={(item, index) => index.toString()}
         style={{ marginTop: 50 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+        }
+        onEndReached={onLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() =>
+          isLoadingMore ? (
+            <ActivityIndicator size="small" color="black" />
+          ) : null
         }
         ListEmptyComponent={() => (
           <View className="flex-1 items-center justify-center mt-5">
             <Text className="font-psemibold text-lg">Không có dữ liệu</Text>
           </View>
         )}
-        renderItem={({ item }) =>
-          item ? (
-            <ServiceCard
-              data={item}
-              onPressFavorite={() =>
-                onPressFavorite(item.id, (!item.is_liked).toString())
-              }
-            />
-          ) : null
-        }
+        renderItem={({ item }) => (item ? <ServiceCard data={item} /> : null)}
         ListHeaderComponent={() => (
           <>
             <View className="h-60">

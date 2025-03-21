@@ -3,8 +3,8 @@ import { ServiceType } from "@/types/type";
 export type ServiceCardProps = {
   data: ServiceType;
   containerStyles?: string;
-  onPressFavorite: () => void;
   onPress?: () => void;
+  showFavorite?: boolean;
 };
 
 export type CommentCardProp = {

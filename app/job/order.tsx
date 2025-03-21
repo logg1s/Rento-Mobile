@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { View, Text, ScrollView, Alert, TouchableOpacity } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  router,
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-} from "expo-router";
+  View,
+  Text,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { home_data, price_data } from "@/lib/dummy";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
@@ -49,7 +51,7 @@ const OrderService = () => {
 
   const fetchData = async () => {
     const [serviceRes, priceRes] = await Promise.all([
-      axiosFetch(`/services/${id}`),
+      axiosFetch(`/services/get/${id}`),
       axiosFetch(`/prices/${price_id}`),
     ]);
     setService(serviceRes?.data);
@@ -100,22 +102,12 @@ const OrderService = () => {
       await axiosFetch("/orders", "post", {
         service_id: id,
         price_id: price_id,
-        price_final_value: price?.price_value,
+        price_final_value: price?.price_value || 0,
         address: formData.address,
         phone_number: formData.phone_number,
         message: formData.note,
       });
 
-      // Alert.alert(
-      //   "Đặt dịch vụ thành công",
-      //   "Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi",
-      //   [
-      //     {
-      //       text: "OK",
-      //       onPress: () => router.push("/(tabs)/home"),
-      //     },
-      //   ]
-      // );
       setModalVisible(true);
     } catch (error) {
       Alert.alert("Đặt dịch vụ thất bại", "Vui lòng thử lại sau");
@@ -123,9 +115,20 @@ const OrderService = () => {
     }
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+    setRefreshing(false);
+  }, []);
   return (
     <>
-      <ScrollView contentContainerClassName="p-5">
+      <ScrollView
+        contentContainerClassName="p-5"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View className="gap-5">
           <OrderServiceDetails service={service} price={price} />
 

@@ -246,13 +246,7 @@ const UserProfile = () => {
         </Text>
         <View className="gap-4">
           {filteredServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              data={service}
-              onPressFavorite={() =>
-                onPressFavorite(service.id, !service.is_liked)
-              }
-            />
+            <ServiceCard key={service.id} data={service} />
           ))}
           {filteredServices.length === 0 && (
             <Text className="text-center text-gray-500 mt-4">

@@ -15,7 +15,7 @@ import {
 } from "@/types/type";
 import useAuthStore from "@/stores/authStore";
 import { compatibilityFlags } from "react-native-screens";
-import { cloneWith } from "lodash";
+import { cloneWith, get, set } from "lodash";
 import { router } from "expo-router";
 
 type DataState = {
@@ -24,13 +24,12 @@ type DataState = {
   user: UserType | null;
   notifications: NotificationType[];
   favorites: ServiceType[];
-
+  favIds: number[];
   fetchServices: () => Promise<void>;
   fetchCategories: () => Promise<void>;
-  fetchUser: () => Promise<void>;
+  fetchUser: () => Promise<UserType | null>;
   fetchNotifications: () => Promise<void>;
-  fetchFavorites: () => Promise<void>;
-  fetchData: () => Promise<void>;
+  fetchFavIds: () => Promise<void>;
   updateFavorite: (serviceId: number, action: boolean) => Promise<void>;
   markNotificationAsRead: (id: number) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
@@ -60,6 +59,8 @@ type DataState = {
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
 
+let retry = 0;
+
 export const axiosFetch = async (
   url: string,
   method: Method = "get",
@@ -74,22 +75,28 @@ export const axiosFetch = async (
   );
   try {
     const token = await AsyncStorage.getItem("jwtToken");
-    return axios({
+    const result = await axios({
       url: rentoHost + url,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": `${isUpload ? "multipart/form-data" : "application/json"}`,
+        Accept: "application/json",
+        Connection: "keep-alive",
       },
       method,
       data,
     });
+    retry = 0;
+    return result;
   } catch (error: any) {
-    const refreshResult = await useAuthStore.getState().refreshAccessToken();
-    console.log("refreshResult", refreshResult);
-    if (refreshResult) {
-      return axiosFetch(url, method, data, isUpload);
+    if (retry < 10) {
+      retry++;
+      return await axiosFetch(url, method, data, isUpload);
     }
     throw error;
+  } finally {
+    retry = 0;
+    await useAuthStore.getState().refreshAccessToken();
   }
 };
 
@@ -99,17 +106,27 @@ const useRentoData = create<DataState>((set, get) => ({
   user: null,
   notifications: [],
   favorites: [],
+  favIds: [],
+
+  fetchFavIds: async () => {
+    const response = await axiosFetch(`/favorites/list`);
+    if (response?.data?.service_ids?.length > 0) {
+      set({ favIds: response?.data?.service_ids });
+    }
+  },
 
   fetchServices: async () => {
     try {
       const response = await axiosFetch(`/services`);
-      const currentFavorites = get().favorites || [];
-      const updatedServices =
-        response?.data?.data?.map((s: ServiceType) => ({
-          ...s,
-          is_liked: currentFavorites.some((f) => f.id === s.id),
-        })) || [];
-      set({ services: updatedServices });
+      if (response?.data?.data?.length > 0) {
+        const currentFavorites = get().favorites || [];
+        const updatedServices =
+          response?.data?.data?.map((s: ServiceType) => ({
+            ...s,
+            is_liked: currentFavorites.some((f) => f.id === s.id),
+          })) || [];
+        set({ services: updatedServices });
+      }
     } catch (error: any) {
       console.error("Lỗi khi tải dịch vụ:", error?.response?.data || error);
     }
@@ -128,11 +145,13 @@ const useRentoData = create<DataState>((set, get) => ({
     try {
       const response = await axiosFetch(`/users/me`);
       set({ user: response?.data || null });
+      return response?.data;
     } catch (error: any) {
       console.error(
         "Lỗi khi tải thông tin người dùng:",
         error?.response?.data || error
       );
+      return null;
     }
   },
 
@@ -144,60 +163,17 @@ const useRentoData = create<DataState>((set, get) => ({
       console.error("Lỗi khi tải thông báo:", error?.response?.data || error);
     }
   },
-
-  fetchFavorites: async () => {
-    try {
-      const response = await axiosFetch(`/favorites`);
-      set({ favorites: response?.data || [] });
-    } catch (error: any) {
-      console.error(
-        "Lỗi khi tải dịch vụ yêu thích:",
-        error?.response?.data || error
-      );
-    }
-  },
-
-  fetchData: async () => {
-    try {
-      await Promise.all([
-        get().fetchCategories(),
-        get().fetchUser(),
-        get().fetchNotifications(),
-        get().fetchFavorites(),
-      ]);
-      await get().fetchServices();
-    } catch (error: any) {
-      console.error("Lỗi khi tải dữ liệu:", error?.response?.data || error);
-    }
-  },
-
   updateFavorite: async (serviceId: number, action: boolean) => {
     try {
-      const currentServices = [...get().services];
-      const updatedServices = currentServices.map((service) =>
-        service.id === serviceId ? { ...service, is_liked: action } : service
-      );
-      set({ services: updatedServices });
-
-      const currentFavorites = [...get().favorites];
       if (action) {
-        const serviceToAdd = currentServices.find((s) => s.id === serviceId);
-        if (serviceToAdd && !currentFavorites.some((f) => f.id === serviceId)) {
-          set({ favorites: [...currentFavorites, serviceToAdd] });
-        }
+        set({ favIds: [...get().favIds, serviceId] });
       } else {
-        set({ favorites: currentFavorites.filter((f) => f.id !== serviceId) });
+        set({ favIds: get().favIds.filter((id) => id !== serviceId) });
       }
-
-      const response = await axiosFetch(`/favorites/${serviceId}`, "post", {
+      axiosFetch(`/favorites/${serviceId}`, "post", {
         action,
       });
-
-      get().fetchFavorites();
-      return response?.data;
     } catch (error: any) {
-      await get().fetchFavorites();
-      await get().fetchServices();
       console.error(
         "Lỗi khi cập nhật yêu thích:",
         error?.response?.data || error
@@ -356,13 +332,16 @@ const useRentoData = create<DataState>((set, get) => ({
 
   updateStatusOrder: async (id: number, status: OrderStatus) => {
     try {
-      const statusString = ORDER_STATUS_ENUM_MAP[status];
-      await axiosFetch(`/orders/${id}/update-status`, "put", {
-        status: statusString,
+      console.log("status", status);
+      await axiosFetch(`/users/orders/${id}/update-status`, "put", {
+        status: status,
       });
       return true;
-    } catch (error) {
-      console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
+    } catch (error: any) {
+      console.error(
+        "Lỗi khi cập nhật trạng thái đơn dịch vụ:",
+        error?.response?.data
+      );
       return false;
     }
   },

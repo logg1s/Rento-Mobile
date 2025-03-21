@@ -18,7 +18,7 @@ const TabProvider = () => {
       <Tabs.Screen
         name="orders"
         options={{
-          title: "Đơn hàng",
+          title: "Đơn dịch vụ",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="receipt-outline" size={size} color={color} />
           ),

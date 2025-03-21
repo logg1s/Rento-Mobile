@@ -4,18 +4,10 @@ import useRentoData from "@/stores/dataStore";
 
 export const useCheckProfileComplete = () => {
   const user = useRentoData((state) => state.user);
+  console.log("user", user);
 
   useEffect(() => {
     if (user) {
-      if (user.role?.some((r) => r.id === "provider")) {
-        router.replace("/provider/services");
-      } else if (
-        !user.phone_number ||
-        !user.location?.location_name ||
-        !user.role
-      ) {
-        router.push("/(auth)/complete-profile");
-      }
     }
   }, [user]);
 };

@@ -1759,7 +1759,7 @@ const ProviderServiceDetail = () => {
         ) : (
           <FlatList
             data={serviceComments}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
               <View className="px-4 py-2">
                 <CommentCard

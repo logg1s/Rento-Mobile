@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Modal,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,11 +43,7 @@ const SearchTab = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [services, setServices] = useState<ServiceType[]>([]);
   const { provinces, loadingProvinces, fetchProvinces } = useLocationStore();
-  const favorite = useRentoData((state) => state.favorites);
-  const favoriteSet = useMemo(
-    () => new Set<number>(favorite.map((f) => f.id)),
-    [favorite]
-  );
+  const [isLoading, setIsLoading] = useState(false);
   const retryTimeRef = useRef<number>(0);
   const listRef = useRef<FlatList>(null);
   const scrollRef = useRef<number | null>(null);
@@ -73,7 +70,7 @@ const SearchTab = () => {
   const onRefreshCategories = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      await fetchCategories();
+      fetchCategories();
     } catch (error) {
       console.log(error);
     } finally {
@@ -94,6 +91,7 @@ const SearchTab = () => {
 
   const fetchServices = useCallback(
     async (currentService: ServiceType[] | []) => {
+      setIsLoading(true);
       let urlEndpoint = "/services";
       if (nextCursorRef.current) {
         urlEndpoint += `?cursor=${nextCursorRef.current}`;
@@ -104,9 +102,7 @@ const SearchTab = () => {
 
         if (response?.data) {
           const servicesData = response.data;
-          const newService = [...currentService, ...servicesData.data].map(
-            (s) => ({ ...s, is_liked: favoriteSet.has(s.id) })
-          );
+          const newService = [...currentService, ...servicesData.data];
 
           if (servicesData?.next_cursor) {
             nextCursorRef.current = servicesData.next_cursor;
@@ -122,22 +118,25 @@ const SearchTab = () => {
                 });
               }
             }, 100);
-
-            return;
           }
         }
       } catch (error) {
         console.error("Error fetching services:", error);
-        if (retryTimeRef.current < 3) {
+        if (retryTimeRef.current < 10) {
+          console.log("retry", retryTimeRef.current);
           retryTimeRef.current++;
           fetchServices(currentService);
         }
+      } finally {
+        setIsLoading(false);
       }
     },
-    [favoriteSet]
+    []
   );
 
   useEffect(() => {
+    retryTimeRef.current = 0;
+    fetchCategories();
     fetchProvinces();
     fetchServices([]);
   }, [fetchProvinces, fetchServices]);
@@ -163,9 +162,7 @@ const SearchTab = () => {
     const searchTerms = normalizeVietnamese(searchQuery.toLowerCase());
     const providerTerms = normalizeVietnamese(providerFilter.toLowerCase());
 
-    // Dùng callback để tránh tạo mảng mới mỗi khi filteredData thay đổi
     setFilteredData((prevFilteredData) => {
-      // Nếu các điều kiện lọc không thay đổi thì giữ nguyên kết quả
       if (
         prevFilteredData.length > 0 &&
         searchQuery === prevSearchQuery.current &&
@@ -306,84 +303,90 @@ const SearchTab = () => {
         onRequestClose={() => setShowProvinceModal(false)}
         statusBarTranslucent={true}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl p-5 h-[80%]">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="font-pbold text-2xl">Chọn tỉnh thành</Text>
-              <TouchableOpacity
-                onPress={() => setShowProvinceModal(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={24} color="black" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row items-center bg-gray-100 rounded-lg px-4 py-2 mb-4">
-              <Ionicons name="search" size={20} color="gray" />
-              <TextInput
-                placeholder="Tìm kiếm tỉnh thành..."
-                value={localSearchQuery}
-                onChangeText={setLocalSearchQuery}
-                className="flex-1 ml-2 font-pmedium"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-              />
-              {localSearchQuery !== "" && (
+        {isLoading ? (
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#0000ff" />
+          </View>
+        ) : (
+          <View className="flex-1 justify-end bg-black/50">
+            <View className="bg-white rounded-t-3xl p-5 h-[80%]">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="font-pbold text-2xl">Chọn tỉnh thành</Text>
                 <TouchableOpacity
-                  onPress={handleClearSearch}
+                  onPress={() => setShowProvinceModal(false)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="close-circle" size={20} color="gray" />
+                  <Ionicons name="close" size={24} color="black" />
                 </TouchableOpacity>
-              )}
-            </View>
+              </View>
 
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => item.id.toString()}
-              keyboardShouldPersistTaps="handled"
-              removeClippedSubviews={true}
-              initialNumToRender={20}
-              maxToRenderPerBatch={20}
-              windowSize={10}
-              ListHeaderComponent={
-                <TouchableOpacity
-                  onPress={() => handleSelectProvince(null)}
-                  className="p-4 border-b border-gray-200"
-                >
-                  <Text className="font-pmedium text-lg">
-                    Tất cả tỉnh thành
-                  </Text>
-                </TouchableOpacity>
-              }
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => handleSelectProvince(item)}
-                  className="p-4 border-b border-gray-200"
-                >
-                  <Text className="font-pmedium text-lg">{item.name}</Text>
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View className="flex-1 justify-center items-center py-10">
-                  {loadingProvinces ? (
-                    <Text className="font-pmedium text-lg text-gray-500">
-                      Đang tải danh sách tỉnh thành...
+              <View className="flex-row items-center bg-gray-100 rounded-lg px-4 py-2 mb-4">
+                <Ionicons name="search" size={20} color="gray" />
+                <TextInput
+                  placeholder="Tìm kiếm tỉnh thành..."
+                  value={localSearchQuery}
+                  onChangeText={setLocalSearchQuery}
+                  className="flex-1 ml-2 font-pmedium"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                />
+                {localSearchQuery !== "" && (
+                  <TouchableOpacity
+                    onPress={handleClearSearch}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="gray" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item, index) => index.toString()}
+                keyboardShouldPersistTaps="handled"
+                removeClippedSubviews={true}
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={10}
+                ListHeaderComponent={
+                  <TouchableOpacity
+                    onPress={() => handleSelectProvince(null)}
+                    className="p-4 border-b border-gray-200"
+                  >
+                    <Text className="font-pmedium text-lg">
+                      Tất cả tỉnh thành
                     </Text>
-                  ) : (
-                    <>
-                      <Ionicons name="location" size={48} color="gray" />
-                      <Text className="font-pmedium text-lg text-gray-500 mt-4">
-                        Không tìm thấy tỉnh thành
+                  </TouchableOpacity>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => handleSelectProvince(item)}
+                    className="p-4 border-b border-gray-200"
+                  >
+                    <Text className="font-pmedium text-lg">{item.name}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <View className="flex-1 justify-center items-center py-10">
+                    {loadingProvinces ? (
+                      <Text className="font-pmedium text-lg text-gray-500">
+                        Đang tải danh sách tỉnh thành...
                       </Text>
-                    </>
-                  )}
-                </View>
-              }
-            />
+                    ) : (
+                      <>
+                        <Ionicons name="location" size={48} color="gray" />
+                        <Text className="font-pmedium text-lg text-gray-500 mt-4">
+                          Không tìm thấy tỉnh thành
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                }
+              />
+            </View>
           </View>
-        </View>
+        )}
       </Modal>
     );
   });
@@ -782,7 +785,7 @@ const SearchTab = () => {
                   onRefresh={onRefreshCategories}
                 />
               }
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item, index) => index.toString()}
               numColumns={2}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -925,7 +928,7 @@ const SearchTab = () => {
 
         <FlatList
           data={filteredData}
-          keyExtractor={(item, index) => item.id.toString() + index}
+          keyExtractor={(item, index) => index.toString()}
           contentContainerStyle={{ padding: 20 }}
           refreshControl={
             <RefreshControl
@@ -939,7 +942,6 @@ const SearchTab = () => {
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           windowSize={10}
-          extraData={favoriteSet} // Chỉ re-render khi favoriteSet thay đổi
           updateCellsBatchingPeriod={50}
           initialNumToRender={10}
           getItemLayout={(data, index) => ({
@@ -966,9 +968,6 @@ const SearchTab = () => {
                           updated_at: new Date().toISOString(),
                         },
                       ],
-                }}
-                onPressFavorite={() => {
-                  updateServiceFavorite(item.id, item.is_liked);
                 }}
                 containerStyles="mb-4"
               />
