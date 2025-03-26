@@ -29,14 +29,14 @@ const Oauth = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
-  const user = useRentoData((state) => state.user);
+  const fetchUser = useRentoData((state) => state.fetchUser);
 
   const handleLoginWithGoogle = async () => {
     try {
       setIsLoading(true);
       const success = await loginWithGoogle();
       if (success) {
-        const user = useRentoData.getState().user;
+        const user = await fetchUser();
         if (
           !user?.location?.location_name ||
           !user?.location?.real_location_name ||

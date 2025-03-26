@@ -311,4 +311,4 @@ const LocationInputField = ({
   );
 };
 
-export default LocationInputField;
+export default React.memo(LocationInputField);

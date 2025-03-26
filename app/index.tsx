@@ -2,8 +2,8 @@ import Oauth from "@/components/Oauth";
 import { useCheckProfileComplete } from "@/hooks/useCheckProfileComplete";
 import useAuthStore from "@/stores/authStore";
 import useRentoData from "@/stores/dataStore";
-import { Redirect, router, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Redirect, router, useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -16,35 +16,37 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const WelcomeScreen = () => {
   const router = useRouter();
   const fetchUser = useRentoData((state) => state.fetchUser);
-  const fetchFavIds = useRentoData((state) => state.fetchFavIds);
   const [isLoading, setIsLoading] = useState(false);
-  useEffect(() => {
-    const init = async () => {
-      try {
-        setIsLoading(true);
-        await fetchFavIds();
-        const user = await fetchUser();
-        if (user) {
-          if (
-            !user?.location?.location_name ||
-            !user?.location?.real_location_name ||
-            !user?.role
-          ) {
-            router.replace("/complete-profile");
-          } else if (user.role?.some((r) => r.id === "provider")) {
-            router.push("/provider/services");
-          } else {
-            router.push("/(tabs)/home");
+  useFocusEffect(
+    useCallback(() => {
+      const init = async () => {
+        try {
+          setIsLoading(true);
+          const user = await fetchUser();
+          console.log("user", user);
+          if (user) {
+            // if (
+            //   !user?.phone_number ||
+            //   !user?.location?.location_name ||
+            //   !user?.role
+            // ) {
+            //   router.replace("/complete-profile");
+            if (user.role?.some((r) => r.id === "provider")) {
+              router.push("/provider/services");
+            } else {
+              router.push("/(tabs)/home");
+            }
           }
+        } catch (error: any) {
+          console.error(error?.response?.data || error);
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error: any) {
-        console.error(error?.response?.data || error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    init();
-  }, []);
+      };
+      init();
+    }, [])
+  );
+
   return (
     <>
       <SafeAreaView className="flex-1">

@@ -93,12 +93,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      await axios.post(`${hostAuth}/logout`, {}, defaultHeader(get().token));
-      useStatusOnline(useRentoData.getState().user?.id, false);
-
       if (useRentoData.getState().user?.is_oauth) {
         await GoogleSignin.signOut();
       }
+      await axios.post(`${hostAuth}/logout`, {}, defaultHeader(get().token));
+      useStatusOnline(useRentoData.getState().user?.id, false);
     } catch (err) {
       console.error("err", err);
     } finally {

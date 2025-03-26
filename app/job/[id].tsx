@@ -92,8 +92,9 @@ const DetailJob = () => {
     try {
       const serviceRes = await axiosFetch(`/services/get/${id}`);
       const service = serviceRes?.data;
-      service.is_liked =
-        favorites?.some((item) => item.id === service.id) ?? false;
+      if (!service?.service_name || !service?.service_description) {
+        throw new Error("No data");
+      }
       setComment(service?.comment_by_you?.comment_body ?? "");
       setSelectedRating(service?.comment_by_you?.rate ?? 0);
 

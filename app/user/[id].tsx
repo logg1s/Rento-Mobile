@@ -10,7 +10,7 @@ import {
   Modal,
   Dimensions,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { CategoryType, ServiceType, UserType, CommentType } from "@/types/type";
@@ -31,6 +31,7 @@ const UserProfile = () => {
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const [showFullImage, setShowFullImage] = useState(false);
   const favorites = useRentoData((state) => state.favorites);
+  const retryCount = useRef(0);
   const fetchUserData = async () => {
     try {
       const [userRes, categoriesRes] = await Promise.all([
@@ -38,19 +39,23 @@ const UserProfile = () => {
         axiosFetch("/categories"),
       ]);
 
-      if (userRes?.data) {
+      if (userRes?.data?.service) {
         setUserData(userRes.data);
         setServices(userRes.data.service || []);
-        userRes.data.service.forEach((service: ServiceType) => {
-          service.is_liked =
-            favorites?.some((item) => item.id === service.id) ?? false;
-        });
       }
 
       if (categoriesRes?.data?.data) {
         setCategories(categoriesRes.data.data);
       }
+      if (!userRes?.data?.service || !categoriesRes?.data?.data) {
+        throw new Error("No data");
+      }
+      retryCount.current = 0;
     } catch (error) {
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchUserData();
+      }
       console.error("Error fetching user data:", error);
     }
   };
@@ -61,6 +66,7 @@ const UserProfile = () => {
 
   const onRefresh = async () => {
     setIsRefreshing(true);
+    retryCount.current = 0;
     await fetchUserData();
     setIsRefreshing(false);
   };

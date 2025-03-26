@@ -39,7 +39,6 @@ const AllComments = () => {
 
   const fetchComments = async () => {
     try {
-      setLoading(true);
       let url = `/services/${id}/comments`;
       if (nextCursor.current) {
         url += `?cursor=${nextCursor.current}`;
@@ -48,7 +47,6 @@ const AllComments = () => {
       const paginateData: PaginationType<CommentType> = response?.data || [];
       const data = paginateData?.data || [];
       if (data?.length > 0) {
-        retryCount.current = 0;
         nextCursor.current = paginateData?.next_cursor || null;
         setOriginalComments((prev) => [...prev, ...data]);
         setComments((prev) => [...prev, ...data]);
@@ -56,24 +54,24 @@ const AllComments = () => {
         retryCount.current++;
         fetchComments();
       }
+      retryCount.current = 0;
     } catch (error) {
       console.error("Error fetching comments:", error);
       if (retryCount.current < 10) {
         retryCount.current++;
         fetchComments();
       }
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchComments();
-  }, [id]);
+    setLoading(false);
+  }, []);
 
   const onLoadMore = async () => {
     if (nextCursor.current) {
-      console.log("load more");
       setIsLoadingMore(true);
       await fetchComments();
       setIsLoadingMore(false);

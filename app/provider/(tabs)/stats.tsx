@@ -134,10 +134,10 @@ const StatsScreen = () => {
 
   // Prepare data for charts
   const revenueData = {
-    labels: stats.revenue.labels || [],
+    labels: stats.revenue?.labels || [],
     datasets: [
       {
-        data: stats.revenue.data.length ? stats.revenue.data : [0],
+        data: stats?.revenue?.data.length ? stats?.revenue.data : [0],
         color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
         strokeWidth: 2,
       },
@@ -539,7 +539,7 @@ const StatsScreen = () => {
               </Text>
 
               {/* Service popularities */}
-              {serviceData.labels.length > 0 ? (
+              {serviceData?.labels.length > 0 ? (
                 <BarChart
                   data={serviceData}
                   width={screenWidth - 48}

@@ -768,12 +768,12 @@ const MessageScreen = () => {
         retryCount.current = 0;
         return response.data as UserType;
       }
-      return null;
+      throw new Error("No data");
     } catch (error) {
       console.error("Error fetching user:", error);
       if (retryCount.current < 10) {
         retryCount.current++;
-        fetchUser(otherUserId);
+        return await fetchUser(otherUserId);
       }
       return null;
     }

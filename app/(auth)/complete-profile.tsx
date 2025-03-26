@@ -19,6 +19,7 @@ import { twMerge } from "tailwind-merge";
 
 const CompleteProfile = () => {
   const [selectedRole, setSelectedRole] = useState<Role>("user");
+  const user = useRentoData((state) => state.user);
   const [formData, setFormData] = useState({
     phone_number: "",
     address: "",
@@ -49,6 +50,19 @@ const CompleteProfile = () => {
 
     return () => backHandler.remove();
   }, []);
+
+  useEffect(() => {
+    if (
+      user?.phone_number &&
+      (user?.location?.location_name || user?.location?.real_location_name)
+    ) {
+      if (user?.role?.some((role) => role.id === "provider")) {
+        router.replace("/provider/services");
+      } else {
+        router.replace("/(tabs)/home");
+      }
+    }
+  }, [user]);
 
   const rules: Rules = {
     phone_number: [

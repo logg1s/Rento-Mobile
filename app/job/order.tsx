@@ -48,14 +48,36 @@ const OrderService = () => {
 
   const [service, setService] = useState<ServiceType | null>(null);
   const [price, setPrice] = useState<PriceType | null>(null);
-
+  const retryCount = useRef(0);
   const fetchData = async () => {
-    const [serviceRes, priceRes] = await Promise.all([
-      axiosFetch(`/services/get/${id}`),
-      axiosFetch(`/prices/${price_id}`),
-    ]);
-    setService(serviceRes?.data);
-    setPrice(priceRes?.data);
+    try {
+      const [serviceRes, priceRes] = await Promise.all([
+        axiosFetch(`/services/get/${id}`),
+        axiosFetch(`/prices/${price_id}`),
+      ]);
+      if (
+        !serviceRes?.data ||
+        !priceRes?.data ||
+        !serviceRes?.data?.service_name ||
+        !priceRes?.data?.price_name ||
+        !priceRes?.data?.price_value
+      ) {
+        if (retryCount.current < 10) {
+          retryCount.current++;
+          fetchData();
+        }
+      } else {
+        retryCount.current = 0;
+        setService(serviceRes?.data);
+        setPrice(priceRes?.data);
+      }
+    } catch (error) {
+      if (retryCount.current < 10) {
+        retryCount.current++;
+        fetchData();
+      }
+      console.error(error);
+    }
   };
   useEffect(() => {
     fetchData();

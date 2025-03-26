@@ -80,6 +80,9 @@ function handleNotification(notification: Notifications.Notification) {
       }
       break;
     case "order":
+      router.push({
+        pathname: "/profile/order-history",
+      });
       break;
   }
 }
