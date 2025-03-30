@@ -37,8 +37,8 @@ const SavedServicesScreen = () => {
       const paginateData: PaginationType<ServiceType> = response?.data;
       const data = paginateData?.data || [];
       if (data?.length > 0) {
-        setFavorites((prev) => [...prev, ...data]);
         nextCursor.current = paginateData?.next_cursor || null;
+        setFavorites((prev) => [...prev, ...data]);
       } else if (retryCount.current < 10) {
         retryCount.current++;
         fetchFavoritesWithRetry();
@@ -68,7 +68,7 @@ const SavedServicesScreen = () => {
 
   useEffect(() => {
     setFavorites((prev) =>
-      prev.filter((favorite) => favIds.includes(favorite.id))
+      prev.filter((favorite) => favIds.includes(favorite.id)),
     );
   }, [favIds]);
 
@@ -91,6 +91,7 @@ const SavedServicesScreen = () => {
         is_liked: true,
       }}
       containerStyles="mb-4"
+      showConfirmUnlike
     />
   );
 

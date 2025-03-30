@@ -25,12 +25,6 @@ const WelcomeScreen = () => {
           const user = await fetchUser();
           console.log("user", user);
           if (user) {
-            // if (
-            //   !user?.phone_number ||
-            //   !user?.location?.location_name ||
-            //   !user?.role
-            // ) {
-            //   router.replace("/complete-profile");
             if (user.role?.some((r) => r.id === "provider")) {
               router.push("/provider/services");
             } else {
@@ -44,7 +38,7 @@ const WelcomeScreen = () => {
         }
       };
       init();
-    }, [])
+    }, []),
   );
 
   return (

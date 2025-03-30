@@ -22,7 +22,6 @@ import useRentoData from "@/stores/dataStore";
 import CustomModal from "../components/CustomModal";
 
 const OrderService = () => {
-  // TODO: replace with database
   const { id, price_id } = useLocalSearchParams();
   const user = useRentoData((state) => state.user);
 
@@ -109,7 +108,7 @@ const OrderService = () => {
   const [isValid, setIsValid] = useState(false);
   useEffect(() => {
     const checkValid = Object.keys(rules).every((key) =>
-      rules[key].every((rule) => rule.isValid)
+      rules[key].every((rule) => rule.isValid),
     );
     setIsValid(checkValid);
   }, [formData, rules]);
@@ -236,7 +235,7 @@ const OrderService = () => {
         type="success"
         onClose={() => {
           setModalVisible(false);
-          router.back();
+          router.replace("/profile/order-history");
         }}
       />
     </>

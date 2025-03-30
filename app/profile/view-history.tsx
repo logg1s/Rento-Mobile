@@ -50,10 +50,9 @@ const ViewHistoryScreen = () => {
 
       const paginateData: PaginationType<ServiceType> = response?.data || [];
       const data = paginateData?.data || [];
-      console.log("data", data);
       if (data?.length > 0) {
-        retryCount.current = 0;
         nextCursor.current = paginateData?.next_cursor || null;
+        retryCount.current = 0;
         setViewHistory((prev) => [...prev, ...data]);
       } else if (retryCount.current < 10) {
         retryCount.current++;
@@ -62,7 +61,7 @@ const ViewHistoryScreen = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi fetch dịch vụ:",
-        error?.response?.data || error.message
+        error?.response?.data || error.message,
       );
       if (retryCount.current < 10) {
         retryCount.current++;

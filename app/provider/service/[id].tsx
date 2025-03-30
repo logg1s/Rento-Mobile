@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 
 import { useLocalSearchParams, router, useNavigation } from "expo-router";
@@ -31,6 +32,8 @@ import { axiosFetch } from "@/stores/dataStore";
 import RatingStar from "@/components/RatingStar";
 import Swiper from "react-native-swiper";
 import CustomModal from "@/app/components/CustomModal";
+import { PaginationType } from "@/types/pagination";
+import { comment_data } from "@/lib/dummy";
 
 // Định nghĩa rules cho validation
 type ValidationRule = {
@@ -82,7 +85,7 @@ const ProviderServiceDetail = () => {
   const [showAddBenefitModal, setShowAddBenefitModal] = useState(false);
   const [showEditBenefitModal, setShowEditBenefitModal] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitType | null>(
-    null
+    null,
   );
   const navigation = useNavigation();
   const [benefitForm, setBenefitForm] = useState<{
@@ -98,7 +101,7 @@ const ProviderServiceDetail = () => {
   const [linkedBenefits, setLinkedBenefits] = useState<number[]>([]);
   const [benefitsToDetach, setBenefitsToDetach] = useState<number[]>([]);
   const [independentBenefits, setIndependentBenefits] = useState<BenefitType[]>(
-    []
+    [],
   );
   const {
     fetchServiceById,
@@ -278,7 +281,7 @@ const ProviderServiceDetail = () => {
         // Lấy danh sách benefits độc lập
         try {
           const independentBenefitsResponse = await getIndependentBenefits(
-            Number(id)
+            Number(id),
           );
           if (
             independentBenefitsResponse &&
@@ -295,7 +298,7 @@ const ProviderServiceDetail = () => {
       console.error("Lỗi khi tải dịch vụ:", error?.response?.data || error);
       Alert.alert(
         "Lỗi",
-        "Không thể tải thông tin dịch vụ. Vui lòng thử lại sau."
+        "Không thể tải thông tin dịch vụ. Vui lòng thử lại sau.",
       );
     }
   };
@@ -322,6 +325,7 @@ const ProviderServiceDetail = () => {
   const onRefresh = async () => {
     setIsRefreshing(true);
     await fetchData();
+    fetchComments();
     setIsRefreshing(false);
   };
 
@@ -384,7 +388,7 @@ const ProviderServiceDetail = () => {
       formDataToSend.append("service_name", formData.service_name.trim());
       formDataToSend.append(
         "service_description",
-        formData.service_description.trim()
+        formData.service_description.trim(),
       );
       formDataToSend.append("location_name", formData.location_name.trim());
       formDataToSend.append("category_id", selectedCategory!.toString());
@@ -401,7 +405,7 @@ const ProviderServiceDetail = () => {
       if (formData.real_location_name) {
         formDataToSend.append(
           "real_location_name",
-          formData.real_location_name
+          formData.real_location_name,
         );
       }
 
@@ -473,7 +477,7 @@ const ProviderServiceDetail = () => {
       setIsUploading(false);
       console.error(
         "Lỗi khi cập nhật dịch vụ:",
-        error?.response?.data || error
+        error?.response?.data || error,
       );
 
       let errorMessage = "Không thể cập nhật dịch vụ. Vui lòng thử lại sau.";
@@ -512,10 +516,10 @@ const ProviderServiceDetail = () => {
           showModal(
             "Lỗi",
             "Không thể xóa dịch vụ. Vui lòng thử lại sau.",
-            "error"
+            "error",
           );
         }
-      }
+      },
     );
   };
 
@@ -609,12 +613,12 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi thêm gói dịch vụ:",
-        error?.response?.data || error
+        error?.response?.data || error,
       );
       showModal(
         "Lỗi",
         "Không thể thêm gói dịch vụ. Vui lòng thử lại sau.",
-        "error"
+        "error",
       );
     }
   };
@@ -657,12 +661,12 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật gói dịch vụ:",
-        error?.response?.data || error
+        error?.response?.data || error,
       );
       showModal(
         "Lỗi",
         "Không thể cập nhật gói dịch vụ. Vui lòng thử lại sau.",
-        "error"
+        "error",
       );
     }
   };
@@ -682,15 +686,15 @@ const ProviderServiceDetail = () => {
         } catch (error: any) {
           console.error(
             "Lỗi khi xóa gói dịch vụ:",
-            error?.response?.data || error
+            error?.response?.data || error,
           );
           showModal(
             "Lỗi",
             "Không thể xóa gói dịch vụ. Vui lòng thử lại sau.",
-            "error"
+            "error",
           );
         }
-      }
+      },
     );
   };
 
@@ -699,22 +703,36 @@ const ProviderServiceDetail = () => {
     const numericValue = text.replace(/\D/g, "");
     // Format với dấu phân cách hàng nghìn
     const formattedValue = new Intl.NumberFormat("vi-VN").format(
-      parseInt(numericValue || "0")
+      parseInt(numericValue || "0"),
     );
     return formattedValue;
   };
-
+  const nextCursorComment = useRef<string | null>(null);
+  const retryLoadComment = useRef(0);
   const fetchComments = async () => {
-    if (!id) return;
-    setIsLoadingComments(true);
     try {
-      const response = await axiosFetch(`/provider/services/${id}`);
-      if (response?.data?.comment) {
-        setServiceComments(response.data.comment);
+      setIsLoadingComments(true);
+      let url = `/provider/comments/${id}`;
+      if (nextCursorComment.current) {
+        url += `?cursor=${nextCursorComment.current}`;
+      }
+      const response = await axiosFetch(url, "get");
+      const paginateComment: PaginationType<CommentType> = response?.data;
+      const commentData = paginateComment?.data || [];
+      if (commentData?.length > 0) {
+        nextCursorComment.current = paginateComment?.next_cursor || null;
+        retryLoadComment.current = 0;
+        setServiceComments((prev) => [...prev, ...commentData]);
+      } else if (retryLoadComment.current < 10) {
+        retryLoadComment.current++;
+        await fetchComments();
       }
     } catch (error) {
+      if (retryLoadComment.current < 10) {
+        retryLoadComment.current++;
+        await fetchComments();
+      }
       console.error("Lỗi khi tải bình luận:", error);
-      Alert.alert("Lỗi", "Không thể tải bình luận. Vui lòng thử lại sau.");
     } finally {
       setIsLoadingComments(false);
     }
@@ -728,20 +746,23 @@ const ProviderServiceDetail = () => {
       async () => {
         try {
           await axiosFetch(`/comments/${commentId}`, "delete");
-          fetchComments();
           showModal("Thành công", "Xóa bình luận thành công", "success");
+          setServiceComments((prev) =>
+            prev.filter((cmt) => cmt.id !== commentId),
+          );
+          refreshComment();
         } catch (error: any) {
           console.error(
             "Lỗi khi xóa bình luận:",
-            error?.response?.data || error
+            error?.response?.data || error,
           );
           showModal(
             "Lỗi",
             "Không thể xóa bình luận. Vui lòng thử lại sau.",
-            "error"
+            "error",
           );
         }
-      }
+      },
     );
   };
 
@@ -870,7 +891,7 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật lợi ích:",
-        error?.response?.data || error
+        error?.response?.data || error,
       );
       let errorMessage = "Không thể cập nhật lợi ích. Vui lòng thử lại sau.";
 
@@ -895,7 +916,7 @@ const ProviderServiceDetail = () => {
       id: number;
       benefit_name: string;
       price_ids: number[];
-    }[]
+    }[],
   ) => {
     if (!service) return;
 
@@ -906,11 +927,11 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật hàng loạt lợi ích:",
-        error?.response?.data || error
+        error?.response?.data || error,
       );
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật các lợi ích. Vui lòng thử lại sau."
+        "Không thể cập nhật các lợi ích. Vui lòng thử lại sau.",
       );
     }
   };
@@ -932,10 +953,10 @@ const ProviderServiceDetail = () => {
           showModal(
             "Lỗi",
             "Không thể xóa lợi ích. Vui lòng thử lại sau.",
-            "error"
+            "error",
           );
         }
-      }
+      },
     );
   };
 
@@ -1037,7 +1058,7 @@ const ProviderServiceDetail = () => {
       price_name: string;
       price_value: number;
       benefit_ids?: number[];
-    }[]
+    }[],
   ) => {
     if (!service) return;
 
@@ -1048,12 +1069,33 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật hàng loạt gói dịch vụ:",
-        error?.response?.data || error
+        error?.response?.data || error,
       );
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật các gói dịch vụ. Vui lòng thử lại sau."
+        "Không thể cập nhật các gói dịch vụ. Vui lòng thử lại sau.",
       );
+    }
+  };
+
+  useEffect(() => {
+    fetchComments();
+  }, [id]);
+
+  const [isRefreshingComment, setIsRefreshingComment] = useState(false);
+  const refreshComment = async () => {
+    setIsRefreshingComment(true);
+    setServiceComments([]);
+    nextCursorComment.current = null;
+    await fetchComments();
+    setIsRefreshingComment(false);
+  };
+
+  const [isLoadMoreComment, setIsLoadMoreComment] = useState(false);
+  const loadMoreComment = async () => {
+    console.log(nextCursorComment.current);
+    if (nextCursorComment.current) {
+      await fetchComments();
     }
   };
 
@@ -1062,7 +1104,7 @@ const ProviderServiceDetail = () => {
     title: string,
     message: string,
     type: "success" | "error" | "confirm" | "info",
-    onConfirm?: () => void
+    onConfirm?: () => void,
   ) => {
     setModal({
       visible: true,
@@ -1119,7 +1161,7 @@ const ProviderServiceDetail = () => {
                   console.error(
                     "Lỗi tải ảnh:",
                     image.image_url,
-                    e.nativeEvent.error
+                    e.nativeEvent.error,
                   );
                 }}
                 defaultSource={require("@/assets/images/avatar_placeholder_icon.png")}
@@ -1195,7 +1237,7 @@ const ProviderServiceDetail = () => {
                       setPriceForm({
                         price_name: price.price_name,
                         price_value: formatPriceInput(
-                          price.price_value.toString()
+                          price.price_value.toString(),
                         ),
                       });
 
@@ -1295,7 +1337,7 @@ const ProviderServiceDetail = () => {
                         ?.filter(
                           (price) =>
                             Array.isArray(benefit.price_id) &&
-                            benefit.price_id.includes(price.id)
+                            benefit.price_id.includes(price.id),
                         )
                         .map((price) => (
                           <View
@@ -1358,9 +1400,8 @@ const ProviderServiceDetail = () => {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => {
+              onPress={async () => {
                 setShowCommentsModal(true);
-                fetchComments();
               }}
               className="bg-primary-500 px-3 py-1 rounded-full"
             >
@@ -1368,13 +1409,13 @@ const ProviderServiceDetail = () => {
             </TouchableOpacity>
           </View>
 
-          {service?.comment && service.comment.length > 0 ? (
+          {serviceComments.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerClassName="gap-4"
             >
-              {service.comment.slice(0, 3).map((comment) => (
+              {serviceComments.slice(0, 3).map((comment) => (
                 <CommentCard
                   key={comment.id}
                   data={comment}
@@ -1749,42 +1790,44 @@ const ProviderServiceDetail = () => {
           </TouchableOpacity>
           <Text className="font-pbold text-xl">Bình luận</Text>
         </View>
-
-        {isLoadingComments ? (
-          <View className="flex-1 justify-center items-center">
-            <Text className="font-pmedium text-gray-600">
-              Đang tải bình luận...
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={serviceComments}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <View className="px-4 py-2">
-                <CommentCard
-                  data={item}
-                  user={item.user}
-                  containerStyles="w-full"
-                  enableOption
-                  handleDeleteComment={handleDeleteComment}
-                />
-              </View>
-            )}
-            contentContainerClassName="py-4"
-            ListEmptyComponent={
-              <View className="items-center justify-center py-8">
-                <Ionicons name="chatbubble-outline" size={48} color="gray" />
-                <Text className="text-gray-500 mt-2 font-pmedium">
-                  Chưa có bình luận nào
-                </Text>
-              </View>
-            }
-          />
-        )}
+        <FlatList
+          data={serviceComments}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshingComment}
+              onRefresh={refreshComment}
+            />
+          }
+          onEndReached={loadMoreComment}
+          onEndReachedThreshold={0.5}
+          keyExtractor={(item, index) => index.toString()}
+          ListFooterComponent={() =>
+            isLoadMoreComment && (
+              <ActivityIndicator size={"small"} color={"black"} />
+            )
+          }
+          renderItem={({ item }) => (
+            <View className="px-4 py-2">
+              <CommentCard
+                data={item}
+                user={item.user}
+                containerStyles="w-full"
+                enableOption
+                handleDeleteComment={handleDeleteComment}
+              />
+            </View>
+          )}
+          contentContainerClassName="py-4"
+          ListEmptyComponent={
+            <View className="items-center justify-center py-8">
+              <Ionicons name="chatbubble-outline" size={48} color="gray" />
+              <Text className="text-gray-500 mt-2 font-pmedium">
+                Chưa có bình luận nào
+              </Text>
+            </View>
+          }
+        />
       </Modal>
-
-      {/* Modal thêm lợi ích */}
       <Modal
         visible={showAddBenefitModal}
         animationType="slide"
@@ -2171,7 +2214,7 @@ const ProviderServiceDetail = () => {
               {/* Các benefits có thể thêm */}
 
               {service.benefit.filter(
-                (benefit) => !linkedBenefits.includes(benefit.id)
+                (benefit) => !linkedBenefits.includes(benefit.id),
               ).length > 0 && (
                 <View>
                   <View className="flex-row justify-between mb-1">

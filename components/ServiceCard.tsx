@@ -1,5 +1,5 @@
 import type React from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ServiceCardProps } from "@/types/prop";
@@ -24,7 +24,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     average_rate,
   },
   containerStyles,
-
+  showConfirmUnlike = false,
   onPress,
   showFavorite = true,
 }) => {
@@ -47,7 +47,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     <TouchableOpacity
       className={twMerge(
         `rounded-xl p-4 gap-3 border border-general-100 bg-white shadow-md shadow-gray-500`,
-        containerStyles
+        containerStyles,
       )}
       onPress={onPressServiceCard}
     >
@@ -75,7 +75,20 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         </View>
         {showFavorite && (
           <TouchableOpacity
-            onPress={() => updateFavorite(id, !isLiked)}
+            onPress={() => {
+              if (showConfirmUnlike && !isLiked) {
+                Alert.alert("Bỏ thích", "Bỏ thích dịch vụ này?", [
+                  { text: "Huỷ", style: "cancel" },
+                  {
+                    text: "Bỏ thích",
+                    style: "default",
+                    onPress: () => updateFavorite(id, !isLiked),
+                  },
+                ]);
+              } else {
+                updateFavorite(id, !isLiked);
+              }
+            }}
             className="p-2"
           >
             <FontAwesome

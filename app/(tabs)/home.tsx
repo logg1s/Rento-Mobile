@@ -18,9 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from "react-native-swiper";
-import { useCheckProfileComplete } from "@/hooks/useCheckProfileComplete";
 import { ServiceType } from "@/types/type";
-import { Service } from "@/lib/dummy";
 import { PaginationType } from "@/types/pagination";
 
 const TabHome = () => {
@@ -32,6 +30,7 @@ const TabHome = () => {
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const retryCount = useRef(0);
   const nextCursor = useRef<string | null>(null);
+  const fetchFav = useRentoData((state) => state.fetchFavIds);
   const favIds = useRentoData((state) => state.favIds);
   console.log("favIds", favIds);
 
@@ -46,8 +45,8 @@ const TabHome = () => {
       const paginateData: PaginationType<ServiceType> = response?.data || [];
       const data = paginateData?.data || [];
       if (data?.length > 0) {
-        retryCount.current = 0;
         nextCursor.current = paginateData?.next_cursor || null;
+        retryCount.current = 0;
         setData((prev) => [...prev, ...data]);
       } else if (retryCount.current < 10) {
         retryCount.current++;
@@ -56,7 +55,7 @@ const TabHome = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi fetch dịch vụ:",
-        error?.response?.data || error.message
+        error?.response?.data || error.message,
       );
       if (retryCount.current < 10) {
         retryCount.current++;
@@ -100,6 +99,7 @@ const TabHome = () => {
 
   useEffect(() => {
     setIsLoading(true);
+    fetchFav();
     fetchServiceWithRetry();
     setIsLoading(false);
   }, []);

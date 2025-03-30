@@ -5,6 +5,7 @@ export type ServiceCardProps = {
   containerStyles?: string;
   onPress?: () => void;
   showFavorite?: boolean;
+  showConfirmUnlike?: boolean;
 };
 
 export type CommentCardProp = {

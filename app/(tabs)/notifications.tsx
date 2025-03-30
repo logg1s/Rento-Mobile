@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,25 +15,35 @@ import { Swipeable } from "react-native-gesture-handler";
 import useRentoData from "@/stores/dataStore";
 import { NotificationType } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
+import { PaginationType } from "@/types/pagination";
+import { router } from "expo-router";
 
 const NotificationScreen = () => {
-  const notifications = useRentoData((state) => state.notifications);
-  const fetchNotifications = useRentoData((state) => state.fetchNotifications);
   const markNotificationAsRead = useRentoData(
-    (state) => state.markNotificationAsRead
+    (state) => state.markNotificationAsRead,
   );
   const markAllNotificationsAsRead = useRentoData(
-    (state) => state.markAllNotificationsAsRead
+    (state) => state.markAllNotificationsAsRead,
   );
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const retryCount = useRef(0);
+  const nextCursor = useRef<string | null>(null);
 
   const fetchNotificationsWithRetry = async () => {
     try {
       setRefreshing(true);
-      await fetchNotifications();
-      if (notifications?.length > 0) {
+      let url = "/notifications";
+      if (nextCursor.current) {
+        url += `?cursor=${nextCursor.current}`;
+      }
+      const response = await axiosFetch(url, "get");
+      const paginateData: PaginationType<NotificationType> = response?.data;
+      const notificationData = paginateData?.data || [];
+      if (notificationData?.length > 0) {
+        nextCursor.current = paginateData?.next_cursor || null;
         retryCount.current = 0;
+        setNotifications(notificationData);
       } else if (retryCount.current < 10) {
         retryCount.current++;
         fetchNotificationsWithRetry();
@@ -56,6 +67,7 @@ const NotificationScreen = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     retryCount.current = 0;
+    setNotifications([]);
     await fetchNotificationsWithRetry();
     setRefreshing(false);
   };
@@ -69,10 +81,47 @@ const NotificationScreen = () => {
     }
   };
 
+  const handleDataNotification = (data: { type: string; id?: string }) => {
+    switch (data.type) {
+      case "message":
+        if (data?.id) {
+          router.push({
+            pathname: "/(tabs)/message",
+            params: {
+              chatWithId: data.id,
+            },
+          });
+        }
+        break;
+      case "order":
+        router.push({
+          pathname: "/profile/order-history",
+        });
+        break;
+      default:
+        Alert.alert(
+          "Thông báo không hợp lệ",
+          "Lỗi thông báo! Vui lòng thử lại sau!",
+        );
+    }
+  };
+
   const handleNotificationPress = async (item: NotificationType) => {
     if (!item.is_read) {
+      setNotifications((prev) => {
+        const notificationIndex = prev.findIndex((it) => it.id === item.id);
+        if (notificationIndex !== -1) {
+          prev[notificationIndex] = {
+            ...prev[notificationIndex],
+            is_read: true,
+          };
+        }
+        return [...prev];
+      });
       await markNotificationAsRead(item.id);
     }
+    const data = JSON.parse(item.data);
+    handleDataNotification(data);
   };
 
   const renderRightActions = (id: number) => {
@@ -117,7 +166,12 @@ const NotificationScreen = () => {
         <Text className="font-pbold text-2xl">Thông báo</Text>
         {notifications.some((notif) => !notif.is_read) && (
           <TouchableOpacity
-            onPress={markAllNotificationsAsRead}
+            onPress={() => {
+              setNotifications((prev) =>
+                prev.map((item) => ({ ...item, is_read: true })),
+              );
+              markAllNotificationsAsRead();
+            }}
             className="bg-primary-500 px-4 py-2 rounded-lg"
           >
             <Text className="text-white font-pmedium">

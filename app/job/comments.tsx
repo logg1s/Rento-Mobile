@@ -115,7 +115,7 @@ const AllComments = () => {
     // Apply rating filter (multi-selection)
     if (selectedRatings.length > 0) {
       filteredComments = filteredComments.filter((comment) =>
-        selectedRatings.includes(comment.rate as RatingOption)
+        selectedRatings.includes(comment.rate as RatingOption),
       );
     }
 

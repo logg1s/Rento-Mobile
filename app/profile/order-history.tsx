@@ -34,8 +34,8 @@ const OrderHistoryScreen = () => {
       const paginateData: PaginationType<OrderType> = response?.data || [];
       const data = paginateData?.data || [];
       if (data?.length > 0) {
-        setOrders(data);
         nextCursor.current = paginateData?.next_cursor || null;
+        setOrders(data);
       } else if (retryCount.current < 10) {
         retryCount.current++;
         fetchOrders();

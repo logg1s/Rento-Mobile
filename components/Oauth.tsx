@@ -52,9 +52,9 @@ const Oauth = ({
     } catch (error) {
       ToastAndroid.show(
         "Đăng nhập không thành công. Vui lòng thử lại !",
-        ToastAndroid.SHORT
+        ToastAndroid.SHORT,
       );
-      console.error("Google login error:", error);
+      console.error("Google login error:", error?.response?.data);
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +65,7 @@ const Oauth = ({
       onPress={handleLoginWithGoogle}
       className={twMerge(
         "flex-row items-center justify-center gap-3 bg-white py-4 px-2 rounded-xl",
-        containerStyles
+        containerStyles,
       )}
       disabled={isLoading}
     >

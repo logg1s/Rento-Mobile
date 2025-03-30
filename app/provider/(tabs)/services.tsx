@@ -145,7 +145,7 @@ export default function ProviderServices() {
   // State cho quản lý bình luận
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
-    null
+    null,
   );
   const [serviceComments, setServiceComments] = useState<CommentType[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -160,7 +160,7 @@ export default function ProviderServices() {
 
   // State for category counts
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
-    {}
+    {},
   );
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
 
@@ -195,9 +195,24 @@ export default function ProviderServices() {
     };
   }, [searchQuery]);
 
-  // Trigger search when debounced value changes
+  const [isRefreshingComment, setIsRefreshingComment] = useState(false);
+  const refreshComment = async () => {
+    if (!selectedServiceId) return;
+    setIsRefreshingComment(true);
+    setServiceComments([]);
+    nextCursorComment.current = null;
+    await fetchServiceComments(selectedServiceId);
+    setIsRefreshingComment(false);
+  };
+
+  const [isLoadMoreComment, setIsLoadMoreComment] = useState(false);
+  const loadMoreComment = async () => {
+    if (nextCursorComment.current && selectedServiceId) {
+      await fetchServiceComments(selectedServiceId);
+    }
+  };
+
   useEffect(() => {
-    // Mark that we are changing filters
     setPaginationData((prev) => ({
       ...prev,
       nextCursor: null,
@@ -261,7 +276,7 @@ export default function ProviderServices() {
           : [];
 
         console.log(
-          `Loaded ${services.length} services for category: ${filterCategory}`
+          `Loaded ${services.length} services for category: ${filterCategory}`,
         );
 
         // Completely replace the services list (no merging)
@@ -316,7 +331,7 @@ export default function ProviderServices() {
         "isLoadingMore:",
         paginationData.isLoadingMore,
         "isFilterChanging:",
-        paginationData.isFilterChanging
+        paginationData.isFilterChanging,
       );
       return;
     }
@@ -329,7 +344,7 @@ export default function ProviderServices() {
 
     try {
       console.log(
-        `Loading more services... ${isRetry ? "(Retry attempt)" : ""}`
+        `Loading more services... ${isRetry ? "(Retry attempt)" : ""}`,
       );
       setPaginationData((prev) => ({ ...prev, isLoadingMore: true }));
 
@@ -404,7 +419,7 @@ export default function ProviderServices() {
       if (loadMoreAttempts.current < 3) {
         loadMoreAttempts.current += 1;
         console.log(
-          `Load more failed, scheduling retry #${loadMoreAttempts.current} in 2 seconds...`
+          `Load more failed, scheduling retry #${loadMoreAttempts.current} in 2 seconds...`,
         );
 
         // Schedule a retry after 2 seconds
@@ -459,7 +474,7 @@ export default function ProviderServices() {
 
       if (timeSinceLastEndReach < 1000) {
         console.log(
-          `Ignoring end reached - too soon (${timeSinceLastEndReach}ms since last call)`
+          `Ignoring end reached - too soon (${timeSinceLastEndReach}ms since last call)`,
         );
         return;
       }
@@ -472,7 +487,7 @@ export default function ProviderServices() {
         !paginationData.isFilterChanging
       ) {
         console.log(
-          `End reached - distance: ${distanceFromEnd} - loading more services`
+          `End reached - distance: ${distanceFromEnd} - loading more services`,
         );
         onEndReachedCalledDuringMomentum.current = true;
 
@@ -487,7 +502,7 @@ export default function ProviderServices() {
         console.log(
           `Skipping end reached - onEndReachedCalledDuringMomentum: ${onEndReachedCalledDuringMomentum.current}, ` +
             `hasMore: ${paginationData.hasMore}, isLoadingMore: ${paginationData.isLoadingMore}, ` +
-            `isFilterChanging: ${paginationData.isFilterChanging}`
+            `isFilterChanging: ${paginationData.isFilterChanging}`,
         );
       }
     },
@@ -496,7 +511,7 @@ export default function ProviderServices() {
       paginationData.isLoadingMore,
       paginationData.isFilterChanging,
       paginationData.lastEndReachTime,
-    ]
+    ],
   );
 
   // Cleanup timeouts on component unmount
@@ -619,7 +634,7 @@ export default function ProviderServices() {
       formDataToSend.append("service_name", formData.service_name);
       formDataToSend.append(
         "service_description",
-        formData.service_description
+        formData.service_description,
       );
       formDataToSend.append("location_name", formData.location_name);
       formDataToSend.append("category_id", selectedCategory.toString());
@@ -636,7 +651,7 @@ export default function ProviderServices() {
       if (formData.real_location_name) {
         formDataToSend.append(
           "real_location_name",
-          formData.real_location_name
+          formData.real_location_name,
         );
       }
 
@@ -676,7 +691,7 @@ export default function ProviderServices() {
       console.error("Lỗi khi thêm dịch vụ:", error);
       Alert.alert(
         "Lỗi",
-        "Có lỗi xảy ra khi thêm dịch vụ. Vui lòng thử lại sau."
+        "Có lỗi xảy ra khi thêm dịch vụ. Vui lòng thử lại sau.",
       );
     }
   };
@@ -695,21 +710,34 @@ export default function ProviderServices() {
     setImages([]);
     setIsValid(false);
   };
-
+  const nextCursorComment = useRef<string | null>(null);
+  const retryLoadComment = useRef(0);
   // Hàm để lấy bình luận của một dịch vụ
   const fetchServiceComments = async (serviceId: number) => {
     try {
       setIsLoadingComments(true);
-      const response = await axiosFetch(`/provider/services/${serviceId}`);
-      if (response?.data?.comment) {
-        setServiceComments(response.data.comment);
-      } else {
-        setServiceComments([]);
+      let url = `/provider/comments/${serviceId}`;
+      if (nextCursorComment.current) {
+        url += `?cursor=${nextCursorComment.current}`;
+      }
+      const response = await axiosFetch(url, "get");
+      const paginateComment: PaginationType<CommentType> = response?.data;
+      const commentData = paginateComment?.data || [];
+      console.log(paginateComment.next_cursor);
+      if (commentData?.length > 0) {
+        nextCursorComment.current = paginateComment?.next_cursor || null;
+        retryLoadComment.current = 0;
+        setServiceComments((prev) => [...prev, ...commentData]);
+      } else if (retryLoadComment.current < 10) {
+        retryLoadComment.current++;
+        await fetchServiceComments(serviceId);
       }
     } catch (error) {
+      if (retryLoadComment.current < 10) {
+        retryLoadComment.current++;
+        await fetchServiceComments(serviceId);
+      }
       console.error("Lỗi khi tải bình luận:", error);
-      Alert.alert("Lỗi", "Không thể tải bình luận. Vui lòng thử lại sau.");
-      setServiceComments([]);
     } finally {
       setIsLoadingComments(false);
     }
@@ -721,9 +749,11 @@ export default function ProviderServices() {
       const response = await axiosFetch(`/comments/${commentId}`, "delete");
       if (response?.status === 200) {
         Alert.alert("Thành công", "Xóa bình luận thành công");
-        // Tải lại bình luận sau khi xóa
         if (selectedServiceId) {
-          fetchServiceComments(selectedServiceId);
+          setServiceComments((prev) =>
+            prev.filter((cmt) => cmt.id !== commentId),
+          );
+          refreshComment();
         }
       }
     } catch (error) {
@@ -732,11 +762,12 @@ export default function ProviderServices() {
     }
   };
 
-  // Hàm để mở modal quản lý bình luận
-  const openCommentsModal = (serviceId: number) => {
+  const openCommentsModal = async (serviceId: number) => {
+    setServiceComments([]);
     setSelectedServiceId(serviceId);
-    fetchServiceComments(serviceId);
     setShowCommentsModal(true);
+    nextCursorComment.current = null;
+    await fetchServiceComments(serviceId);
   };
 
   // Hàm để thêm gói dịch vụ
@@ -753,7 +784,7 @@ export default function ProviderServices() {
         {
           price_name: priceData.price_name,
           price_value: Number(priceData.price_value),
-        }
+        },
       );
 
       // Đóng modal và reset form
@@ -772,7 +803,7 @@ export default function ProviderServices() {
       console.error("Lỗi khi thêm gói dịch vụ:", error);
       Alert.alert(
         "Lỗi",
-        "Có lỗi xảy ra khi thêm gói dịch vụ. Vui lòng thử lại sau."
+        "Có lỗi xảy ra khi thêm gói dịch vụ. Vui lòng thử lại sau.",
       );
     }
   };
@@ -797,7 +828,7 @@ export default function ProviderServices() {
         setFilterCategory(categoryId);
       }
     },
-    [filterCategory]
+    [filterCategory],
   );
 
   // Footer component for infinite loading
@@ -1035,7 +1066,7 @@ export default function ProviderServices() {
                       Tất cả
                       {Object.values(categoryCounts).reduce(
                         (sum, count) => sum + count,
-                        0
+                        0,
                       ) > 0 &&
                         ` (${Object.values(categoryCounts).reduce((sum, count) => sum + count, 0)})`}
                     </Text>
@@ -1046,7 +1077,7 @@ export default function ProviderServices() {
                       0,
                       isExpandedCategories
                         ? categories.length
-                        : INITIAL_CATEGORIES_TO_SHOW
+                        : INITIAL_CATEGORIES_TO_SHOW,
                     )
                     .map((category) => (
                       <TouchableOpacity
@@ -1257,36 +1288,42 @@ export default function ProviderServices() {
             <Text className="text-xl font-pbold ml-4">Bình luận</Text>
           </View>
 
-          {isLoadingComments ? (
-            <View className="flex-1 justify-center items-center">
-              <Text className="font-pmedium text-gray-600">
-                Đang tải bình luận...
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={serviceComments}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <CommentCard
-                  data={item}
-                  user={item.user}
-                  containerStyles="w-full"
-                  enableOption
-                  handleDeleteComment={handleDeleteComment}
-                />
-              )}
-              contentContainerClassName="p-4 gap-2"
-              ListEmptyComponent={
-                <View className="items-center justify-center py-8">
-                  <Ionicons name="chatbubble-outline" size={48} color="gray" />
-                  <Text className="text-gray-500 mt-2 font-pmedium">
-                    Chưa có bình luận nào
-                  </Text>
-                </View>
-              }
-            />
-          )}
+          <FlatList
+            data={serviceComments}
+            keyExtractor={(item, index) => index.toString()}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshingComment}
+                onRefresh={refreshComment}
+              />
+            }
+            className="flex-1"
+            onEndReached={loadMoreComment}
+            onEndReachedThreshold={0.5}
+            renderItem={({ item }) => (
+              <CommentCard
+                data={item}
+                user={item.user}
+                containerStyles="w-full"
+                enableOption
+                handleDeleteComment={handleDeleteComment}
+              />
+            )}
+            ListFooterComponent={() =>
+              isLoadMoreComment && (
+                <ActivityIndicator size={"small"} color={"black"} />
+              )
+            }
+            contentContainerClassName="p-4 gap-2"
+            ListEmptyComponent={
+              <View className="items-center justify-center py-8">
+                <Ionicons name="chatbubble-outline" size={48} color="gray" />
+                <Text className="text-gray-500 mt-2 font-pmedium">
+                  Chưa có bình luận nào
+                </Text>
+              </View>
+            }
+          />
         </SafeAreaView>
       </Modal>
 
