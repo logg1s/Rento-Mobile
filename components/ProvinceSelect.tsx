@@ -69,20 +69,16 @@ const ProvinceSelect = ({
     onSelect(null);
   };
 
-  // Helper để kiểm tra xem province có được chọn không
   const isSelected = (provinceItem: Province) => {
     if (!value) return false;
 
-    // So sánh bằng id để đảm bảo chính xác
     return value.id === provinceItem.id;
   };
 
-  // Hiển thị tên tỉnh
   const displayProvinceName = () => {
     if (isLoading) return "Đang tải...";
     if (!value) return placeholder;
 
-    // Hiển thị tên từ value
     return value.name;
   };
 

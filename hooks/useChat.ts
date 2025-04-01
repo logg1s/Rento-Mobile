@@ -252,7 +252,7 @@ const imageToBase64 = async (
       reader.onload = () => {
         const base64 = reader.result as string;
         resolve({
-          base64: base64.split(",")[1], // Remove data:image/jpeg;base64, prefix
+          base64: base64.split(",")[1],
           width: Math.round(newWidth),
           height: Math.round(newHeight),
         });
@@ -356,7 +356,6 @@ export function getRoomId(senderId: number, receiverId: number) {
   return roomId;
 }
 
-// Update markMessagesAsSeen to be a hook for better integration
 export const useMarkMessagesAsSeen = () => {
   const markAsSeen = useCallback(async (roomId: string, userId: number) => {
     try {
@@ -383,7 +382,6 @@ export const useMarkMessagesAsSeen = () => {
   return markAsSeen;
 };
 
-// Report types
 export type ReportMessagePayload = {
   messageId: string;
   reporterId: number;
@@ -397,7 +395,6 @@ export type ReportUserPayload = {
   reason: string;
 };
 
-// Hook for reporting messages
 export const useReportMessage = () => {
   const reportMessage = async (
     payload: ReportMessagePayload
@@ -423,7 +420,6 @@ export const useReportMessage = () => {
   return reportMessage;
 };
 
-// Hook for reporting users
 export const useReportUser = () => {
   const reportUser = async (payload: ReportUserPayload): Promise<boolean> => {
     try {
@@ -447,7 +443,6 @@ export const useReportUser = () => {
   return reportUser;
 };
 
-// Hook for blocking users
 export const useBlockUser = () => {
   const blockUser = async (
     userId: number,
@@ -468,13 +463,11 @@ export const useBlockUser = () => {
   return blockUser;
 };
 
-// Hook for retracting messages
 export const useRetractMessage = () => {
   const deleteImage = useRentoData((state) => state.deleteImage);
 
   const retractMessage = async (message: MessageChatType): Promise<boolean> => {
     try {
-      // Tìm kiếm tin nhắn dựa trên nội dung và timestamp
       const messagesSnapshot = await messagesCollection
         .where("timestamp", "==", message.timestamp)
         .where("author", "==", message.author)
@@ -486,29 +479,23 @@ export const useRetractMessage = () => {
         throw new Error("Không tìm thấy tin nhắn cần thu hồi");
       }
 
-      // Lấy document đầu tiên khớp với điều kiện
       const docRef = messagesSnapshot.docs[0].ref;
-      // Kiểm tra xem tin nhắn có chứa ảnh không
+
       const messageData = messagesSnapshot.docs[0].data();
       let updatedData = {
         message: encrypt("Tin nhắn đã bị thu hồi"),
         retracted: true,
       };
-      console.log("messageData", messageData);
 
       if (messageData.image && messageData.image.path) {
         try {
-          // Gọi API để xóa hình ảnh từ backend
-          // Lấy đường dẫn hình ảnh từ thư mục storage
           const imagePath = messageData.image.path;
 
-          // Sử dụng hàm deleteImage từ dataStore
           const success = await deleteImage(imagePath);
           if (!success) {
             console.log("Không thể xóa hình ảnh:", imagePath);
           }
 
-          // Cập nhật trạng thái trong document
           updatedData = {
             ...updatedData,
             image: {
@@ -521,10 +508,8 @@ export const useRetractMessage = () => {
         }
       }
 
-      // Cập nhật tin nhắn thành "đã thu hồi"
       await docRef.update(updatedData);
 
-      // Cập nhật last message nếu tin nhắn này là tin nhắn cuối cùng
       const roomDocRef = chatsCollection.doc(message.roomId);
       const roomDoc = await roomDocRef.get();
 
@@ -532,7 +517,6 @@ export const useRetractMessage = () => {
         const roomData = roomDoc.data();
         const lastTimestamp = parseInt(roomData.lastTimestamp);
 
-        // Nếu tin nhắn bị thu hồi là tin nhắn mới nhất trong cuộc trò chuyện
         if (parseInt(message.timestamp) === lastTimestamp) {
           await roomDocRef.update({
             lastMessage: "Tin nhắn đã bị thu hồi",

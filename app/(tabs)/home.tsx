@@ -55,7 +55,7 @@ const TabHome = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi fetch dịch vụ:",
-        error?.response?.data || error.message,
+        error?.response?.data || error.message
       );
       if (retryCount.current < 10) {
         retryCount.current++;
@@ -329,35 +329,8 @@ const TabHome = () => {
                 </TouchableOpacity>
               </View>
             </View>
-            {/* <View className="gap-2 mb-10">
-              <View className="flex-row items-center">
-                <Text className="font-psemibold text-xl flex-1">Gợi ý</Text>
-                <TouchableOpacity>
-                  <Text className="font-psemibold text-md text-primary-500">
-                    Xem tất cả
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {data?.length > 0 && data[0] ? (
-                <ServiceCard
-                  data={data[0]}
-                  onPressFavorite={() => onPressFavorite(data[0].id)}
-                />
-              ) : null}
-            </View>
-            <View className="flex-row items-center -mb-3">
-              <Text className="font-psemibold text-xl flex-1">
-                Dịch vụ gần bạn
-              </Text>
-              <TouchableOpacity>
-                <Text className="font-psemibold text-md text-primary-500">
-                  Xem tất cả
-                </Text>
-              </TouchableOpacity>
-            </View> */}
           </>
         )}
-        // ListFooterComponent={() => isLoading ? <ActivityIndicator size="large" color="blue" /> : null}
       />
     </SafeAreaView>
   );

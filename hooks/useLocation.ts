@@ -34,7 +34,6 @@ export const useLocation = () => {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [loadingProvinces, setLoadingProvinces] = useState<boolean>(false);
 
-  // Lấy danh sách tỉnh thành từ API
   const fetchProvinces = async () => {
     try {
       setLoadingProvinces(true);
@@ -49,7 +48,6 @@ export const useLocation = () => {
     }
   };
 
-  // Gọi API khi component được tạo
   useEffect(() => {
     fetchProvinces();
   }, []);
@@ -58,17 +56,14 @@ export const useLocation = () => {
     try {
       setLocationData((prev) => ({ ...prev, loading: true, error: null }));
 
-      // Kiểm tra xem quyền đã được cấp hay chưa
       let { status } = await Location.getForegroundPermissionsAsync();
 
-      // Nếu chưa được cấp quyền, yêu cầu quyền
       if (status !== "granted") {
         const response = await Location.requestForegroundPermissionsAsync();
         status = response.status;
       }
 
       if (status !== "granted") {
-        // Thông báo rõ ràng và hướng dẫn cách cấp quyền
         Alert.alert(
           "Cần quyền truy cập vị trí",
           "Vui lòng cấp quyền truy cập vị trí để ứng dụng có thể xác định vị trí của bạn. Bạn có thể vào Cài đặt > Quyền để cấp quyền cho ứng dụng.",
@@ -124,7 +119,6 @@ export const useLocation = () => {
         return null;
       }
 
-      // Kiểm tra vị trí có bật hay không
       const isLocationEnabled = await Location.hasServicesEnabledAsync();
       if (!isLocationEnabled) {
         Alert.alert(
@@ -157,7 +151,6 @@ export const useLocation = () => {
         return null;
       }
 
-      // Lấy vị trí hiện tại với timeout
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Highest,
         timeInterval: 10,
@@ -166,7 +159,6 @@ export const useLocation = () => {
 
       const { latitude, longitude } = location.coords;
 
-      // Lấy địa chỉ từ tọa độ
       const geocodeResults = await Location.reverseGeocodeAsync({
         latitude,
         longitude,
@@ -183,10 +175,8 @@ export const useLocation = () => {
 
       const geocode = geocodeResults[0];
 
-      // Tạo địa chỉ đầy đủ
       const address = formatAddress(geocode);
 
-      // Tìm tỉnh thành phù hợp từ geocode
       let province = null;
       if (geocode.region) {
         province = provinces.find(
@@ -198,7 +188,6 @@ export const useLocation = () => {
         );
       }
 
-      // Nếu không tìm thấy bằng region, thử với city
       if (!province && geocode.city) {
         province = provinces.find(
           (p) =>
@@ -207,10 +196,8 @@ export const useLocation = () => {
         );
       }
 
-      // Tạo địa chỉ chi tiết từ các thông tin có sẵn
       let detailedAddress;
 
-      // Ưu tiên sử dụng formattedAddress cho địa chỉ chi tiết
       if (geocode.formattedAddress) {
         detailedAddress = geocode.formattedAddress;
       } else {
@@ -224,7 +211,6 @@ export const useLocation = () => {
         detailedAddress = parts.join(", ");
       }
 
-      // Đảm bảo formattedAddress và detailedAddress là giống nhau
       const formattedAddress = geocode.formattedAddress || null;
 
       setLocationData({
@@ -262,14 +248,11 @@ export const useLocation = () => {
     }
   };
 
-  // Hàm định dạng địa chỉ từ kết quả geocode
   const formatAddress = (geocode: Location.LocationGeocodedAddress) => {
-    // Ưu tiên sử dụng formattedAddress nếu có
     if (geocode.formattedAddress) {
       return geocode.formattedAddress;
     }
 
-    // Nếu không có formattedAddress, tạo từ các thành phần
     const components = [
       geocode.name,
       geocode.street,
@@ -282,7 +265,6 @@ export const useLocation = () => {
     return components.join(", ");
   };
 
-  // Hàm cập nhật tỉnh được chọn
   const setProvince = (province: Province | null) => {
     setLocationData((prev) => ({
       ...prev,
@@ -290,7 +272,6 @@ export const useLocation = () => {
     }));
   };
 
-  // Hàm cập nhật địa chỉ chi tiết
   const setDetailedAddress = (address: string | null) => {
     setLocationData((prev) => ({
       ...prev,
@@ -298,7 +279,6 @@ export const useLocation = () => {
     }));
   };
 
-  // Hàm lấy địa chỉ đầy đủ từ tỉnh và địa chỉ chi tiết
   const getFullAddress = () => {
     const components = [
       locationData.detailedAddress,

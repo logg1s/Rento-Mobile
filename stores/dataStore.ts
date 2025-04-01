@@ -58,7 +58,26 @@ type DataState = {
 };
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
-
+const fetchApi = async (
+  url: string,
+  method: Method = "get",
+  data?: any,
+  isUpload = false,
+) => {
+  const token = await AsyncStorage.getItem("jwtToken");
+  const result = await axios({
+    url: rentoHost + url,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": `${isUpload ? "multipart/form-data" : "application/json"}`,
+      Accept: "application/json",
+      Connection: "keep-alive",
+    },
+    method,
+    data,
+  });
+  return result;
+};
 export const axiosFetch = async (
   url: string,
   method: Method = "get",
@@ -72,22 +91,15 @@ export const axiosFetch = async (
     data ? JSON.stringify(data) : "",
   );
   try {
-    const token = await AsyncStorage.getItem("jwtToken");
-    const result = await axios({
-      url: rentoHost + url,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": `${isUpload ? "multipart/form-data" : "application/json"}`,
-        Accept: "application/json",
-        Connection: "keep-alive",
-      },
-      method,
-      data,
-    });
-    return result;
+    return await fetchApi(url, method, data, isUpload);
   } catch (error: any) {
     await useAuthStore.getState().refreshAccessToken();
-    console.error("Error fetch", error?.response?.data);
+    try {
+      return await fetchApi(url, method, data, isUpload);
+    } catch (err) {
+      console.warn("Error fetch", error?.response?.data);
+      throw err;
+    }
   }
 };
 

@@ -32,7 +32,7 @@ const CallScreen = () => {
       Alert.alert(
         "Quyền truy cập micro bị từ chối",
         "Vui lòng cấp quyền truy cập micro trong cài đặt để thực hiện cuộc gọi.",
-        [{ text: "OK" }],
+        [{ text: "OK" }]
       );
     }
   };
@@ -49,12 +49,12 @@ const CallScreen = () => {
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    // Implement mute functionality here
+    // Implement
   };
 
   const toggleSpeaker = () => {
     setIsSpeakerOn(!isSpeakerOn);
-    // Implement speaker toggle functionality here
+    // Implement
   };
 
   return (

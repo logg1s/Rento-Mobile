@@ -11,7 +11,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
 
-// Period type for statistics filtering
 export type StatisticsPeriod = "week" | "month" | "year";
 
 interface ProviderStore {
@@ -21,7 +20,6 @@ interface ProviderStore {
   isLoading: boolean;
   error: string | null;
 
-  // Actions
   fetchStatistics: () => Promise<void>;
   fetchStatisticsWithPeriod: (period: StatisticsPeriod) => Promise<void>;
   fetchServices: () => Promise<void>;

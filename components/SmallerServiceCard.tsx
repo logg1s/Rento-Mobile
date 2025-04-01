@@ -24,7 +24,6 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
   },
   containerStyles,
 }) => {
-  // TODO: write logic press service card
   const onPressServiceCard = () => {
     router.push({
       pathname: "/job/[id]",
@@ -37,7 +36,6 @@ const SmallerServiceCard: React.FC<ServiceCardProps> = ({
   const isLiked = useRentoData((state) => state.favIds.includes(id));
   const updateFavorite = useRentoData((state) => state.updateFavorite);
 
-  // TODO: write long press service card
   const onLongPressServiceCard = () => {};
   return (
     <TouchableOpacity

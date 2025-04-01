@@ -49,7 +49,6 @@ const SearchTab = () => {
   const scrollRef = useRef<number | null>(null);
   const [filteredData, setFilteredData] = useState<ServiceType[]>([]);
 
-  // Thêm refs để theo dõi các filter trước đó
   const prevSearchQuery = useRef(searchQuery);
   const prevProviderFilter = useRef(providerFilter);
   const prevFilters = useRef(filters);
@@ -81,7 +80,7 @@ const SearchTab = () => {
   useEffect(() => {
     if (fromHome) {
       setShowSearch(true);
-      setFilterState((prev) => ({ ...prev, categories: [] })); // Reset to all categories
+      setFilterState((prev) => ({ ...prev, categories: [] }));
 
       if (searchText) {
         setSearchQuery(searchText as string);
@@ -141,8 +140,8 @@ const SearchTab = () => {
     fetchServices([]);
   }, [fetchProvinces, fetchServices]);
 
-  const ratingCounts = () => {
-    const counts = new Array(6).fill(0); // 0-5 stars?
+  /*   const ratingCounts = () => {
+    const counts = new Array(5).fill(0); // 0-5 stars?
 
     if (Array.isArray(services) && services.length > 0) {
       services.forEach((service) => {
@@ -151,7 +150,7 @@ const SearchTab = () => {
       });
     }
     return counts;
-  };
+  }; */
 
   useEffect(() => {
     if (!(Array.isArray(services) && services.length > 0) || !showSearch) {
@@ -172,7 +171,6 @@ const SearchTab = () => {
         return prevFilteredData;
       }
 
-      // Lưu trạng thái hiện tại để so sánh lần sau
       prevSearchQuery.current = searchQuery;
       prevProviderFilter.current = providerFilter;
       prevFilters.current = JSON.parse(JSON.stringify(filters));
@@ -252,12 +250,10 @@ const SearchTab = () => {
   }, []);
 
   const ProvinceSelectionModal = React.memo(() => {
-    // Use component-local state to prevent parent re-renders
     const [localSearchQuery, setLocalSearchQuery] =
       useState(provinceSearchQuery);
     const [searchResults, setSearchResults] = useState(provinces);
 
-    // Update search results only when typing finishes
     useEffect(() => {
       if (!localSearchQuery) {
         setSearchResults(provinces);
@@ -275,7 +271,6 @@ const SearchTab = () => {
       setSearchResults(filtered);
     }, [localSearchQuery, provinces]);
 
-    // Only sync with parent state when modal opens
     useEffect(() => {
       if (showProvinceModal) {
         setLocalSearchQuery(provinceSearchQuery);
@@ -397,9 +392,8 @@ const SearchTab = () => {
       .map((c) => c.category_name);
   }, [filters.categories, categories]);
 
-  // Memoize ratingCounts để cải thiện hiệu suất
   const countRatings = useCallback(() => {
-    const counts = new Array(6).fill(0); // 0-5 stars
+    const counts = new Array(6).fill(0);
 
     if (Array.isArray(services) && services.length > 0) {
       services.forEach((service) => {
@@ -676,7 +670,6 @@ const SearchTab = () => {
               <CustomButton
                 title="Áp dụng"
                 onPress={() => {
-                  // Validate price range
                   if (
                     localFilters.priceRange.min > localFilters.priceRange.max
                   ) {
@@ -763,7 +756,6 @@ const SearchTab = () => {
     const handleCategoryPress = useCallback(
       (categoryId: number) => {
         if (categoryId === -1) {
-          // Chọn tất cả
           setShowSearch(true);
         } else {
           handleCategorySelect(categoryId);
@@ -839,24 +831,20 @@ const SearchTab = () => {
   const SearchResults = React.memo(() => {
     const updateServiceFavorite = useCallback(
       (id: number, isLiked: boolean) => {
-        // Lưu lại vị trí cuộn hiện tại trước khi cập nhật
         const currentScrollPosition = scrollRef.current;
 
-        // Cập nhật filteredData
         setFilteredData((prev) => {
           return prev.map((service) =>
             service.id === id ? { ...service, is_liked: !isLiked } : service
           );
         });
 
-        // Cập nhật services chính
         setServices((prev) => {
           return prev.map((service) =>
             service.id === id ? { ...service, is_liked: !isLiked } : service
           );
         });
 
-        // Cập nhật trạng thái favorite trong store
         updateFavorite(id, !isLiked);
       },
       [updateFavorite]
@@ -945,8 +933,8 @@ const SearchTab = () => {
           updateCellsBatchingPeriod={50}
           initialNumToRender={10}
           getItemLayout={(data, index) => ({
-            length: 180, // Chiều cao ước tính cho mỗi item
-            offset: 180 * index + (index > 0 ? 16 * index : 0), // 16 là margin-bottom từ containerStyles
+            length: 180,
+            offset: 180 * index + (index > 0 ? 16 * index : 0),
             index,
           })}
           disableVirtualization={false}
@@ -994,7 +982,6 @@ const SearchTab = () => {
     );
   });
 
-  // Memoize ServiceCard để tránh re-render không cần thiết
   const ServiceCardMemo = React.memo(ServiceCard, (prevProps, nextProps) => {
     return (
       prevProps.data.id === nextProps.data.id &&

@@ -66,14 +66,13 @@ const getTime = () => {
   const date = new Date();
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  // get minute with 2 digit
+
   const minutesStr = minutes.toString().padStart(2, "0");
   return hours + ":" + minutesStr;
 };
 
 const buildChatHistory = (data: ChatHistoryType[]) => {
   return data.map((item) => {
-    // parts build with role type
     let text = "";
     if (item.role === "user") {
       text = item.message || "";

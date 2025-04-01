@@ -91,7 +91,6 @@ export default function ProviderOrders() {
   });
   const [showSearchFilter, setShowSearchFilter] = useState(false);
 
-  // Pagination state
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -105,7 +104,6 @@ export default function ProviderOrders() {
   const [totalCompletedRevenue, setTotalCompletedRevenue] = useState(0);
   const retryCount = useRef(0);
 
-  // Initial load orders
   const loadOrders = async (refresh = true) => {
     try {
       setRefreshing(refresh);
@@ -114,7 +112,6 @@ export default function ProviderOrders() {
         setHasMore(true);
       }
 
-      // Send all filter parameters to backend
       const response = await fetchOrders(
         statusFilter,
         refresh ? null : nextCursor,
@@ -178,7 +175,6 @@ export default function ProviderOrders() {
     }
   };
 
-  // Handle search input with debounce
   useEffect(() => {
     const debounceTimeout = setTimeout(() => {
       handleRefresh();
@@ -187,12 +183,10 @@ export default function ProviderOrders() {
     return () => clearTimeout(debounceTimeout);
   }, [searchQuery, searchFilter]);
 
-  // Handle filter changes
   useEffect(() => {
     handleRefresh();
   }, [statusFilter, sortBy, dateRange.startDate, dateRange.endDate]);
 
-  // Load more orders when scrolling
   const handleLoadMore = async () => {
     if (!hasMore || loadingMore || refreshing) return;
 
@@ -200,7 +194,6 @@ export default function ProviderOrders() {
     await loadOrders(false);
   };
 
-  // Refresh function
   const handleRefresh = async () => {
     await loadOrders(true);
     try {
@@ -213,12 +206,10 @@ export default function ProviderOrders() {
     }
   };
 
-  // Load data when component mounts
   useEffect(() => {
     handleRefresh();
   }, []);
 
-  // Custom function to handle status filter change
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
   };
@@ -291,13 +282,11 @@ export default function ProviderOrders() {
     }
   };
 
-  // Apply filters and close modal
   const applyFilters = () => {
     handleRefresh();
     setShowFilterModal(false);
   };
 
-  // Clear filters
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
@@ -307,7 +296,6 @@ export default function ProviderOrders() {
     setShowFilterModal(false);
   };
 
-  // Render status chip
   const renderStatusChip = (
     status: string,
     label: string,
@@ -365,7 +353,6 @@ export default function ProviderOrders() {
     </TouchableOpacity>
   );
 
-  // Helper function to get color value for icon
   const getColorValue = (color: string) => {
     switch (color) {
       case "blue":
@@ -381,7 +368,6 @@ export default function ProviderOrders() {
     }
   };
 
-  // Render footer for FlatList (loading indicator)
   const renderFooter = () => {
     if (!loadingMore) return null;
 
@@ -395,7 +381,6 @@ export default function ProviderOrders() {
     );
   };
 
-  // Custom search filter dropdown
   const renderSearchFilterDropdown = () => {
     return (
       <Modal
@@ -412,7 +397,7 @@ export default function ProviderOrders() {
           <View
             className="absolute bg-white rounded-lg border border-gray-200 shadow-lg"
             style={{
-              top: 145, // Adjust this value based on your header height
+              top: 145,
               left: 16,
               width: 200,
               maxHeight: 300,

@@ -84,7 +84,6 @@ const UserServices = () => {
     }
   };
 
-  // Lọc services dựa trên searchQuery
   useEffect(() => {
     if (!services?.length) {
       setFilteredServices([]);

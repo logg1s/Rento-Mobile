@@ -110,7 +110,6 @@ const SignUp = () => {
     }
   }, [formSignUp.email]);
 
-  // TODO: write logic sign up
   const handleSignUp = async () => {
     if (!secondPhase) {
       setSecondPhase(true);

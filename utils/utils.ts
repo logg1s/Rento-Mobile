@@ -69,24 +69,20 @@ export const getServiceImageSource = (imageUrl: string | null | undefined) => {
   if (!imageUrl) return { uri: `https://picsum.photos/seed/services/400` };
 
   try {
-    // Kiểm tra nếu đường dẫn đã có http hoặc https
     if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
       return { uri: imageUrl };
     }
 
-    // Kiểm tra nếu đường dẫn bắt đầu bằng /storage/
     if (imageUrl.startsWith("/storage/")) {
       const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}${imageUrl}`;
       return { uri: fullUrl };
     }
 
-    // Trường hợp đường dẫn không có /storage/ nhưng bắt đầu bằng services/
     if (imageUrl.startsWith("services/")) {
       const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
       return { uri: fullUrl };
     }
 
-    // Trường hợp khác, thêm /storage/
     const fullUrl = `${process.env.EXPO_PUBLIC_API_HOST}/storage/${imageUrl}`;
     return { uri: fullUrl };
   } catch (error) {

@@ -23,31 +23,30 @@ const CustomModal = ({
   onConfirm,
   onCancel,
 }: CustomModalProps) => {
-  // Xác định icon và màu sắc dựa trên type
   const getIconAndColor = () => {
     switch (type) {
       case "success":
         return {
           iconName: "checkmark-circle",
-          color: "#10b981", // Màu xanh lá
+          color: "#10b981",
           bgColor: "#d1fae5",
         };
       case "error":
         return {
           iconName: "alert-circle",
-          color: "#ef4444", // Màu đỏ
+          color: "#ef4444",
           bgColor: "#fee2e2",
         };
       case "confirm":
         return {
           iconName: "help-circle",
-          color: "#f59e0b", // Màu cam
+          color: "#f59e0b",
           bgColor: "#fef3c7",
         };
       case "info":
         return {
           iconName: "information-circle",
-          color: "#3b82f6", // Màu xanh dương
+          color: "#3b82f6",
           bgColor: "#dbeafe",
         };
       default:
@@ -185,11 +184,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   confirmButton: {
-    backgroundColor: "#3b82f6", // Màu xanh dương
+    backgroundColor: "#3b82f6",
     marginLeft: 10,
   },
   cancelButton: {
-    backgroundColor: "#f3f4f6", // Màu xám nhạt
+    backgroundColor: "#f3f4f6",
     marginRight: 10,
   },
   buttonText: {

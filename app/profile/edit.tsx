@@ -26,7 +26,6 @@ const EditProfileScreen = () => {
     province_id: user?.location?.province_id ?? null,
   });
 
-  // Theo dõi dữ liệu vị trí đầy đủ
   const [locationData, setLocationData] = useState({
     lat: user?.location?.lat ?? null,
     lng: user?.location?.lng ?? null,
@@ -36,31 +35,21 @@ const EditProfileScreen = () => {
     province_id: user?.location?.province_id ?? null,
   });
 
-  // Log dữ liệu người dùng để debug
-  useEffect(() => {
-    // Xử lý khi user thay đổi
-  }, [user]);
-
-  // Chuẩn bị initialProvince từ user.location và danh sách provinces
   const initialProvince = useMemo(() => {
     if (!user?.location?.province_id) return null;
 
-    // Tìm tỉnh chính xác từ danh sách provinces dựa vào province_id
     const provinceFromList = provinces.find(
       (p: Province) => p.id === user.location?.province_id
     );
 
     if (provinceFromList) {
-      // Nếu tìm thấy, sử dụng thông tin từ danh sách provinces
       return provinceFromList;
     }
 
-    // Fallback: Tạo đối tượng Province từ dữ liệu có sẵn nếu không tìm thấy trong danh sách
     const province: Province = {
       id: user.location.province_id,
-      // Sử dụng location_name nếu không tìm được tên chính xác
       name: user.location.location_name || "",
-      code: "UNKNOWN", // Giá trị mặc định vì backend không trả về code
+      code: "UNKNOWN",
     };
 
     return province;
@@ -91,7 +80,6 @@ const EditProfileScreen = () => {
     rule.every((r) => r.isValid)
   );
 
-  // Xử lý khi vị trí thay đổi từ LocationInputField
   const handleLocationChange = (data: {
     province: any | null;
     detailedAddress: string | null;
@@ -101,13 +89,11 @@ const EditProfileScreen = () => {
     province_id?: number | null;
     address?: string | null;
   }) => {
-    // Đảm bảo province_id được cập nhật từ province nếu có
     const province_id =
       data.province_id !== undefined
         ? data.province_id
         : data.province?.id || null;
 
-    // Tìm tỉnh chính xác từ danh sách provinces nếu có province_id
     let provinceName = "";
     if (province_id) {
       const foundProvince = provinces.find(
@@ -118,7 +104,6 @@ const EditProfileScreen = () => {
       }
     }
 
-    // Nếu không tìm thấy tên tỉnh từ danh sách, sử dụng tên từ data hoặc location_name
     if (!provinceName) {
       if (data.province?.name) {
         provinceName = data.province.name;
@@ -136,7 +121,6 @@ const EditProfileScreen = () => {
       province_id: province_id,
     });
 
-    // Cập nhật form với dữ liệu vị trí mới
     setForm((prev) => ({
       ...prev,
       lat: data.latitude,
@@ -159,11 +143,9 @@ const EditProfileScreen = () => {
     formattedAddress?: string;
     province_id?: number | null;
   }) => {
-    // Đảm bảo province_id từ dữ liệu được sử dụng
     const province_id =
       data.province_id !== undefined ? data.province_id : null;
 
-    // Tìm tên tỉnh chính xác từ danh sách provinces nếu có province_id
     let provinceName = "";
     if (province_id) {
       const foundProvince = provinces.find(

@@ -29,7 +29,6 @@ const CommentCard = ({
   enableOption?: boolean;
   handleDeleteComment?: (id: number) => void;
 }) => {
-  // Early return with placeholder if data is undefined
   if (!data) {
     return (
       <View
@@ -45,7 +44,6 @@ const CommentCard = ({
     );
   }
 
-  // Safely extract properties from data
   const { id, rate, comment_body, created_at, updated_at } = data;
 
   const onPressComment = () => {};
@@ -84,9 +82,8 @@ const CommentCard = ({
     setShowOption(false);
   };
 
-  // Use the most recent date between created_at and updated_at
   const getDisplayDate = () => {
-    if (!created_at) return new Date(); // Fallback to current date if no date available
+    if (!created_at) return new Date();
 
     const createdDate = new Date(created_at);
 

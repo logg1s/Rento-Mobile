@@ -35,7 +35,6 @@ import CustomModal from "@/app/components/CustomModal";
 import { PaginationType } from "@/types/pagination";
 import { comment_data } from "@/lib/dummy";
 
-// Định nghĩa rules cho validation
 type ValidationRule = {
   isValid: boolean;
   message: string;
@@ -85,7 +84,7 @@ const ProviderServiceDetail = () => {
   const [showAddBenefitModal, setShowAddBenefitModal] = useState(false);
   const [showEditBenefitModal, setShowEditBenefitModal] = useState(false);
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitType | null>(
-    null,
+    null
   );
   const navigation = useNavigation();
   const [benefitForm, setBenefitForm] = useState<{
@@ -101,7 +100,7 @@ const ProviderServiceDetail = () => {
   const [linkedBenefits, setLinkedBenefits] = useState<number[]>([]);
   const [benefitsToDetach, setBenefitsToDetach] = useState<number[]>([]);
   const [independentBenefits, setIndependentBenefits] = useState<BenefitType[]>(
-    [],
+    []
   );
   const {
     fetchServiceById,
@@ -121,7 +120,6 @@ const ProviderServiceDetail = () => {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [isValid, setIsValid] = useState(false);
 
-  // Form state cho chỉnh sửa dịch vụ
   const [formData, setFormData] = useState({
     service_name: "",
     service_description: "",
@@ -132,29 +130,24 @@ const ProviderServiceDetail = () => {
     province_id: null as number | null,
   });
 
-  // Form state cho thêm/sửa giá
   const [priceForm, setPriceForm] = useState({
     price_name: "",
     price_value: "",
   });
 
-  // Thêm validation state cho price form
   const [priceErrors, setPriceErrors] = useState({
     price_name: "",
     price_value: "",
   });
 
-  // Thêm validation state cho benefit form
   const [benefitErrors, setBenefitErrors] = useState({
     benefit_name: "",
   });
 
-  // State cho hình ảnh
   const [images, setImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Thêm state cho modal thông báo
   const [modal, setModal] = useState({
     visible: false,
     title: "",
@@ -163,26 +156,20 @@ const ProviderServiceDetail = () => {
     onConfirm: () => {},
   });
 
-  // Thêm state để theo dõi tính hợp lệ của form
   const [isPriceFormValid, setIsPriceFormValid] = useState(false);
   const [isBenefitFormValid, setIsBenefitFormValid] = useState(false);
 
-  // Cập nhật validation rules khi formData thay đổi
   useEffect(() => {
-    // Kiểm tra tên dịch vụ
     rules.service_name[0].isValid = formData.service_name.trim() !== "";
     rules.service_name[1].isValid = formData.service_name.trim().length >= 5;
 
-    // Kiểm tra mô tả dịch vụ
     rules.service_description[0].isValid =
       formData.service_description.trim() !== "";
     rules.service_description[1].isValid =
       formData.service_description.trim().length >= 20;
 
-    // Kiểm tra địa chỉ
     rules.location_name[0].isValid = formData.location_name.trim() !== "";
 
-    // Kiểm tra tất cả các rules
     let isFormValid = true;
     for (const field in rules) {
       const fieldRules = rules[field];
@@ -194,7 +181,6 @@ const ProviderServiceDetail = () => {
       }
     }
 
-    // Kiểm tra danh mục
     isFormValid = isFormValid && selectedCategory !== null;
 
     setIsValid(isFormValid);
@@ -206,8 +192,6 @@ const ProviderServiceDetail = () => {
     try {
       const data = await fetchServiceById(Number(id));
       if (data) {
-        // Xử lý dữ liệu trả về từ API
-        // Nếu có image mà không có images, chuyển đổi định dạng
         if ((data as any).image && (!data.images || data.images.length === 0)) {
           data.images = (data as any).image.map((img: any) => ({
             id: img.id,
@@ -215,8 +199,6 @@ const ProviderServiceDetail = () => {
           }));
         }
 
-        // Đảm bảo price và benefit đã được sắp xếp theo ngày giảm dần
-        // (dự phòng trường hợp API chưa sắp xếp)
         if (data.price) {
           data.price = data.price.sort((a, b) => {
             if (!a.created_at || !b.created_at) return 0;
@@ -249,10 +231,8 @@ const ProviderServiceDetail = () => {
         });
         setSelectedCategory(data.category?.id || null);
 
-        // Reset imageFiles khi tải lại dữ liệu
         setImageFiles([]);
 
-        // Lấy danh sách hình ảnh hiện tại
         if (data.images && data.images.length > 0) {
           const imageUrls = data.images.map((img) => {
             const imageUrl = img.image_url || "";
@@ -264,9 +244,7 @@ const ProviderServiceDetail = () => {
           setImages([]);
         }
 
-        // Nếu có benefits, đảm bảo chúng được hiển thị
         if (!data.benefit || data.benefit.length === 0) {
-          // Nếu không có benefit trong response, có thể cần gọi API riêng để lấy benefits
           try {
             const benefitResponse = await axiosFetch(`/benefits/service/${id}`);
             if (benefitResponse?.data) {
@@ -278,10 +256,9 @@ const ProviderServiceDetail = () => {
           }
         }
 
-        // Lấy danh sách benefits độc lập
         try {
           const independentBenefitsResponse = await getIndependentBenefits(
-            Number(id),
+            Number(id)
           );
           if (
             independentBenefitsResponse &&
@@ -298,7 +275,7 @@ const ProviderServiceDetail = () => {
       console.error("Lỗi khi tải dịch vụ:", error?.response?.data || error);
       Alert.alert(
         "Lỗi",
-        "Không thể tải thông tin dịch vụ. Vui lòng thử lại sau.",
+        "Không thể tải thông tin dịch vụ. Vui lòng thử lại sau."
       );
     }
   };
@@ -347,7 +324,6 @@ const ProviderServiceDetail = () => {
   };
 
   const handleUpdateService = async () => {
-    // Kiểm tra validation trước khi gửi
     let errorMessages = [];
 
     if (!formData.service_name.trim()) {
@@ -383,17 +359,15 @@ const ProviderServiceDetail = () => {
     try {
       setIsUploading(true);
 
-      // Tạo FormData để gửi dữ liệu và hình ảnh
       const formDataToSend = new FormData();
       formDataToSend.append("service_name", formData.service_name.trim());
       formDataToSend.append(
         "service_description",
-        formData.service_description.trim(),
+        formData.service_description.trim()
       );
       formDataToSend.append("location_name", formData.location_name.trim());
       formDataToSend.append("category_id", selectedCategory!.toString());
 
-      // Thêm kinh độ, vĩ độ và địa chỉ thật nếu có
       if (formData.lat !== null) {
         formDataToSend.append("lat", String(formData.lat));
       }
@@ -405,16 +379,14 @@ const ProviderServiceDetail = () => {
       if (formData.real_location_name) {
         formDataToSend.append(
           "real_location_name",
-          formData.real_location_name,
+          formData.real_location_name
         );
       }
 
-      // Thêm province_id nếu có
       if (formData.province_id) {
         formDataToSend.append("province_id", String(formData.province_id));
       }
 
-      // Thêm trường _method để Laravel hiểu đây là PUT request
       formDataToSend.append("_method", "PUT");
 
       if (imageFiles.length > 0) {
@@ -435,7 +407,6 @@ const ProviderServiceDetail = () => {
                 ? originalImgUrl
                 : originalImgUrl.uri;
 
-            // Kiểm tra xem hình ảnh này có còn trong danh sách hiện tại không
             let isImageKept = false;
             for (let j = 0; j < images.length; j++) {
               if (images[j] === imgUri) {
@@ -450,14 +421,12 @@ const ProviderServiceDetail = () => {
             }
           }
         } else {
-          // Nếu không xóa hình ảnh nào, giữ lại tất cả ID
           for (let i = 0; i < service.images.length; i++) {
             keptImageIds.push(service.images[i].id);
           }
         }
 
         if (keptImageIds.length > 0) {
-          // Nếu còn ảnh cần giữ lại, thêm vào FormData
           keptImageIds.forEach((id) => {
             formDataToSend.append(`kept_image_ids[]`, id.toString());
           });
@@ -477,7 +446,7 @@ const ProviderServiceDetail = () => {
       setIsUploading(false);
       console.error(
         "Lỗi khi cập nhật dịch vụ:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
 
       let errorMessage = "Không thể cập nhật dịch vụ. Vui lòng thử lại sau.";
@@ -516,14 +485,13 @@ const ProviderServiceDetail = () => {
           showModal(
             "Lỗi",
             "Không thể xóa dịch vụ. Vui lòng thử lại sau.",
-            "error",
+            "error"
           );
         }
-      },
+      }
     );
   };
 
-  // Validate price form
   const validatePriceForm = () => {
     let isValid = true;
     const errors = {
@@ -531,7 +499,6 @@ const ProviderServiceDetail = () => {
       price_value: "",
     };
 
-    // Validate price name
     if (!priceForm.price_name.trim()) {
       errors.price_name = "Tên gói dịch vụ không được để trống";
       isValid = false;
@@ -540,7 +507,6 @@ const ProviderServiceDetail = () => {
       isValid = false;
     }
 
-    // Validate price value
     if (!priceForm.price_value.trim()) {
       errors.price_value = "Giá gói dịch vụ không được để trống";
       isValid = false;
@@ -560,14 +526,12 @@ const ProviderServiceDetail = () => {
     return isValid;
   };
 
-  // Validate benefit form
   const validateBenefitForm = () => {
     let isValid = true;
     const errors = {
       benefit_name: "",
     };
 
-    // Validate benefit name
     if (!benefitForm.benefit_name.trim()) {
       errors.benefit_name = "Tên lợi ích không được để trống";
       isValid = false;
@@ -594,7 +558,6 @@ const ProviderServiceDetail = () => {
     try {
       const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
 
-      // Sử dụng API mới để thêm giá và liên kết benefits trong một lần
       await addServicePriceWithBenefits(service.id, {
         price_name: priceForm.price_name,
         price_value: priceValue,
@@ -613,12 +576,12 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi thêm gói dịch vụ:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       showModal(
         "Lỗi",
         "Không thể thêm gói dịch vụ. Vui lòng thử lại sau.",
-        "error",
+        "error"
       );
     }
   };
@@ -633,16 +596,13 @@ const ProviderServiceDetail = () => {
     try {
       const priceValue = parseInt(priceForm.price_value.replace(/\D/g, ""));
 
-      // Xác định danh sách benefits cần liên kết
-      // Benefits đã liên kết trừ đi những benefits bị detach + thêm vào những benefits mới được chọn
       const finalLinkedBenefits = [
         ...linkedBenefits.filter((id) => !benefitsToDetach.includes(id)),
         ...selectedBenefitsForPrice,
       ];
-      // Loại bỏ các ID trùng lặp
+
       const uniqueLinkedBenefits = [...new Set(finalLinkedBenefits)];
 
-      // Sử dụng API mới để cập nhật giá và liên kết benefits trong một lần
       await updateServicePriceWithBenefits(selectedPrice.id, {
         price_name: priceForm.price_name,
         price_value: priceValue,
@@ -661,12 +621,12 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật gói dịch vụ:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       showModal(
         "Lỗi",
         "Không thể cập nhật gói dịch vụ. Vui lòng thử lại sau.",
-        "error",
+        "error"
       );
     }
   };
@@ -686,24 +646,23 @@ const ProviderServiceDetail = () => {
         } catch (error: any) {
           console.error(
             "Lỗi khi xóa gói dịch vụ:",
-            error?.response?.data || error,
+            error?.response?.data || error
           );
           showModal(
             "Lỗi",
             "Không thể xóa gói dịch vụ. Vui lòng thử lại sau.",
-            "error",
+            "error"
           );
         }
-      },
+      }
     );
   };
 
   const formatPriceInput = (text: string) => {
-    // Chỉ giữ lại số
     const numericValue = text.replace(/\D/g, "");
-    // Format với dấu phân cách hàng nghìn
+
     const formattedValue = new Intl.NumberFormat("vi-VN").format(
-      parseInt(numericValue || "0"),
+      parseInt(numericValue || "0")
     );
     return formattedValue;
   };
@@ -748,25 +707,24 @@ const ProviderServiceDetail = () => {
           await axiosFetch(`/comments/${commentId}`, "delete");
           showModal("Thành công", "Xóa bình luận thành công", "success");
           setServiceComments((prev) =>
-            prev.filter((cmt) => cmt.id !== commentId),
+            prev.filter((cmt) => cmt.id !== commentId)
           );
           refreshComment();
         } catch (error: any) {
           console.error(
             "Lỗi khi xóa bình luận:",
-            error?.response?.data || error,
+            error?.response?.data || error
           );
           showModal(
             "Lỗi",
             "Không thể xóa bình luận. Vui lòng thử lại sau.",
-            "error",
+            "error"
           );
         }
-      },
+      }
     );
   };
 
-  // Hàm chọn hình ảnh từ thư viện
   const pickImages = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -776,11 +734,9 @@ const ProviderServiceDetail = () => {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        // Thêm hình ảnh mới vào danh sách hiển thị
         const newImages = result.assets.map((asset) => asset.uri);
         setImages([...images, ...newImages]);
 
-        // Chuẩn bị hình ảnh để tải lên
         const newImageFiles = result.assets.map((asset) => {
           const fileName =
             asset.uri.split("/").pop() || `image-${Date.now()}.jpg`;
@@ -801,7 +757,6 @@ const ProviderServiceDetail = () => {
     }
   };
 
-  // Hàm xóa hình ảnh
   const removeImage = (index: number) => {
     const newImages = [...images];
     newImages.splice(index, 1);
@@ -815,7 +770,6 @@ const ProviderServiceDetail = () => {
     }
   };
 
-  // Các ví dụ về benefit nên được hiển thị
   const benefitExamples = [
     "Bảo hành 12 tháng",
     "Hỗ trợ 24/7",
@@ -824,7 +778,6 @@ const ProviderServiceDetail = () => {
     "Hướng dẫn sử dụng",
   ];
 
-  // Hàm lấy ví dụ ngẫu nhiên
   const getRandomBenefitExample = () => {
     const randomIndex = Math.floor(Math.random() * benefitExamples.length);
     return benefitExamples[randomIndex];
@@ -838,7 +791,6 @@ const ProviderServiceDetail = () => {
     }
 
     try {
-      // Sử dụng API mới cho thêm benefit
       await addServiceBenefit(service.id, {
         benefit_name: benefitForm.benefit_name,
         price_id: benefitForm.price_id,
@@ -876,7 +828,6 @@ const ProviderServiceDetail = () => {
     }
 
     try {
-      // Sử dụng API mới cho cập nhật benefit
       await updateServiceBenefit(service.id, selectedBenefit.id, {
         benefit_name: benefitForm.benefit_name,
         price_id: benefitForm.price_id,
@@ -891,7 +842,7 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật lợi ích:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       let errorMessage = "Không thể cập nhật lợi ích. Vui lòng thử lại sau.";
 
@@ -910,13 +861,12 @@ const ProviderServiceDetail = () => {
     }
   };
 
-  // Hàm mới để cập nhật nhiều benefits cùng lúc
   const handleBulkUpdateBenefits = async (
     benefitsToUpdate: {
       id: number;
       benefit_name: string;
       price_ids: number[];
-    }[],
+    }[]
   ) => {
     if (!service) return;
 
@@ -927,11 +877,11 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật hàng loạt lợi ích:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật các lợi ích. Vui lòng thử lại sau.",
+        "Không thể cập nhật các lợi ích. Vui lòng thử lại sau."
       );
     }
   };
@@ -953,10 +903,10 @@ const ProviderServiceDetail = () => {
           showModal(
             "Lỗi",
             "Không thể xóa lợi ích. Vui lòng thử lại sau.",
-            "error",
+            "error"
           );
         }
-      },
+      }
     );
   };
 
@@ -966,16 +916,15 @@ const ProviderServiceDetail = () => {
       const index = newPriceIds.indexOf(priceId);
 
       if (index > -1) {
-        newPriceIds.splice(index, 1); // Remove price if already selected
+        newPriceIds.splice(index, 1);
       } else {
-        newPriceIds.push(priceId); // Add price if not selected
+        newPriceIds.push(priceId);
       }
 
       return { ...prev, price_id: newPriceIds };
     });
   };
 
-  // Hàm chuyển đổi trạng thái chọn benefit trong modal price
   const toggleBenefitForPrice = (benefitId: number) => {
     setSelectedBenefitsForPrice((prev) => {
       if (prev.includes(benefitId)) {
@@ -986,33 +935,26 @@ const ProviderServiceDetail = () => {
     });
   };
 
-  // Hàm xử lý khi bỏ chọn một benefit đã liên kết
   const toggleLinkedBenefit = (benefitId: number) => {
-    // Nếu benefit đã có trong danh sách cần bỏ, xóa nó ra
     if (benefitsToDetach.includes(benefitId)) {
       setBenefitsToDetach((prev) => prev.filter((id) => id !== benefitId));
     } else {
-      // Thêm vào danh sách cần bỏ
       setBenefitsToDetach((prev) => [...prev, benefitId]);
     }
   };
 
-  // Hàm để chọn tất cả hoặc bỏ chọn tất cả benefits
   const selectAllBenefits = (select: boolean) => {
     if (select) {
       if (service?.benefit) {
-        // Nếu đang ở modal sửa giá, chỉ chọn các benefit chưa liên kết
         if (showEditPriceModal) {
           const unlinkedBenefits = service.benefit
             .filter((benefit) => !linkedBenefits.includes(benefit.id))
             .map((benefit) => benefit.id);
           setSelectedBenefitsForPrice(unlinkedBenefits);
         } else if (showAddPriceModal) {
-          // Nếu đang ở modal thêm giá, chọn tất cả
           const allBenefitIds = service.benefit.map((benefit) => benefit.id);
           setSelectedBenefitsForPrice(allBenefitIds);
         } else if (showAddBenefitModal || showEditBenefitModal) {
-          // Nếu đang ở modal thêm/sửa benefit, chọn tất cả price
           if (service.price) {
             const allPriceIds = service.price.map((price) => price.id);
             setBenefitForm((prev) => ({
@@ -1023,42 +965,36 @@ const ProviderServiceDetail = () => {
         }
       }
     } else {
-      // Bỏ chọn tất cả
       if (showAddBenefitModal || showEditBenefitModal) {
-        // Nếu đang ở modal thêm/sửa benefit, bỏ chọn tất cả price
         setBenefitForm((prev) => ({
           ...prev,
           price_id: [],
         }));
       } else {
-        // Nếu đang ở modal thêm/sửa giá, bỏ chọn tất cả benefit
         setSelectedBenefitsForPrice([]);
       }
     }
   };
 
-  // Hàm để bỏ chọn tất cả benefits đã liên kết
   const detachAllBenefits = () => {
     if (service?.benefit && linkedBenefits.length > 0) {
       setBenefitsToDetach(linkedBenefits);
     }
   };
 
-  // Hàm để khôi phục tất cả benefits đã bỏ chọn
   const restoreAllBenefits = () => {
     setBenefitsToDetach([]);
   };
 
   service?.images?.map((image) => {});
 
-  // Hàm mới để cập nhật nhiều prices cùng lúc
   const handleBulkUpdatePrices = async (
     pricesToUpdate: {
       id: number;
       price_name: string;
       price_value: number;
       benefit_ids?: number[];
-    }[],
+    }[]
   ) => {
     if (!service) return;
 
@@ -1069,11 +1005,11 @@ const ProviderServiceDetail = () => {
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật hàng loạt gói dịch vụ:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       Alert.alert(
         "Lỗi",
-        "Không thể cập nhật các gói dịch vụ. Vui lòng thử lại sau.",
+        "Không thể cập nhật các gói dịch vụ. Vui lòng thử lại sau."
       );
     }
   };
@@ -1099,12 +1035,11 @@ const ProviderServiceDetail = () => {
     }
   };
 
-  // Hàm hiển thị modal thông báo
   const showModal = (
     title: string,
     message: string,
     type: "success" | "error" | "confirm" | "info",
-    onConfirm?: () => void,
+    onConfirm?: () => void
   ) => {
     setModal({
       visible: true,
@@ -1115,12 +1050,10 @@ const ProviderServiceDetail = () => {
     });
   };
 
-  // Hàm đóng modal
   const closeModal = () => {
     setModal((prev) => ({ ...prev, visible: false }));
   };
 
-  // Thêm useEffect để chạy validate mỗi khi form thay đổi
   useEffect(() => {
     validatePriceForm();
   }, [priceForm]);
@@ -1161,7 +1094,7 @@ const ProviderServiceDetail = () => {
                   console.error(
                     "Lỗi tải ảnh:",
                     image.image_url,
-                    e.nativeEvent.error,
+                    e.nativeEvent.error
                   );
                 }}
                 defaultSource={require("@/assets/images/avatar_placeholder_icon.png")}
@@ -1237,11 +1170,10 @@ const ProviderServiceDetail = () => {
                       setPriceForm({
                         price_name: price.price_name,
                         price_value: formatPriceInput(
-                          price.price_value.toString(),
+                          price.price_value.toString()
                         ),
                       });
 
-                      // Lấy danh sách benefits đã liên kết với price này
                       const linkedBenefitIds: number[] = [];
                       if (service?.benefit) {
                         service.benefit.forEach((benefit) => {
@@ -1256,7 +1188,6 @@ const ProviderServiceDetail = () => {
                       setLinkedBenefits(linkedBenefitIds);
                       setBenefitsToDetach([]);
 
-                      // Reset selected benefits cho price
                       setSelectedBenefitsForPrice([]);
                       setShowEditPriceModal(true);
                     }}
@@ -1337,7 +1268,7 @@ const ProviderServiceDetail = () => {
                         ?.filter(
                           (price) =>
                             Array.isArray(benefit.price_id) &&
-                            benefit.price_id.includes(price.id),
+                            benefit.price_id.includes(price.id)
                         )
                         .map((price) => (
                           <View
@@ -1601,7 +1532,6 @@ const ProviderServiceDetail = () => {
               onChangeText={(text) => {
                 setPriceForm((prev) => ({ ...prev, price_name: text }));
 
-                // Validate realtime
                 if (!text.trim()) {
                   setPriceErrors((prev) => ({
                     ...prev,
@@ -1638,7 +1568,6 @@ const ProviderServiceDetail = () => {
                   price_value: formattedText,
                 }));
 
-                // Validate realtime
                 if (!formattedText.trim()) {
                   setPriceErrors((prev) => ({
                     ...prev,
@@ -1852,7 +1781,6 @@ const ProviderServiceDetail = () => {
               onChangeText={(text) => {
                 setBenefitForm((prev) => ({ ...prev, benefit_name: text }));
 
-                // Validate realtime
                 if (!text.trim()) {
                   setBenefitErrors((prev) => ({
                     ...prev,
@@ -2214,7 +2142,7 @@ const ProviderServiceDetail = () => {
               {/* Các benefits có thể thêm */}
 
               {service.benefit.filter(
-                (benefit) => !linkedBenefits.includes(benefit.id),
+                (benefit) => !linkedBenefits.includes(benefit.id)
               ).length > 0 && (
                 <View>
                   <View className="flex-row justify-between mb-1">

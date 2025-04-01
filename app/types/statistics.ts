@@ -1,8 +1,3 @@
-/**
- * Statistics-related interfaces matching the Laravel backend response structure
- */
-
-// Service type returned in statistics
 export interface StatisticsService {
   id: number;
   name: string;
@@ -12,7 +7,6 @@ export interface StatisticsService {
   review_count: number;
 }
 
-// Revenue statistics
 export interface RevenueStatistics {
   labels: string[];
   data: number[];
@@ -21,7 +15,6 @@ export interface RevenueStatistics {
   trend: number;
 }
 
-// Order statistics
 export interface OrderStatistics {
   total: number;
   completed: number;
@@ -36,7 +29,6 @@ export interface OrderStatistics {
   };
 }
 
-// Service effectiveness statistics
 export interface ServiceStatistics {
   services: StatisticsService[];
   total_services: number;
@@ -45,7 +37,6 @@ export interface ServiceStatistics {
   most_profitable: string | null;
 }
 
-// Summary statistics
 export interface SummaryStatistics {
   total_services: number;
   total_orders: number;
@@ -54,7 +45,6 @@ export interface SummaryStatistics {
   average_rating: number;
 }
 
-// Full statistics object (response from API)
 export interface ProviderStatistics {
   revenue: RevenueStatistics;
   orders: OrderStatistics;

@@ -6,14 +6,12 @@ import { Province } from "@/types/type";
 import ProvinceSelect from "./ProvinceSelect";
 import InputField from "./InputField";
 
-// Định nghĩa kiểu dữ liệu cho rule validation
 export type ValidationRule = {
   isValid: boolean;
   message: string;
 }[];
 
 interface LocationInputFieldProps {
-  // Props cho component
   nameField?: string;
   placeholder?: string;
   iconLeft?: React.ReactNode;
@@ -23,12 +21,10 @@ interface LocationInputFieldProps {
   rules?: ValidationRule;
   canEmpty?: boolean;
 
-  // Props cho xử lý vị trí
   initialProvince?: Province | null;
   initialAddress?: string | null;
   autoFetchLocation?: boolean;
 
-  // Callbacks
   onLocationChange?: (data: {
     province: Province | null;
     detailedAddress: string | null;
@@ -48,7 +44,6 @@ interface LocationInputFieldProps {
 }
 
 const LocationInputField = ({
-  // Props cho component
   nameField = "Vị trí",
   placeholder = "Nhập địa chỉ",
   iconLeft,
@@ -58,12 +53,10 @@ const LocationInputField = ({
   rules = [],
   canEmpty = true,
 
-  // Props cho xử lý vị trí
   initialProvince = null,
   initialAddress = null,
   autoFetchLocation = false,
 
-  // Callbacks
   onLocationChange,
   onLocationSelected,
 }: LocationInputFieldProps) => {
@@ -79,7 +72,6 @@ const LocationInputField = ({
     formatAddress,
   } = useLocationStore();
 
-  // Thêm interface cho locationData
   interface LocationData {
     latitude: number | null;
     longitude: number | null;
@@ -98,7 +90,6 @@ const LocationInputField = ({
     string | null
   >(null);
 
-  // Tải danh sách tỉnh thành khi component khởi tạo
   useEffect(() => {
     const loadProvinces = async () => {
       try {
@@ -112,22 +103,14 @@ const LocationInputField = ({
     loadProvinces();
   }, []);
 
-  // Tự động lấy vị trí khi component khởi tạo nếu có yêu cầu
   useEffect(() => {
     if (autoFetchLocation) {
       handleGetCurrentLocation();
     }
   }, [autoFetchLocation]);
 
-  // Theo dõi thay đổi province
-  useEffect(() => {
-    // Xử lý khi province thay đổi
-  }, [province]);
-
-  // Thông báo thay đổi khi có cập nhật
   useEffect(() => {
     if (onLocationChange) {
-      // Đảm bảo province_id được gửi đi ngay cả khi không có province
       const province_id = province?.id || null;
 
       const locationData = {
@@ -143,7 +126,6 @@ const LocationInputField = ({
       onLocationChange(locationData);
     }
 
-    // Gọi callback onLocationSelected nếu có đủ thông tin
     if (onLocationSelected && latitude && longitude && detailedAddress) {
       const locationData = {
         lat: latitude,
@@ -157,20 +139,17 @@ const LocationInputField = ({
     }
   }, [province, detailedAddress, latitude, longitude, formattedAddressData]);
 
-  // Cập nhật detailedAddress khi value thay đổi từ bên ngoài
   useEffect(() => {
     if (value !== undefined && value !== detailedAddress) {
       setDetailedAddress(value);
     }
   }, [value]);
 
-  // Cập nhật province khi initialProvince thay đổi từ bên ngoài
   useEffect(() => {
     if (initialProvince) {
-      // Đảm bảo province có đủ các trường cần thiết
       const provinceToSet: Province = {
         id: initialProvince.id,
-        name: initialProvince.name || "", // Đảm bảo có tên
+        name: initialProvince.name || "",
         code: initialProvince.code || "UNKNOWN",
       };
 
@@ -180,54 +159,42 @@ const LocationInputField = ({
     }
   }, [initialProvince]);
 
-  // Hiển thị lỗi khi có thông báo lỗi
   useEffect(() => {
     if (error) {
       setFetchError(error);
     }
   }, [error]);
 
-  // Xử lý lấy vị trí hiện tại
   const handleGetCurrentLocation = async () => {
     setFetchError(null);
     try {
       const locationData = (await getCurrentLocation()) as LocationData;
 
       if (locationData && locationData.province) {
-        // Đặt province từ kết quả
         setProvince(locationData.province);
 
-        // Ưu tiên sử dụng formattedAddress từ geocode làm địa chỉ chi tiết
         const addressToUse =
           locationData.formattedAddress || locationData.detailedAddress;
 
-        // Đặt địa chỉ chi tiết
         setDetailedAddress(addressToUse);
 
-        // Lưu formattedAddress để sử dụng sau này (sửa lỗi type)
         if (locationData.formattedAddress) {
           setFormattedAddressData(locationData.formattedAddress);
         }
 
-        // Gọi callback onChangeText nếu có
         if (onChangeText) {
           onChangeText(addressToUse || "");
         }
       } else if (locationData) {
-        // Có tọa độ nhưng không có tỉnh thành, vẫn lấy địa chỉ
-        // Ưu tiên sử dụng formattedAddress từ geocode
         const addressToUse =
           locationData.formattedAddress || locationData.detailedAddress;
 
-        // Đặt địa chỉ chi tiết
         setDetailedAddress(addressToUse);
 
-        // Lưu formattedAddress để sử dụng sau này (sửa lỗi type)
         if (locationData.formattedAddress) {
           setFormattedAddressData(locationData.formattedAddress);
         }
 
-        // Gọi callback onChangeText nếu có
         if (onChangeText) {
           onChangeText(addressToUse || "");
         }
@@ -248,7 +215,6 @@ const LocationInputField = ({
     }
   };
 
-  // Xử lý khi người dùng nhập địa chỉ
   const handleAddressChange = (text: string) => {
     setDetailedAddress(text);
     setFormattedAddressData(text);
@@ -257,9 +223,7 @@ const LocationInputField = ({
     }
   };
 
-  // Xử lý khi người dùng chọn tỉnh/thành phố
   const handleProvinceSelect = (selectedProvince: Province | null) => {
-    // Cập nhật province state
     setProvince(selectedProvince);
   };
 

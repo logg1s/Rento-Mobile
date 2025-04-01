@@ -98,7 +98,6 @@ const DetailJob = () => {
       setComment(service?.comment_by_you?.comment_body ?? "");
       setSelectedRating(service?.comment_by_you?.rate ?? 0);
 
-      // Xử lý dữ liệu ảnh
       if (service?.image && Array.isArray(service.image)) {
         service.images = service.image.map(
           (img: { id: number; path: string }) => ({
@@ -230,19 +229,6 @@ const DetailJob = () => {
       console.error("Error: Comment or rating is empty");
     }
   };
-
-  // const pickImage = async () => {
-  //   const result = await ImagePicker.launchImageLibraryAsync({
-  //     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-  //     allowsEditing: true,
-  //     aspect: [4, 3],
-  //     quality: 1,
-  //   });
-
-  //   if (!result.canceled) {
-  //     setSelectedImage(result.assets[0].uri);
-  //   }
-  // };
 
   const handleDeleteComment = async (id: number) => {
     try {
@@ -549,14 +535,6 @@ const DetailJob = () => {
                   },
                 ]}
                 multiline
-                // iconRight={
-                //   <TouchableOpacity
-                //     onPress={pickImage}
-                //     style={{ marginLeft: 8 }}
-                //   >
-                //     <FontAwesome name="image" size={20} color="black" />
-                //   </TouchableOpacity>
-                // }
               />
             </View>
             {selectedImage && (

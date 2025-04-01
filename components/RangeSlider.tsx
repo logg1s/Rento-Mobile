@@ -8,7 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const SLIDER_WIDTH = SCREEN_WIDTH - 40; // -40 for padding
+const SLIDER_WIDTH = SCREEN_WIDTH - 40;
 const KNOB_SIZE = 20;
 
 interface RangeSliderProps {
@@ -38,12 +38,10 @@ const RangeSlider: React.FC<RangeSliderProps> = ({
     const ratio = pos / sliderWidth;
     let newValue = min + ratio * (max - min);
 
-    // Round to nearest step
     if (step > 0) {
       newValue = Math.round(newValue / step) * step;
     }
 
-    // Ensure within range
     newValue = Math.max(min, Math.min(max, newValue));
 
     runOnJS(onChange)(newValue);
@@ -55,12 +53,11 @@ const RangeSlider: React.FC<RangeSliderProps> = ({
       const newPosition = Math.max(
         0,
         Math.min(sliderWidth, gestureState.moveX - 20)
-      ); // 20 is container padding
+      );
       position.value = newPosition;
       updateValue(newPosition);
     },
     onPanResponderRelease: () => {
-      // Optional spring animation when released
       position.value = withSpring(position.value);
     },
   });

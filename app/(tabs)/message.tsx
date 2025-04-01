@@ -156,7 +156,7 @@ const MessageScreen = () => {
     useState(false);
   const [longPressedMessage, setLongPressedMessage] = useState(null);
   const [showConversationOptions, setShowConversationOptions] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // Added loading state
+  const [isUploading, setIsUploading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const user = useRentoData((state) => state.user);
   const markMessagesSeen = useMarkMessagesAsSeen();
@@ -217,7 +217,6 @@ const MessageScreen = () => {
           await markMessagesSeen(conversation.id, user.id);
         } catch (error) {
           console.error("Error marking messages as seen:", error);
-          // Don't show error to user as this is a background operation
         }
       }
     },
@@ -249,11 +248,8 @@ const MessageScreen = () => {
   useEffect(() => {
     if (conversations.length === 0) return;
 
-    // Chỉ cập nhật trạng thái online/offline mà không gây ra việc cuộn xuống
     setConversations((prev: any) => {
-      // Tạo bản sao mới của mảng conversations
       return prev.map((conversation: any) => {
-        // Chỉ cập nhật isOnline nếu nó thực sự thay đổi
         const newIsOnline = listOnline?.has(
           conversation?.otherUserId?.toString()
         );
@@ -268,20 +264,17 @@ const MessageScreen = () => {
     });
   }, [listOnline]);
 
-  // Tương tự, khi cập nhật selectedConversation, không làm gì khiến tự động cuộn
   useEffect(() => {
     if (selectedConversation !== null) {
       const newSelectedConversation = conversations?.find(
         (conversation) => conversation?.id === selectedConversation?.id
       );
       if (newSelectedConversation) {
-        // Chỉ cập nhật nếu có thay đổi thực sự
         const hasChanges = Object.keys(newSelectedConversation).some(
           (key) => newSelectedConversation[key] !== selectedConversation[key]
         );
 
         if (hasChanges) {
-          // Cập nhật trạng thái mà không kích hoạt cuộn
           setSelectedConversation((prevState) => ({
             ...prevState,
             ...newSelectedConversation,
@@ -317,7 +310,6 @@ const MessageScreen = () => {
     markSeen();
   }, [selectedConversation, user?.id, markMessagesSeen]);
 
-  // Bổ sung debounce cho việc hiển thị nút cuộn xuống để tránh nhấp nháy
   const debouncedShowScrollButton = useCallback(
     debounce((shouldShow) => {
       setShowScrollToBottom(shouldShow);
@@ -325,7 +317,6 @@ const MessageScreen = () => {
     []
   );
 
-  // Lấy danh sách tin nhắn từ selectedConversation
   const messages = useMemo(() => {
     if (!selectedConversation || !chatsData) return [];
 
@@ -333,19 +324,14 @@ const MessageScreen = () => {
       (chat) => chat.roomId === selectedConversation.id
     );
 
-    // Khi có tin nhắn mới đến (không phải tin nhắn của mình)
     if (chatData?.messages?.length > 0) {
       const lastMessage = chatData.messages[chatData.messages.length - 1];
       const isMyMessage = lastMessage.author === user?.id;
 
-      // Nếu không phải tin nhắn của mình
       if (!isMyMessage) {
-        // Nếu người dùng đã cuộn lên quá xa, chỉ hiển thị nút cuộn xuống
         if (userScrolled) {
           debouncedShowScrollButton(true);
-        }
-        // Nếu người dùng chưa cuộn hoặc chưa cuộn quá xa, tự động cuộn xuống
-        else if (flatListRef.current) {
+        } else if (flatListRef.current) {
           setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
           }, 100);
@@ -362,7 +348,6 @@ const MessageScreen = () => {
     user?.id,
   ]);
 
-  // Message sending handler
   const handleSendMessage = useCallback(
     async (text = inputMessage, type = "text") => {
       if ((text.trim() === "" && type !== "system") || isUploading) return;
@@ -376,7 +361,6 @@ const MessageScreen = () => {
           message: text,
         });
 
-        // Luôn cuộn xuống khi gửi tin nhắn mới
         if (flatListRef.current) {
           setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
@@ -389,14 +373,12 @@ const MessageScreen = () => {
     [inputMessage, isUploading, user?.id, selectedConversation]
   );
 
-  // Handle call duration updates
   useEffect(() => {
     if (!callDuration || !selectedConversation) return;
 
     const callDurationMsg = `Call ended (${formatDuration(Number.parseInt(callDuration))})`;
     handleSendMessage(callDurationMsg, "system");
   }, [callDuration, selectedConversation, handleSendMessage]);
-  // Memoize rendering functions
   const renderConversation = useCallback(
     ({ item }) =>
       normalizeVietnamese((item?.name as string) || "")?.includes(
@@ -637,46 +619,20 @@ const MessageScreen = () => {
 
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.5, // Reduce quality to decrease file size
+          quality: 0.5,
           allowsEditing: true,
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.5, // Reduce quality to decrease file size
+          quality: 0.5,
           allowsEditing: true,
         });
       }
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        //
-        // // Check file size before processing
-        // const response = await fetch(asset.uri);
-        // const blob = await response.blob();
-        // const fileSize = blob.size;
-        //
-        // // If file is larger than 5MB, warn user
-        // if (fileSize > 5 * 1024 * 1024) {
-        //   Alert.alert(
-        //     "Large Image",
-        //     "This image is quite large and may take longer to send. Would you like to continue?",
-        //     [
-        //       {
-        //         text: "Cancel",
-        //         style: "cancel",
-        //       },
-        //       {
-        //         text: "Continue",
-        //         onPress: async () => {
-        //           await processAndSendImage(asset);
-        //         },
-        //       },
-        //     ],
-        //   );
-        //   return;
-        // }
-        //
+
         await processAndSendImage(asset);
       }
     } catch (error) {
@@ -833,7 +789,6 @@ const MessageScreen = () => {
     setConversations(conversationsData);
   };
 
-  // Function to report a message
   const reportMessage = async (message) => {
     try {
       if (!message?.id || !user?.id || !message?.author) {
@@ -860,7 +815,6 @@ const MessageScreen = () => {
     }
   };
 
-  // Function to report a user
   const reportUser = async (userId) => {
     try {
       if (!userId || !user?.id) {
@@ -886,9 +840,6 @@ const MessageScreen = () => {
     }
   };
 
-  // Function to block a user
-
-  // Function to retract a message
   const retractMessage = async (message) => {
     try {
       await retractMessageHook(message);
@@ -899,22 +850,15 @@ const MessageScreen = () => {
     }
   };
 
-  // Cập nhật phần theo dõi bàn phím để tránh hiệu ứng lag
   useEffect(() => {
-    // Xử lý khi component mount
     const keyboardDidShowListener =
       Platform.OS === "ios"
-        ? Keyboard.addListener("keyboardWillShow", () => {
-            // Không làm gì khi bàn phím hiện lên
-          })
-        : Keyboard.addListener("keyboardDidShow", () => {
-            // Không làm gì khi bàn phím hiện lên
-          });
+        ? Keyboard.addListener("keyboardWillShow", () => {})
+        : Keyboard.addListener("keyboardDidShow", () => {});
 
     const keyboardDidHideListener =
       Platform.OS === "ios"
         ? Keyboard.addListener("keyboardWillHide", () => {
-            // Không cuộn xuống nếu người dùng đã cuộn lên để xem tin nhắn cũ
             if (userScrolled) {
               debouncedShowScrollButton(true);
             } else if (flatListRef.current && !userScrolled) {
@@ -924,7 +868,6 @@ const MessageScreen = () => {
             }
           })
         : Keyboard.addListener("keyboardDidHide", () => {
-            // Không cuộn xuống nếu người dùng đã cuộn lên để xem tin nhắn cũ
             if (userScrolled) {
               debouncedShowScrollButton(true);
             } else if (flatListRef.current && !userScrolled) {
@@ -934,14 +877,12 @@ const MessageScreen = () => {
             }
           });
 
-    // Cleanup function
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
   }, [userScrolled, debouncedShowScrollButton]);
 
-  // Cập nhật useEffect để tự động cuộn đến tin nhắn mới nhất chỉ khi lần đầu vào hội thoại
   useEffect(() => {
     if (
       selectedConversation &&
@@ -949,12 +890,10 @@ const MessageScreen = () => {
       flatListRef.current &&
       isFirstLoad
     ) {
-      // Chỉ cuộn xuống cuối khi mới vào hội thoại lần đầu
       const timer = setTimeout(() => {
         requestAnimationFrame(() => {
           if (flatListRef.current) {
             flatListRef.current.scrollToEnd({ animated: false });
-            // Đánh dấu đã không còn là lần đầu nữa
             setIsFirstLoad(false);
           }
         });
@@ -968,13 +907,11 @@ const MessageScreen = () => {
     debouncedShowScrollButton,
   ]);
 
-  // Đặt lại trạng thái isFirstLoad khi chuyển hội thoại
   useEffect(() => {
-    // Khi chọn một hội thoại mới, đặt lại trạng thái để chỉ cuộn xuống cuối ở lần đầu
     setIsFirstLoad(true);
     setUserScrolled(false);
     setShowScrollToBottom(false);
-  }, [selectedConversation?.id]); // Chỉ phản ứng khi ID hội thoại thay đổi, không phải khi các thuộc tính khác thay đổi
+  }, [selectedConversation?.id]);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -1071,13 +1008,11 @@ const MessageScreen = () => {
               data={messages}
               keyExtractor={(item, index) => index.toString()}
               renderItem={renderMessage}
-              // Thêm các thuộc tính để cải thiện hiệu suất
               removeClippedSubviews={true}
               maxToRenderPerBatch={15}
               windowSize={10}
               initialNumToRender={15}
               onContentSizeChange={() => {
-                // Khi nội dung thay đổi (có tin nhắn mới), cuộn xuống nếu người dùng chưa cuộn lên quá xa
                 if (!userScrolled) {
                   requestAnimationFrame(() => {
                     flatListRef.current?.scrollToEnd({ animated: true });
@@ -1085,7 +1020,6 @@ const MessageScreen = () => {
                 }
               }}
               onLayout={() => {
-                // Khi layout thay đổi, cuộn xuống nếu người dùng chưa cuộn lên quá xa hoặc là lần đầu load
                 if (!userScrolled || isFirstLoad) {
                   requestAnimationFrame(() => {
                     flatListRef.current?.scrollToEnd({
@@ -1095,28 +1029,23 @@ const MessageScreen = () => {
                 }
               }}
               onScroll={(event) => {
-                // Lưu vị trí cuộn hiện tại
                 const currentScrollPosition = event.nativeEvent.contentOffset.y;
                 const contentHeight = event.nativeEvent.contentSize.height;
                 const scrollViewHeight =
                   event.nativeEvent.layoutMeasurement.height;
 
-                // Tính khoảng cách từ vị trí cuộn hiện tại đến cuối danh sách
                 const distanceFromBottom =
                   contentHeight - currentScrollPosition - scrollViewHeight;
 
                 if (distanceFromBottom > 20) {
                   setUserScrolled(true);
 
-                  // Sử dụng debounce để tránh nhấp nháy khi quyết định hiển thị nút
                   if (distanceFromBottom > 150) {
                     debouncedShowScrollButton(true);
                   } else {
                     debouncedShowScrollButton(false);
                   }
-                }
-                // Nếu người dùng cuộn đến cuối danh sách, ẩn nút và đặt lại trạng thái
-                else if (distanceFromBottom <= 5) {
+                } else if (distanceFromBottom <= 5) {
                   setUserScrolled(false);
                   debouncedShowScrollButton(false);
                 }
@@ -1142,7 +1071,6 @@ const MessageScreen = () => {
             />
           )}
 
-          {/* Nút cuộn xuống cuối */}
           {showScrollToBottom && (
             <TouchableOpacity
               onPress={scrollToBottom}
@@ -1154,7 +1082,7 @@ const MessageScreen = () => {
                 height: 48,
                 borderRadius: 24,
                 left: "50%",
-                marginLeft: -24, // Để căn giữa nút
+                marginLeft: -24,
               }}
             >
               <Ionicons name="arrow-down" size={24} color="white" />
@@ -1207,17 +1135,14 @@ const MessageScreen = () => {
                     Tùy chọn tin nhắn
                   </Text>
                   {longPressedMessage.author === user?.id ? (
-                    // Options for own messages
                     <React.Fragment key="own-message-options">
                       <TouchableOpacity
                         className="py-3 border-b border-gray-100"
                         onPress={async () => {
-                          // Copy message text to clipboard
                           if (
                             longPressedMessage.image &&
                             !longPressedMessage.image.retracted
                           ) {
-                            // Copy image URL
                             const imageUrl = getImagePath(
                               longPressedMessage.image.path
                             );
@@ -1229,7 +1154,6 @@ const MessageScreen = () => {
                               );
                             }
                           } else if (longPressedMessage.message) {
-                            // Copy text message
                             await Clipboard.setStringAsync(
                               longPressedMessage.message
                             );
@@ -1285,17 +1209,14 @@ const MessageScreen = () => {
                       </TouchableOpacity>
                     </React.Fragment>
                   ) : (
-                    // Options for other's messages
                     <React.Fragment key="others-message-options">
                       <TouchableOpacity
                         className="py-3 border-b border-gray-100"
                         onPress={async () => {
-                          // Copy message text to clipboard
                           if (
                             longPressedMessage.image &&
                             !longPressedMessage.image.retracted
                           ) {
-                            // Copy image URL
                             const imageUrl = getImagePath(
                               longPressedMessage.image.path
                             );
@@ -1307,7 +1228,6 @@ const MessageScreen = () => {
                               );
                             }
                           } else if (longPressedMessage.message) {
-                            // Copy text message
                             await Clipboard.setStringAsync(
                               longPressedMessage.message
                             );

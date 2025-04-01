@@ -30,7 +30,6 @@ import useProviderStore, { StatisticsPeriod } from "@/stores/providerStore";
 const screenWidth = Dimensions.get("window").width;
 
 const StatsScreen = () => {
-  // Get statistics-related methods from provider store
   const { statistics, isLoading, error, fetchStatisticsWithPeriod } =
     useProviderStore();
 
@@ -38,7 +37,6 @@ const StatsScreen = () => {
     useState<StatisticsPeriod>("week");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Use local fallback state when statistics is null
   const stats: ProviderStatistics = statistics || {
     revenue: {
       labels: [],
@@ -82,7 +80,6 @@ const StatsScreen = () => {
     { id: "year" as StatisticsPeriod, label: "Năm" },
   ];
 
-  // Format for charts
   const chartConfig = {
     backgroundColor: "#ffffff",
     backgroundGradientFrom: "#ffffff",
@@ -115,24 +112,20 @@ const StatsScreen = () => {
     fetchStats();
   };
 
-  // Initial fetch on component mount
   useEffect(() => {
     fetchStats();
   }, []);
 
-  // Fetch when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchStats();
     }, [])
   );
 
-  // Fetch when period changes
   useEffect(() => {
     fetchStats(selectedPeriod);
   }, [selectedPeriod]);
 
-  // Prepare data for charts
   const revenueData = {
     labels: stats.revenue?.labels || [],
     datasets: [
@@ -182,7 +175,6 @@ const StatsScreen = () => {
     ],
   };
 
-  // Prepare service effectiveness data
   const topServices = stats.services.services?.slice(0, 5) || [];
   const serviceData = {
     labels: topServices.map((service: StatisticsService) => service.name),
@@ -195,7 +187,6 @@ const StatsScreen = () => {
     ],
   };
 
-  // Show loading indicator
   if (isLoading && !refreshing) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-white">
@@ -207,7 +198,6 @@ const StatsScreen = () => {
     );
   }
 
-  // Show error state
   if (error && !refreshing) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-white">

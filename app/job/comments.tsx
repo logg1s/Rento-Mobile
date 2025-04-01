@@ -90,7 +90,6 @@ const AllComments = () => {
     applyFilters();
   }, [sortOption, selectedRatings, originalComments]);
 
-  // Calculate the count of each rating
   const ratingCounts = useMemo(() => {
     const counts = {
       1: 0,
@@ -112,14 +111,12 @@ const AllComments = () => {
   const applyFilters = () => {
     let filteredComments = [...originalComments];
 
-    // Apply rating filter (multi-selection)
     if (selectedRatings.length > 0) {
       filteredComments = filteredComments.filter((comment) =>
-        selectedRatings.includes(comment.rate as RatingOption),
+        selectedRatings.includes(comment.rate as RatingOption)
       );
     }
 
-    // Apply sort
     filteredComments.sort((a, b) => {
       const dateA = new Date(a.created_at || 0).getTime();
       const dateB = new Date(b.created_at || 0).getTime();
@@ -136,12 +133,9 @@ const AllComments = () => {
 
   const toggleRatingFilter = (rating: RatingOption) => {
     setSelectedRatings((prev) => {
-      // Check if the rating is already selected
       if (prev.includes(rating)) {
-        // If selected, remove it
         return prev.filter((r) => r !== rating);
       } else {
-        // If not selected, add it
         return [...prev, rating];
       }
     });
@@ -245,7 +239,7 @@ const AllComments = () => {
           <Text className="font-pmedium mr-2">Đang lọc:</Text>
           <View className="flex-row flex-wrap">
             {selectedRatings
-              .sort((a, b) => b - a) // Sort in descending order (5 to 1)
+              .sort((a, b) => b - a)
               .map((rating) => (
                 <View
                   key={rating}

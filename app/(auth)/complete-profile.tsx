@@ -30,7 +30,6 @@ const CompleteProfile = () => {
     province_id: null as number | null,
   });
 
-  // Theo dõi dữ liệu vị trí đầy đủ
   const [locationData, setLocationData] = useState({
     lat: null as number | null,
     lng: null as number | null,
@@ -83,7 +82,6 @@ const CompleteProfile = () => {
     rule.every((r) => r.isValid)
   );
 
-  // Xử lý khi vị trí thay đổi từ LocationInputField
   const handleLocationChange = (data: {
     province: any | null;
     detailedAddress: string | null;
@@ -102,7 +100,6 @@ const CompleteProfile = () => {
       province_id: data.province_id || null,
     });
 
-    // Cập nhật form với dữ liệu vị trí mới
     setFormData((prev) => ({
       ...prev,
       lat: data.latitude,

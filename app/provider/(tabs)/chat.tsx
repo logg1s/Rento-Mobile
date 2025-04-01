@@ -48,7 +48,6 @@ import useChatStore from "@/stores/chatStore";
 import * as Clipboard from "expo-clipboard";
 import { useScrollBehavior } from "@/hooks/useScrollBehavior";
 
-// Utility functions
 const formatTime = (date: Date): string => {
   return date.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
@@ -230,11 +229,8 @@ const ChatScreen = () => {
   useEffect(() => {
     if (conversations.length === 0) return;
 
-    // Chỉ cập nhật trạng thái online/offline mà không gây ra việc cuộn xuống
     setConversations((prev: any) => {
-      // Tạo bản sao mới của mảng conversations
       return prev.map((conversation: any) => {
-        // Chỉ cập nhật isOnline nếu nó thực sự thay đổi
         const newIsOnline = listOnline?.has(
           conversation?.otherUserId?.toString()
         );
@@ -249,20 +245,17 @@ const ChatScreen = () => {
     });
   }, [listOnline]);
 
-  // Tương tự, khi cập nhật selectedConversation, không làm gì khiến tự động cuộn
   useEffect(() => {
     if (selectedConversation !== null) {
       const newSelectedConversation = conversations?.find(
         (conversation) => conversation?.id === selectedConversation?.id
       );
       if (newSelectedConversation) {
-        // Chỉ cập nhật nếu có thay đổi thực sự
         const hasChanges = Object.keys(newSelectedConversation).some(
           (key) => newSelectedConversation[key] !== selectedConversation[key]
         );
 
         if (hasChanges) {
-          // Cập nhật trạng thái mà không kích hoạt cuộn
           setSelectedConversation((prevState) => ({
             ...prevState,
             ...newSelectedConversation,
@@ -324,7 +317,6 @@ const ChatScreen = () => {
     },
   });
 
-  // Lấy danh sách tin nhắn từ selectedConversation
   const messages = useMemo(() => {
     if (!selectedConversation || !chatsData) return [];
 
@@ -332,19 +324,14 @@ const ChatScreen = () => {
       (chat) => chat.roomId === selectedConversation.id
     );
 
-    // Khi có tin nhắn mới đến (không phải tin nhắn của mình)
     if (chatData?.messages?.length > 0) {
       const lastMessage = chatData.messages[chatData.messages.length - 1];
       const isMyMessage = lastMessage.author === user?.id;
 
-      // Nếu không phải tin nhắn của mình
       if (!isMyMessage) {
-        // Nếu người dùng đã cuộn lên quá xa, chỉ hiển thị nút cuộn xuống
         if (userScrolled) {
           debouncedShowScrollButton(true);
-        }
-        // Nếu người dùng chưa cuộn hoặc chưa cuộn quá xa, tự động cuộn xuống
-        else if (flatListRef.current) {
+        } else if (flatListRef.current) {
           setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
           }, 100);
@@ -361,7 +348,6 @@ const ChatScreen = () => {
     user?.id,
   ]);
 
-  // Message sending handler
   const handleSendMessage = useCallback(
     async (text = inputMessage, type = "text") => {
       if ((text.trim() === "" && type !== "system") || isUploading) return;
@@ -375,7 +361,6 @@ const ChatScreen = () => {
           message: text,
         });
 
-        // Luôn cuộn xuống khi gửi tin nhắn mới
         if (flatListRef.current) {
           setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
@@ -388,7 +373,6 @@ const ChatScreen = () => {
     [inputMessage, isUploading, user?.id, selectedConversation]
   );
 
-  // Handle call duration updates
   useEffect(() => {
     if (!callDuration || !selectedConversation) return;
 
@@ -396,7 +380,6 @@ const ChatScreen = () => {
     handleSendMessage(callDurationMsg, "system");
   }, [callDuration, selectedConversation, handleSendMessage]);
 
-  // Memoize rendering functions
   const renderConversation = useCallback(
     ({ item }) =>
       normalizeVietnamese(item?.name as string).includes(
@@ -723,7 +706,6 @@ const ChatScreen = () => {
     </Modal>
   );
 
-  // Function to report a message
   const reportMessage = async (message) => {
     try {
       if (!message?.id || !user?.id || !message?.author) {
@@ -750,7 +732,6 @@ const ChatScreen = () => {
     }
   };
 
-  // Function to report a user
   const reportUser = async (userId) => {
     try {
       if (!userId || !user?.id) {
@@ -776,9 +757,6 @@ const ChatScreen = () => {
     }
   };
 
-  // Function to block a user
-
-  // Function to retract a message
   const retractMessage = async (message) => {
     try {
       await retractMessageHook(message);
@@ -957,7 +935,6 @@ const ChatScreen = () => {
                   paddingBottom: isKeyboardVisible ? keyboardHeight + 20 : 20,
                 }}
                 onContentSizeChange={() => {
-                  // Khi nội dung thay đổi (có tin nhắn mới), cuộn xuống nếu người dùng chưa cuộn lên quá xa
                   if (!userScrolled) {
                     requestAnimationFrame(() => {
                       flatListRef.current?.scrollToEnd({ animated: true });
@@ -965,7 +942,6 @@ const ChatScreen = () => {
                   }
                 }}
                 onLayout={() => {
-                  // Khi layout thay đổi, cuộn xuống nếu người dùng chưa cuộn lên quá xa hoặc lần đầu load
                   if (!userScrolled || isFirstLoad) {
                     requestAnimationFrame(() => {
                       flatListRef.current?.scrollToEnd({
@@ -1050,17 +1026,14 @@ const ChatScreen = () => {
                     Tùy chọn tin nhắn
                   </Text>
                   {longPressedMessage.author === user?.id ? (
-                    // Options for own messages
                     <React.Fragment key="own-message-options">
                       <TouchableOpacity
                         className="py-3 border-b border-gray-100"
                         onPress={async () => {
-                          // Copy message text to clipboard
                           if (
                             longPressedMessage.image &&
                             !longPressedMessage.image.retracted
                           ) {
-                            // Copy image URL
                             const imageUrl = getImagePath(
                               longPressedMessage.image.path
                             );
@@ -1072,7 +1045,6 @@ const ChatScreen = () => {
                               );
                             }
                           } else if (longPressedMessage.message) {
-                            // Copy text message
                             await Clipboard.setStringAsync(
                               longPressedMessage.message
                             );
@@ -1128,17 +1100,14 @@ const ChatScreen = () => {
                       </TouchableOpacity>
                     </React.Fragment>
                   ) : (
-                    // Options for other's messages
                     <React.Fragment key="others-message-options">
                       <TouchableOpacity
                         className="py-3 border-b border-gray-100"
                         onPress={async () => {
-                          // Copy message text to clipboard
                           if (
                             longPressedMessage.image &&
                             !longPressedMessage.image.retracted
                           ) {
-                            // Copy image URL
                             const imageUrl = getImagePath(
                               longPressedMessage.image.path
                             );
@@ -1150,7 +1119,6 @@ const ChatScreen = () => {
                               );
                             }
                           } else if (longPressedMessage.message) {
-                            // Copy text message
                             await Clipboard.setStringAsync(
                               longPressedMessage.message
                             );
@@ -1173,7 +1141,6 @@ const ChatScreen = () => {
                       <TouchableOpacity
                         className="py-3"
                         onPress={() => {
-                          // Report message
                           reportMessage(longPressedMessage);
                           setLongPressedMessage(null);
                         }}
@@ -1214,7 +1181,6 @@ const ChatScreen = () => {
                   <TouchableOpacity
                     className="py-3"
                     onPress={() => {
-                      // Handle report user
                       reportUser(selectedConversation?.otherUserId);
                       setShowConversationOptions(false);
                     }}

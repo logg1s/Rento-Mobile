@@ -215,7 +215,6 @@ const UserProfile = () => {
             </Text>
           </TouchableOpacity>
           {categories.map((category) => {
-            // Count services for this category
             const serviceCount = services.filter(
               (service) => service.category?.id === category.id
             ).length;

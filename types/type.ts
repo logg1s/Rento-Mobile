@@ -163,7 +163,6 @@ export enum OrderStatus {
   COMPLETED = 3,
 }
 
-// Mapping from string status to OrderStatus enum
 export const ORDER_STATUS_STRING_MAP = {
   cancelled: OrderStatus.CANCELLED,
   pending: OrderStatus.PENDING,
@@ -171,7 +170,6 @@ export const ORDER_STATUS_STRING_MAP = {
   completed: OrderStatus.COMPLETED,
 };
 
-// Mapping from OrderStatus enum to string status
 export const ORDER_STATUS_ENUM_MAP = {
   [OrderStatus.CANCELLED]: "cancelled",
   [OrderStatus.PENDING]: "pending",
@@ -218,7 +216,6 @@ export const ORDER_STATUS_MAP: Record<OrderStatus, OrderStatusConfig> = {
   },
 };
 
-// Add image type to MessageType
 export type MessageType = {
   id: string;
   author: number;
@@ -240,7 +237,6 @@ export type UserSettingType = {
   deleted_at: string | null;
 } & TimeStampType;
 
-// Service type returned in statistics
 export interface StatisticsService {
   id: number;
   name: string;
@@ -250,7 +246,6 @@ export interface StatisticsService {
   review_count: number;
 }
 
-// Statistics response structure from backend
 export interface ProviderStatistics {
   revenue: {
     labels: string[];

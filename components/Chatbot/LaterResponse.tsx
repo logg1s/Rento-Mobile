@@ -11,7 +11,6 @@ const LaterResponseChat = ({
   laterResponse: ChatBotResponseData[];
   onTextResponse?: () => void;
 }) => {
-  // #useEffect
   useEffect(() => {
     const timeout = setTimeout(() => {
       onTextResponse?.();

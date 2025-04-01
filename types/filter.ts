@@ -11,7 +11,7 @@ export type FilterType = {
     max: number;
   };
   ratings: number[];
-  categories: number[]; // Changed from single category to array
+  categories: number[];
   location: string | null;
   sortBy: SortOption;
 };
@@ -22,7 +22,7 @@ export const defaultFilters: FilterType = {
     max: 10000000,
   },
   ratings: [],
-  categories: [], // Initialize empty array
+  categories: [],
   location: null,
   sortBy: null,
 };

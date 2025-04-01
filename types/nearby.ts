@@ -2,13 +2,11 @@ import { ServiceType } from "./type";
 import { LocationType } from "./type";
 import { axiosFetch } from "@/stores/dataStore";
 
-// Mở rộng kiểu ServiceType để bao gồm thuộc tính distance
 export interface ServiceWithDistance extends ServiceType {
   distance?: number;
   location?: LocationType;
 }
 
-// Interface cho kết quả từ API nearby
 export interface NearbySearchResponse {
   status: "success" | "error";
   data: {
@@ -33,7 +31,6 @@ export interface NearbySearchResponse {
   message?: string;
 }
 
-// Hàm helper để tìm dịch vụ gần đây theo tọa độ
 export const fetchNearbyServicesByCoordinates = async (
   lat: number,
   lng: number,
@@ -54,7 +51,6 @@ export const fetchNearbyServicesByCoordinates = async (
   }
 };
 
-// Hàm helper để tìm dịch vụ gần đây theo tỉnh
 export const fetchNearbyServicesByProvince = async (
   provinceId: number
 ): Promise<ServiceWithDistance[]> => {

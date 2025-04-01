@@ -9,7 +9,6 @@ export interface Province {
 }
 
 export interface LocationState {
-  // Trạng thái
   provinces: Province[];
   loadingProvinces: boolean;
   latitude: number | null;
@@ -18,7 +17,6 @@ export interface LocationState {
   error: string | null;
   loading: boolean;
 
-  // API actions
   fetchProvinces: () => Promise<Province[]>;
   getProvinceById: (id: number) => Promise<Province | null>;
   searchProvinces: (keyword: string) => Promise<Province[]>;
@@ -49,25 +47,20 @@ export interface LocationState {
     formattedAddress?: string | null;
   } | null>;
 
-  // Tiện ích
   formatAddress: (geocode: Location.LocationGeocodedAddress) => string;
   getProvinceByName: (name: string) => Province | null;
 }
 
-// Các endpoint API
 const endpoints = {
-  // Provinces
   provinces: "/provinces",
   provinceById: (id: number) => `/provinces/${id}`,
   searchProvinces: "/provinces/search",
 
-  // Locations
   locations: "/provider/locations",
   locationById: (id: number) => `/provider/locations/${id}`,
 };
 
 export const useLocationStore = create<LocationState>((set, get) => ({
-  // Trạng thái
   provinces: [],
   loadingProvinces: false,
   latitude: null,
@@ -76,7 +69,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   error: null,
   loading: false,
 
-  // Lấy danh sách tỉnh thành từ API
   fetchProvinces: async () => {
     try {
       set({ loadingProvinces: true });
@@ -94,7 +86,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     } catch (error) {
       console.error("Lỗi khi lấy danh sách tỉnh thành:", error);
 
-      // Cung cấp dữ liệu tỉnh thành mặc định khi API bị lỗi
       const defaultProvinces: Province[] = [
         { id: 1, name: "Hà Nội", code: "HN" },
         { id: 2, name: "Hồ Chí Minh", code: "HCM" },
@@ -113,7 +104,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Lấy thông tin tỉnh thành theo ID
   getProvinceById: async (id: number) => {
     try {
       const response = await axiosFetch(endpoints.provinceById(id));
@@ -127,7 +117,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Tìm kiếm tỉnh thành theo từ khóa
   searchProvinces: async (keyword: string) => {
     try {
       const response = await axiosFetch(
@@ -146,7 +135,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Tạo địa điểm mới
   createLocation: async (data: {
     province_id: number | null;
     address: string | null;
@@ -163,7 +151,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Cập nhật thông tin địa điểm
   updateLocation: async (
     id: number,
     data: {
@@ -187,15 +174,12 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Xin quyền truy cập vị trí
   requestPermission: async () => {
     try {
       set({ loading: true, error: null });
 
-      // Kiểm tra xem quyền đã được cấp hay chưa
       let { status } = await Location.getForegroundPermissionsAsync();
 
-      // Nếu chưa được cấp quyền, yêu cầu quyền
       if (status !== "granted") {
         const response = await Location.requestForegroundPermissionsAsync();
         status = response.status;
@@ -219,14 +203,12 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Lấy vị trí hiện tại
   getCurrentLocation: async () => {
     const { provinces } = get();
 
     try {
       set({ loading: true, error: null });
 
-      // Kiểm tra quyền
       const requestPermission = get().requestPermission;
       const hasPermission = await requestPermission();
 
@@ -235,7 +217,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         return null;
       }
 
-      // Kiểm tra vị trí có bật hay không
       const isLocationEnabled = await Location.hasServicesEnabledAsync();
       if (!isLocationEnabled) {
         set({
@@ -245,17 +226,14 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         return null;
       }
 
-      // Lấy vị trí hiện tại
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 5000,
       });
 
-      // Ép kiểu về number để phù hợp với interface
       const latitude: number = location.coords.latitude;
       const longitude: number = location.coords.longitude;
 
-      // Lấy địa chỉ từ tọa độ
       const geocodeResults = await Location.reverseGeocodeAsync({
         latitude,
         longitude,
@@ -271,13 +249,11 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
       const geocode = geocodeResults[0];
 
-      // Tạo địa chỉ đầy đủ
       const formatAddress = get().formatAddress;
       const address: string = formatAddress(geocode);
 
-      // Tìm tỉnh thành phù hợp từ geocode
       let province: Province | null = null;
-      // Thử tìm province dựa vào region hoặc city
+
       if (geocode.region) {
         province =
           provinces.find(
@@ -289,7 +265,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           ) || null;
       }
 
-      // Nếu không tìm thấy bằng region, thử với city
       if (!province && geocode.city) {
         province =
           provinces.find(
@@ -301,7 +276,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           ) || null;
       }
 
-      // Tạo địa chỉ chi tiết từ các thông tin có sẵn
       const parts = [
         geocode.name,
         geocode.street,
@@ -337,14 +311,11 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  // Hàm định dạng địa chỉ từ kết quả geocode
   formatAddress: (geocode: Location.LocationGeocodedAddress) => {
-    // Ưu tiên sử dụng formattedAddress nếu có
     if (geocode.formattedAddress) {
       return geocode.formattedAddress;
     }
 
-    // Tạo địa chỉ từ các thành phần nếu không có formattedAddress
     const components = [
       geocode.name,
       geocode.street,
@@ -357,7 +328,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     return components.join(", ");
   },
 
-  // Hàm tìm tỉnh theo tên
   getProvinceByName: (name: string) => {
     const { provinces } = get();
     if (!name || !provinces.length) return null;

@@ -30,7 +30,6 @@ export const OrderCard = ({
   isProvider = false,
   onUpdateStatus,
 }: OrderCardProps) => {
-  // Early return if no service data
   const updateStatusOrder = useRentoData((state) => state.updateStatusOrder);
   if (!order?.service?.id) return null;
 

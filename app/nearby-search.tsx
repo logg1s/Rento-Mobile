@@ -43,11 +43,8 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
-// Kích thước màn hình
 const { width, height } = Dimensions.get("window");
 
-// Thiết lập token cho Mapbox
-// Thay YOUR_MAPBOX_TOKEN_HERE bằng token thật của bạn nếu không dùng env
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || "");
 
 export default function NearbySearch() {
@@ -55,7 +52,7 @@ export default function NearbySearch() {
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<ServiceWithDistance[]>([]);
   const [searchRadius, setSearchRadius] = useState(10);
-  const [displayRadius, setDisplayRadius] = useState(10); // Chỉ để hiển thị trên UI
+  const [displayRadius, setDisplayRadius] = useState(10);
   const [showMap, setShowMap] = useState(true);
   const [selectedService, setSelectedService] =
     useState<ServiceWithDistance | null>(null);
@@ -63,32 +60,23 @@ export default function NearbySearch() {
   const [mapStyle, setMapStyle] = useState("light");
   const [mapVisible, setMapVisible] = useState(true);
 
-  // Trạng thái của bottom sheet
   const [listSheetExpanded, setListSheetExpanded] = useState(false);
-  // Animation value cho bottom sheet
   const listSheetAnimation = useRef(new Animated.Value(0)).current;
 
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const user = useRentoData((state) => state.user);
   const location = useLocation();
 
-  // Ref cho bản đồ và camera
   const mapRef = useRef<MapboxGL.MapView>(null);
   const cameraRef = useRef<MapboxGL.Camera>(null);
 
-  // Sử dụng useRef để lưu trữ debounce timeout
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // Sử dụng useRef để theo dõi trạng thái đã mount của component
   const isMountedRef = useRef(true);
 
-  // Dùng useRef để lưu trữ giá trị thực của bán kính giúp tránh hiện tượng nháy
   const actualRadiusRef = useRef(10);
 
-  // Animation value for popup
   const popupAnimation = useRef(new Animated.Value(0)).current;
 
-  // Sử dụng state để theo dõi cả giá trị hiển thị và giá trị thực
-  // Xin quyền truy cập vị trí (cho Android)
   const requestLocationPermission = async () => {
     if (Platform.OS === "android") {
       try {
@@ -112,7 +100,6 @@ export default function NearbySearch() {
     return true;
   };
 
-  // Hàm helper để fetch dữ liệu theo tọa độ
   const fetchByCoordinates = useCallback(
     async (
       lat: number,
@@ -131,7 +118,6 @@ export default function NearbySearch() {
         );
         if (isMountedRef.current) {
           setServices(results);
-          // Di chuyển camera đến vị trí hiện tại chỉ khi moveCamera = true
           if (moveCamera && cameraRef.current && results.length > 0) {
             cameraRef.current.setCamera({
               centerCoordinate: [lng, lat],
@@ -155,7 +141,6 @@ export default function NearbySearch() {
     []
   );
 
-  // Hàm helper để fetch dữ liệu theo tỉnh
   const fetchByProvince = useCallback(async (provinceId: number) => {
     if (!isMountedRef.current) return;
 
@@ -164,7 +149,6 @@ export default function NearbySearch() {
       const results = await fetchNearbyServicesByProvince(provinceId);
       if (isMountedRef.current) {
         setServices(results);
-        // Nếu có dịch vụ và dịch vụ đầu tiên có tọa độ, di chuyển camera đến đó
         if (
           results.length > 0 &&
           results[0].location?.lng !== undefined &&
@@ -193,16 +177,12 @@ export default function NearbySearch() {
     }
   }, []);
 
-  // Khởi tạo vị trí và tìm kiếm ban đầu
   useEffect(() => {
     isMountedRef.current = true;
-    // Theo dõi các timeout để cleanup
     const timeouts: NodeJS.Timeout[] = [];
 
-    // Yêu cầu quyền vị trí và thiết lập Mapbox
     const setupMap = async () => {
       await requestLocationPermission();
-      // Cho ios cần enable location services
       if (Platform.OS === "ios" && isMountedRef.current) {
         await MapboxGL.setTelemetryEnabled(false);
       }
@@ -219,7 +199,6 @@ export default function NearbySearch() {
         if (!isMountedRef.current) return;
 
         if (currentLocation?.latitude && currentLocation?.longitude) {
-          // Khi khởi tạo, cho phép di chuyển camera đến vị trí của người dùng (true)
           await fetchByCoordinates(
             currentLocation.latitude,
             currentLocation.longitude,
@@ -244,25 +223,20 @@ export default function NearbySearch() {
       }
     };
 
-    // Gọi initLocation khi component mount
     initLocation();
 
-    // Cleanup khi component unmount
     return () => {
       isMountedRef.current = false;
 
-      // Hủy bỏ timeout nếu có
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
         debounceTimeoutRef.current = null;
       }
 
-      // Xóa các timeout đã tạo
       timeouts.forEach(clearTimeout);
 
-      // Đảm bảo tham chiếu đến mapRef và cameraRef bị xóa khi component unmount
       if (mapRef.current) {
-        // @ts-ignore - Bỏ qua lỗi TypeScript vì chúng ta biết chắc chắn rằng đây là cách an toàn
+        // @ts-ignore
         mapRef.current = null;
       }
       if (cameraRef.current) {
@@ -270,13 +244,11 @@ export default function NearbySearch() {
         cameraRef.current = null;
       }
 
-      // Đảm bảo tất cả refs khác được reset
       // @ts-ignore
       radiusVisibleRef.current = false;
     };
-  }, []); // Loại bỏ tất cả dependencies để chỉ chạy khi mount
+  }, []);
 
-  // Xử lý refresh - di chuyển camera (true) vì đây là thao tác do người dùng chủ động thực hiện
   const onRefresh = useCallback(async () => {
     if (location.latitude && location.longitude) {
       await fetchByCoordinates(
@@ -290,44 +262,34 @@ export default function NearbySearch() {
     }
   }, [location, user, searchRadius, fetchByCoordinates, fetchByProvince]);
 
-  // Xử lý thay đổi bán kính tìm kiếm - sửa lỗi nháy nháy triệt để
   const handleRadiusChange = useCallback((value: number) => {
-    // Chỉ cập nhật giá trị hiển thị, không cập nhật searchRadius để tránh re-render
     setDisplayRadius(Math.round(value));
-    // Lưu vào ref để sử dụng khi cần
     actualRadiusRef.current = Math.round(value);
   }, []);
 
-  // Tách biệt việc gọi API khi kết thúc kéo thanh trượt
   const handleSlidingComplete = useCallback(
     (value: number) => {
       const roundedValue = Math.round(value);
 
-      // Kiểm tra nếu giá trị đã thay đổi để tránh gọi API không cần thiết
       if (roundedValue === searchRadius) return;
 
-      // Cập nhật cả hai giá trị trong cùng một lần render để tránh re-render không cần thiết
       setSearchRadius(roundedValue);
       setDisplayRadius(roundedValue);
 
-      // Reset showRadius khi thay đổi bán kính để tránh lỗi với bán kính cũ
       if (showRadius) {
         setShowRadius(false);
-        // Sau 100ms, bật lại showRadius để có animation mượt mà
         const timeoutId = setTimeout(() => {
           if (isMountedRef.current) {
             setShowRadius(true);
           }
         }, 100);
 
-        // Lưu timeout ID để có thể clear khi unmount
         if (debounceTimeoutRef.current) {
           clearTimeout(debounceTimeoutRef.current);
         }
         debounceTimeoutRef.current = timeoutId;
       }
 
-      // Chỉ gọi API nếu có vị trí, không di chuyển camera (false)
       if (location.latitude && location.longitude) {
         fetchByCoordinates(
           location.latitude,
@@ -340,13 +302,11 @@ export default function NearbySearch() {
     [location, fetchByCoordinates, searchRadius, showRadius]
   );
 
-  // Xử lý yêu thích/hủy yêu thích
   const onPressFavorite = useCallback(
     (serviceId: number, action: string) => {
       if (serviceId) {
         updateFavorite(serviceId, action === "true");
 
-        // Cập nhật state mà không phụ thuộc vào giá trị services hiện tại
         setServices((prevServices) =>
           prevServices.map((service) =>
             service.id === serviceId
@@ -359,17 +319,13 @@ export default function NearbySearch() {
     [updateFavorite]
   );
 
-  // Thêm ref để theo dõi trạng thái hiển thị bán kính
   const radiusVisibleRef = useRef(false);
 
-  // Cập nhật hàm xử lý hiển thị bán kính
   const toggleRadiusVisibility = useCallback(() => {
-    // Cập nhật ref trước, sau đó mới cập nhật state để tránh race conditions
     radiusVisibleRef.current = !radiusVisibleRef.current;
     setShowRadius(radiusVisibleRef.current);
   }, []);
 
-  // Hàm mở bản đồ bên ngoài (Google Maps hoặc Apple Maps)
   const openInMaps = useCallback((lat: number, lng: number, name: string) => {
     const scheme = Platform.OS === "ios" ? "maps:" : "geo:";
     const url =
@@ -381,38 +337,31 @@ export default function NearbySearch() {
       if (supported) {
         Linking.openURL(url);
       } else {
-        // Fallback cho trường hợp không mở được ứng dụng bản đồ
         const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
         Linking.openURL(googleMapsUrl);
       }
     });
   }, []);
 
-  // Xử lý đóng popup
   const handleClosePopup = useCallback(() => {
-    // Animate popup out
     Animated.timing(popupAnimation, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
-      // Sau khi animation kết thúc, mới reset selectedService
       setSelectedService(null);
     });
   }, [popupAnimation]);
 
-  // Xử lý khi chọn một marker trên bản đồ
   const handleMarkerPress = useCallback(
     (service: ServiceWithDistance) => {
       setSelectedService(service);
-      // Animate popup in
       Animated.spring(popupAnimation, {
         toValue: 1,
         useNativeDriver: true,
         friction: 8,
       }).start();
 
-      // Di chuyển camera đến vị trí của dịch vụ được chọn
       if (cameraRef.current && service.location?.lng && service.location?.lat) {
         cameraRef.current.setCamera({
           centerCoordinate: [service.location.lng, service.location.lat],
@@ -424,12 +373,10 @@ export default function NearbySearch() {
     [popupAnimation]
   );
 
-  // Tạo các marker cho bản đồ
   const renderMarkers = useCallback(() => {
     return services.map((service) => {
       if (!service.location?.lng || !service.location?.lat) return null;
 
-      // Tạo key duy nhất cho marker
       const markerKey = `marker-${service.id}-${service.location.lng.toFixed(6)}-${service.location.lat.toFixed(6)}`;
 
       return (
@@ -441,7 +388,6 @@ export default function NearbySearch() {
         >
           <TouchableOpacity
             onPressIn={() => {
-              // Khi nhấn vào marker, đặt dịch vụ được chọn để hiển thị popup
               handleMarkerPress(service);
             }}
             style={styles.markerContainer}
@@ -474,7 +420,6 @@ export default function NearbySearch() {
     });
   }, [services, selectedService, handleMarkerPress]);
 
-  // Render các nút điều khiển trên bản đồ
   const renderMapControls = useCallback(() => {
     return (
       <View style={styles.mapControlsContainer}>
@@ -547,45 +492,34 @@ export default function NearbySearch() {
     handleClosePopup,
   ]);
 
-  // Render vòng tròn bán kính tìm kiếm với kích thước chính xác
   const renderRadiusCircle = useCallback(() => {
     if (!showRadius || !location.latitude || !location.longitude) return null;
 
-    // Tạo vòng tròn GeoJSON với bán kính chính xác sử dụng công thức Haversine
     const createGeoJSONCircle = (
       center: [number, number],
       radiusInKm: number
     ) => {
       if (radiusInKm <= 0) return null;
 
-      const points = 128; // Tăng số điểm để đường tròn mịn hơn
+      const points = 128;
       const centerLng = center[0];
       const centerLat = center[1];
 
-      // Hằng số bán kính trái đất (km)
       const R = 6371;
 
       const polygon = [];
 
-      // Tạo vòng tròn dựa trên công thức Haversine (cùng công thức với backend)
       for (let i = 0; i < points; i++) {
         const angle = (i * 2 * Math.PI) / points;
 
-        // Tính toán điểm trên vòng tròn bằng công thức Haversine nghịch đảo
-        // Công thức này cho phép tìm một điểm cách điểm trung tâm một khoảng cách xác định
-        // theo một hướng nhất định
         const dx = radiusInKm * Math.cos(angle);
         const dy = radiusInKm * Math.sin(angle);
 
-        // Chuyển đổi khoảng cách dx, dy sang tọa độ (lng, lat)
-        // Công thức này đảm bảo khoảng cách Haversine chính xác
         const latRad = (centerLat * Math.PI) / 180;
 
-        // Tính toán tọa độ điểm mới (tính bằng radian)
         const dLat = dy / R;
         const dLng = dx / (R * Math.cos(latRad));
 
-        // Chuyển sang độ
         const newLatRad = latRad + dLat;
         const newLat = (newLatRad * 180) / Math.PI;
         const newLng = centerLng + (dLng * 180) / Math.PI;
@@ -593,7 +527,6 @@ export default function NearbySearch() {
         polygon.push([newLng, newLat]);
       }
 
-      // Đóng đa giác (điểm cuối = điểm đầu)
       polygon.push(polygon[0]);
 
       return {
@@ -606,7 +539,6 @@ export default function NearbySearch() {
       };
     };
 
-    // Không cần giới hạn bán kính hiển thị, để hiển thị đúng với kết quả tìm kiếm
     const circleData = createGeoJSONCircle(
       [location.longitude, location.latitude],
       searchRadius
@@ -614,7 +546,6 @@ export default function NearbySearch() {
 
     if (!circleData) return null;
 
-    // Sử dụng key để buộc re-render khi cần thiết, tránh lỗi ViewTagResolver
     const sourceKey = `circle-source-${searchRadius}-${location.latitude.toFixed(6)}-${location.longitude.toFixed(6)}`;
 
     return (
@@ -642,12 +573,9 @@ export default function NearbySearch() {
     );
   }, [showRadius, location.latitude, location.longitude, searchRadius]);
 
-  // Render nội dung của bản đồ
   const renderMap = useCallback(() => {
     if (!mapVisible) return null;
 
-    // Tính toán vị trí và style tùy chỉnh cho popup
-    // Luôn hiển thị ở giữa màn hình
     const popupPosition = {
       top: height * 0.15,
       bottom: undefined,
@@ -677,25 +605,21 @@ export default function NearbySearch() {
             centerCoordinate={
               location.latitude && location.longitude
                 ? [location.longitude, location.latitude]
-                : [106.660172, 10.762622] // Tọa độ mặc định (TP. HCM)
+                : [106.660172, 10.762622]
             }
             animationMode="flyTo"
             animationDuration={1000}
           />
 
-          {/* Hiện vị trí người dùng hiện tại */}
           {location.latitude && location.longitude && (
             <MapboxGL.UserLocation visible={true} />
           )}
 
-          {/* Hiển thị các marker cho các dịch vụ */}
           {renderMarkers()}
 
-          {/* Render vòng tròn bán kính tìm kiếm */}
           {renderRadiusCircle()}
         </MapboxGL.MapView>
 
-        {/* Hiển thị lớp mờ phía sau khi popup hiển thị */}
         {selectedService && (
           <Animated.View
             style={[
@@ -710,10 +634,8 @@ export default function NearbySearch() {
           />
         )}
 
-        {/* Các nút điều khiển bản đồ */}
         {renderMapControls()}
 
-        {/* Card hiển thị thông tin dịch vụ được chọn */}
         {selectedService && (
           <Animated.View
             style={[
@@ -821,17 +743,14 @@ export default function NearbySearch() {
     width,
   ]);
 
-  // Thêm hàm để xử lý việc mở bản đồ và đi đến vị trí dịch vụ
   const viewServiceOnMap = useCallback(
     (service: ServiceWithDistance) => {
       if (!service.location?.lat || !service.location?.lng) return;
 
-      // Đóng popup nếu đang mở
       if (selectedService) {
         handleClosePopup();
       }
 
-      // Đóng bottom sheet mượt mà
       setListSheetExpanded(false);
       Animated.timing(listSheetAnimation, {
         toValue: 0,
@@ -839,17 +758,13 @@ export default function NearbySearch() {
         useNativeDriver: true,
       }).start();
 
-      // Chuyển sang chế độ xem bản đồ
       setMapVisible(true);
 
-      // Sử dụng setTimeout để đảm bảo bản đồ đã load và animation trước đó đã hoàn tất
       setTimeout(() => {
         if (!isMountedRef.current) return;
 
-        // Đặt dịch vụ được chọn
         setSelectedService(service);
 
-        // Di chuyển camera đến vị trí dịch vụ
         if (cameraRef.current) {
           cameraRef.current.setCamera({
             centerCoordinate: [service.location!.lng, service.location!.lat],
@@ -858,7 +773,6 @@ export default function NearbySearch() {
           });
         }
 
-        // Animate popup in
         Animated.spring(popupAnimation, {
           toValue: 1,
           useNativeDriver: true,
@@ -869,7 +783,6 @@ export default function NearbySearch() {
     [selectedService, handleClosePopup, popupAnimation]
   );
 
-  // Render danh sách dịch vụ
   const renderItem = ({
     item,
     index,
@@ -880,7 +793,6 @@ export default function NearbySearch() {
     <View
       style={[
         styles.serviceCard,
-        // Nếu là item đầu tiên hoặc thứ hai, tăng zIndex để luôn hiển thị khi bottom sheet thu gọn
         !listSheetExpanded && index < 2 ? { zIndex: 10 } : {},
       ]}
     >
@@ -915,15 +827,12 @@ export default function NearbySearch() {
     </View>
   );
 
-  // Tự động ẩn thanh bán kính khi hiển thị popup
   useEffect(() => {
     if (selectedService) {
-      // Lưu trạng thái của thanh bán kính trước khi ẩn
       const previousRadiusState = showRadius;
       setShowRadius(false);
 
       return () => {
-        // Khôi phục trạng thái của thanh bán kính khi popup đóng
         if (isMountedRef.current) {
           setShowRadius(previousRadiusState);
         }
@@ -931,12 +840,10 @@ export default function NearbySearch() {
     }
   }, [selectedService]);
 
-  // Xử lý chuyển đổi giữa chế độ xem bản đồ và danh sách
   const toggleView = useCallback(() => {
     setShowMap((prev) => !prev);
   }, []);
 
-  // Format khoảng cách hiển thị
   const formatDistance = useCallback((distance: number | undefined) => {
     if (distance === undefined) return null;
     return distance < 1
@@ -944,78 +851,60 @@ export default function NearbySearch() {
       : `${distance.toFixed(1)} km`;
   }, []);
 
-  // Khai báo PanResponder với kiểu đúng để tránh lỗi TypeScript
   const panResponderRef = useRef<any>(null);
 
-  // Biến lưu trạng thái ban đầu và vị trí bắt đầu kéo
   const startDragPositionRef = useRef(0);
   const initialSheetPositionRef = useRef(0);
 
-  // Mở rộng hoặc thu gọn bottom sheet
   const toggleListSheet = useCallback(() => {
     setListSheetExpanded(!listSheetExpanded);
     Animated.spring(listSheetAnimation, {
       toValue: !listSheetExpanded ? 1 : 0,
       useNativeDriver: true,
-      friction: 8, // Giá trị cao hơn để animation mượt mà hơn
-      tension: 40, // Điều chỉnh để có hiệu ứng phù hợp
+      friction: 8,
+      tension: 40,
     }).start();
   }, [listSheetExpanded, listSheetAnimation]);
 
-  // Khởi tạo PanResponder TRƯỚC khi sử dụng trong renderListSheet
   useEffect(() => {
-    // Khởi tạo panResponder ngay sau render đầu tiên
     panResponderRef.current = PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Giảm ngưỡng để nhạy hơn, không giới hạn hướng vuốt
         return Math.abs(gestureState.dy) > 2;
       },
       onPanResponderGrant: () => {
-        // Lưu vị trí hiện tại của animation để tính toán chính xác vị trí mới
         listSheetAnimation.stopAnimation((value) => {
           initialSheetPositionRef.current = value;
         });
       },
       onPanResponderMove: (_, gestureState) => {
-        // Tính khoảng cách từ vị trí bắt đầu kéo
-        // Chia cho giá trị nhỏ hơn để thấy rõ chuyển động theo ngón tay
         const dragDistance = gestureState.dy / (height * 0.4);
 
-        // Cập nhật vị trí bottom sheet theo chuyển động ngón tay
         const newPosition = Math.max(
           0,
           Math.min(1, initialSheetPositionRef.current - dragDistance)
         );
 
-        // Cập nhật animation theo vị trí mới
         listSheetAnimation.setValue(newPosition);
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Xác định hướng và vận tốc vuốt
         const isDraggingDown = gestureState.vy > 0;
-        const isMovingFast = Math.abs(gestureState.vy) > 0.3; // Giảm ngưỡng để nhạy hơn
+        const isMovingFast = Math.abs(gestureState.vy) > 0.3;
 
-        // Nếu đang kéo xuống, hoặc đã kéo xuống quá một ngưỡng nhất định
         if (
           isDraggingDown &&
           (isMovingFast || gestureState.dy > height * 0.05)
         ) {
-          // Giảm ngưỡng để nhạy hơn
-          // Thu gọn bottom sheet
           setListSheetExpanded(false);
           Animated.spring(listSheetAnimation, {
             toValue: 0,
             useNativeDriver: true,
-            friction: 5, // Giảm friction để animation mượt hơn
-            tension: 30, // Giảm tension để animation chậm hơn
+            friction: 5,
+            tension: 30,
           }).start();
-        }
-        // Nếu đang kéo lên, hoặc đã kéo lên quá một ngưỡng nhất định
-        else if (
+        } else if (
           !isDraggingDown &&
           (isMovingFast || -gestureState.dy > height * 0.05)
         ) {
-          // Mở rộng bottom sheet
           setListSheetExpanded(true);
           Animated.spring(listSheetAnimation, {
             toValue: 1,
@@ -1023,10 +912,7 @@ export default function NearbySearch() {
             friction: 5,
             tension: 30,
           }).start();
-        }
-        // Nếu không đạt đến ngưỡng hoặc không đủ vận tốc
-        else {
-          // Trở về trạng thái trước đó
+        } else {
           Animated.spring(listSheetAnimation, {
             toValue: listSheetExpanded ? 1 : 0,
             useNativeDriver: true,
@@ -1038,18 +924,15 @@ export default function NearbySearch() {
     });
   }, [height, listSheetExpanded, listSheetAnimation]);
 
-  // Tùy chỉnh styles cho thanh kéo
   const handleBarStyles = {
-    width: 60, // Tăng chiều rộng thanh kéo
+    width: 60,
     height: 5,
     borderRadius: 3,
     backgroundColor: "#0286FF",
     opacity: 0.8,
   };
 
-  // Render danh sách dịch vụ
   const renderListSheet = useCallback(() => {
-    // Sử dụng z-index cố định thay vì nội suy để tránh lỗi precision
     const zIndex = listSheetExpanded ? 1300 : 900;
 
     const opacityGradient = listSheetAnimation.interpolate({
@@ -1066,18 +949,17 @@ export default function NearbySearch() {
               {
                 translateY: listSheetAnimation.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [height * 0.8, height * 0.15], // Thu gọn: chỉ hiện 20% màn hình, mở rộng: hiện 85% màn hình
+                  outputRange: [height * 0.8, height * 0.15],
                 }),
               },
             ],
-            zIndex, // Sử dụng giá trị cố định
+            zIndex,
           },
         ]}
         {...(panResponderRef.current
           ? panResponderRef.current.panHandlers
           : {})}
       >
-        {/* Gradient preview for collapsed state */}
         <Animated.View
           style={[
             styles.listSheetPreviewGradient,
@@ -1108,7 +990,7 @@ export default function NearbySearch() {
           renderItem={renderItem}
           contentContainerStyle={[
             styles.listContainer,
-            { paddingBottom: listSheetExpanded ? 150 : 100 }, // Tăng padding để đảm bảo hiển thị đủ tất cả items
+            { paddingBottom: listSheetExpanded ? 150 : 100 },
           ]}
           showsVerticalScrollIndicator={true}
         />
@@ -1116,12 +998,10 @@ export default function NearbySearch() {
     );
   }, [services, listSheetAnimation, listSheetExpanded, height, renderItem]);
 
-  // Định nghĩa style cho nút trạng thái active tại đây thay vì gán trực tiếp
   const viewModeButtonActiveStyle = {
     backgroundColor: "#0066CC",
   };
 
-  // Chỉnh sửa renderViewToggle để đồng bộ với trạng thái bottom sheet mà không cần mũi tên
   const renderViewToggle = useCallback(() => {
     return (
       <TouchableOpacity
@@ -1140,7 +1020,6 @@ export default function NearbySearch() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Link href="/home" asChild>
@@ -1153,7 +1032,6 @@ export default function NearbySearch() {
         {renderViewToggle()}
       </View>
 
-      {/* Map View - Luôn hiển thị */}
       <View style={styles.mapContainer}>
         <MapboxGL.MapView
           ref={mapRef}
@@ -1174,25 +1052,21 @@ export default function NearbySearch() {
             centerCoordinate={
               location.latitude && location.longitude
                 ? [location.longitude, location.latitude]
-                : [106.660172, 10.762622] // Tọa độ mặc định (TP. HCM)
+                : [106.660172, 10.762622]
             }
             animationMode="flyTo"
             animationDuration={1000}
           />
 
-          {/* Hiện vị trí người dùng hiện tại */}
           {location.latitude && location.longitude && (
             <MapboxGL.UserLocation visible={true} />
           )}
 
-          {/* Hiển thị các marker cho các dịch vụ */}
           {renderMarkers()}
 
-          {/* Render vòng tròn bán kính tìm kiếm */}
           {renderRadiusCircle()}
         </MapboxGL.MapView>
 
-        {/* Hiển thị lớp mờ phía sau khi popup hiển thị */}
         {selectedService && (
           <Animated.View
             style={[
@@ -1207,10 +1081,8 @@ export default function NearbySearch() {
           />
         )}
 
-        {/* Các nút điều khiển bản đồ */}
         {renderMapControls()}
 
-        {/* Card hiển thị thông tin dịch vụ được chọn */}
         {selectedService && (
           <Animated.View
             style={[
@@ -1300,25 +1172,23 @@ export default function NearbySearch() {
           </Animated.View>
         )}
 
-        {/* Danh sách dịch vụ dạng bottom sheet */}
         {renderListSheet()}
       </View>
 
-      {/* Radius Slider với animation ẩn/hiện dựa trên trạng thái của bottom sheet */}
       <Animated.View
         style={[
           styles.bottomRadiusContainer,
           {
-            opacity: 1, // Luôn hiển thị với opacity 1
-            zIndex: 800, // Z-index thấp hơn listSheet (900)
+            opacity: 1,
+            zIndex: 800,
             transform: [
               {
-                translateY: 0, // Không di chuyển theo bottom sheet
+                translateY: 0,
               },
             ],
           },
         ]}
-        pointerEvents="auto" // Luôn cho phép tương tác
+        pointerEvents="auto"
       >
         <View style={styles.radiusHeader}>
           <Text style={styles.radiusLabel}>
@@ -1360,7 +1230,6 @@ export default function NearbySearch() {
         </View>
       </Animated.View>
 
-      {/* Loading Indicator */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingContainer}>
@@ -1496,7 +1365,7 @@ const styles = StyleSheet.create({
   },
   mapControlsContainer: {
     position: "absolute",
-    bottom: 210, // Nâng cao vị trí các nút điều khiển để tránh chạm vào bottom sheet khi thu gọn
+    bottom: 210,
     right: 15,
     gap: 10,
     zIndex: 1200,
@@ -1624,7 +1493,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 10,
     marginHorizontal: 10,
-    zIndex: 800, // Z-index thấp hơn listSheet (900)
+    zIndex: 800,
   },
   radiusHeader: {
     flexDirection: "row",
@@ -1749,10 +1618,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "black",
-    zIndex: 10, // Đảm bảo nằm trên bản đồ nhưng dưới popup
+    zIndex: 10,
   },
   centeredCard: {
-    zIndex: 11, // Đảm bảo popup nằm trên backdrop
+    zIndex: 11,
     borderRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -1763,7 +1632,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: height * 0.8, // Chiều cao tối đa để có thể kéo lên
+    height: height * 0.8,
     backgroundColor: "white",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -1773,7 +1642,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 12,
-    zIndex: 900, // Z-index cao hơn bottomRadiusContainer (800)
+    zIndex: 900,
   },
   listSheetHandle: {
     alignItems: "center",
@@ -1781,7 +1650,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   listSheetHandleBar: {
-    width: 60, // Tăng chiều rộng thanh kéo
+    width: 60,
     height: 5,
     borderRadius: 3,
     backgroundColor: "#0286FF",

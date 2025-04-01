@@ -15,7 +15,7 @@ export type DateSlot = {
 export type Service = ServiceCardProp["data"] & {
   category: string;
   pricePerHour: number;
-  experience: number; // in years
+  experience: number;
   location: string;
 };
 
@@ -118,11 +118,11 @@ export const dateSlots: DateSlot[] = Array.from({ length: 30 }, (_, i) => {
   date.setDate(date.getDate() + i);
   return {
     date: date.toISOString().split("T")[0],
-    isAvailable: Math.random() > 0.2, // 80% chance of being available
+    isAvailable: Math.random() > 0.2,
     timeSlots: Array.from({ length: 12 }, (_, j) => ({
       id: i * 100 + j,
       time: `${String(8 + j).padStart(2, "0")}:00`,
-      isAvailable: Math.random() > 0.3, // 70% chance of being available
+      isAvailable: Math.random() > 0.3,
     })),
   };
 });
