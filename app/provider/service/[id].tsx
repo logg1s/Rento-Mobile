@@ -470,7 +470,7 @@ const ProviderServiceDetail = () => {
 
   const handleDeleteService = async () => {
     if (!service) return;
-
+    setShowDeleteConfirm(false);
     showModal(
       "Xác nhận xóa dịch vụ",
       "Bạn có chắc chắn muốn xóa dịch vụ này? Hành động này không thể hoàn tác.",

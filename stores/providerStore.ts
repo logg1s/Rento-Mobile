@@ -313,10 +313,7 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
   deleteService: async (id: number) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await axiosFetch(
-        `/provider/services/${id}/false`,
-        "delete"
-      );
+      const response = await axiosFetch(`/provider/services/${id}/0`, "delete");
 
       if (response && response.status >= 200 && response.status < 300) {
         await get().fetchServices();
