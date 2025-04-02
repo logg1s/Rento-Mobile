@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,26 +8,66 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Ionicons,
   MaterialCommunityIcons,
   FontAwesome5,
+  FontAwesome,
+  Octicons,
+  Feather,
 } from "@expo/vector-icons";
 import {
   LineChart,
   BarChart,
   PieChart,
   ProgressChart,
+  ContributionGraph,
 } from "react-native-chart-kit";
 import { formatCurrency } from "@/app/utils/formatters";
-import { Card } from "@/app/components/Card";
 import { useFocusEffect } from "@react-navigation/native";
-import { ProviderStatistics, StatisticsService } from "@/types/type";
+import {
+  ProviderStatistics,
+  PeriodInfo,
+  ComparisonData,
+  StatisticsService,
+} from "@/app/types/statistics";
 import useProviderStore, { StatisticsPeriod } from "@/stores/providerStore";
 
+// Components
+import { StatsHeader } from "../../components/statistics/StatsHeader";
+import { SummaryCard } from "../../components/statistics/SummaryCard";
+import { PeriodSelector } from "../../components/statistics/PeriodSelector";
+import { RevenueSection } from "../../components/statistics/RevenueSection";
+import { OrdersSection } from "../../components/statistics/OrdersSection";
+import { ServicesSection } from "../../components/statistics/ServicesSection";
+import { CustomersSection } from "../../components/statistics/CustomersSection";
+import { ServiceFilter } from "../../components/statistics/ServiceFilter";
+import { ServiceSpecificStats } from "../../components/statistics/ServiceSpecificStats";
+
 const screenWidth = Dimensions.get("window").width;
+
+const chartConfig = {
+  backgroundColor: "#ffffff",
+  backgroundGradientFrom: "#ffffff",
+  backgroundGradientTo: "#ffffff",
+  decimalPlaces: 0,
+  color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+  style: {
+    borderRadius: 16,
+  },
+  propsForDots: {
+    r: "4",
+    strokeWidth: "2",
+    stroke: "#3b82f6",
+  },
+  propsForBackgroundLines: {
+    stroke: "rgba(226, 232, 240, 0.6)",
+  },
+};
 
 const StatsScreen = () => {
   const { statistics, isLoading, error, fetchStatisticsWithPeriod } =
@@ -36,43 +76,9 @@ const StatsScreen = () => {
   const [selectedPeriod, setSelectedPeriod] =
     useState<StatisticsPeriod>("week");
   const [refreshing, setRefreshing] = useState(false);
-
-  const stats: ProviderStatistics = statistics || {
-    revenue: {
-      labels: [],
-      data: [],
-      total: 0,
-      average: 0,
-      trend: 0,
-    },
-    orders: {
-      total: 0,
-      completed: 0,
-      cancelled: 0,
-      pending: 0,
-      in_progress: 0,
-      completion_rate: 0,
-      cancellation_rate: 0,
-      trends: {
-        labels: [],
-        data: [],
-      },
-    },
-    services: {
-      services: [],
-      total_services: 0,
-      most_popular: null,
-      highest_rated: null,
-      most_profitable: null,
-    },
-    summary: {
-      total_services: 0,
-      total_orders: 0,
-      total_revenue: 0,
-      average_order_value: 0,
-      average_rating: 0,
-    },
-  };
+  const [activeSection, setActiveSection] = useState("revenue");
+  const [selectedService, setSelectedService] =
+    useState<StatisticsService | null>(null);
 
   const periods = [
     { id: "week" as StatisticsPeriod, label: "Tuần" },
@@ -80,26 +86,9 @@ const StatsScreen = () => {
     { id: "year" as StatisticsPeriod, label: "Năm" },
   ];
 
-  const chartConfig = {
-    backgroundColor: "#ffffff",
-    backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#ffffff",
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: "5",
-      strokeWidth: "2",
-      stroke: "#3b82f6",
-    },
-  };
-
   const fetchStats = async (period = selectedPeriod) => {
     try {
-      await fetchStatisticsWithPeriod(period);
+      await fetchStatisticsWithPeriod(period, true);
     } catch (error) {
       console.error("Error fetching statistics:", error);
     } finally {
@@ -126,66 +115,100 @@ const StatsScreen = () => {
     fetchStats(selectedPeriod);
   }, [selectedPeriod]);
 
-  const revenueData = {
-    labels: stats.revenue?.labels || [],
-    datasets: [
-      {
-        data: stats?.revenue?.data.length ? stats?.revenue.data : [0],
-        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  };
+  // Default empty statistics
+  const stats = useMemo(() => {
+    return (
+      statistics || {
+        revenue: {
+          labels: [],
+          data: [],
+          order_counts: [],
+          total: 0,
+          average: 0,
+          daily_average: 0,
+          max_revenue: {
+            value: 0,
+            date: null,
+          },
+          min_revenue: {
+            value: 0,
+            date: null,
+          },
+          trend: 0,
+        },
+        orders: {
+          total: 0,
+          completed: 0,
+          cancelled: 0,
+          pending: 0,
+          in_progress: 0,
+          completion_rate: 0,
+          cancellation_rate: 0,
+          busiest_day: null,
+          max_orders: 0,
+          daily_average: 0,
+          trends: {
+            labels: [],
+            data: [],
+            completed: [],
+            cancelled: [],
+          },
+        },
+        services: {
+          services: [],
+          total_services: 0,
+          active_services: 0,
+          service_categories: [],
+          most_popular: null,
+          highest_rated: null,
+          most_profitable: null,
+        },
+        customer_insights: {
+          total_customers: 0,
+          repeat_customers: 0,
+          repeat_rate: 0,
+          order_value_distribution: [],
+          rating_distribution: {},
+        },
+        summary: {
+          total_services: 0,
+          total_orders: 0,
+          total_revenue: 0,
+          average_order_value: 0,
+          average_rating: 0,
+          total_customers: 0,
+          customer_lifetime_value: 0,
+        },
+        period_info: {
+          start_date: "",
+          end_date: "",
+          period: "week",
+          days: 7,
+        },
+        comparison: {
+          revenue: {
+            current_value: 0,
+            previous_value: 0,
+            growth_percentage: 0,
+            is_positive: true,
+          },
+          orders: {
+            current_value: 0,
+            previous_value: 0,
+            growth_percentage: 0,
+            is_positive: true,
+          },
+        },
+      }
+    );
+  }, [statistics]);
 
-  const orderStatusData = [
-    {
-      name: "Hoàn thành",
-      population: stats.orders.completed || 0,
-      color: "#10b981",
-      legendFontColor: "#7f7f7f",
-    },
-    {
-      name: "Đang thực hiện",
-      population: stats.orders.in_progress || 0,
-      color: "#3b82f6",
-      legendFontColor: "#7f7f7f",
-    },
-    {
-      name: "Đang chờ",
-      population: stats.orders.pending || 0,
-      color: "#f59e0b",
-      legendFontColor: "#7f7f7f",
-    },
-    {
-      name: "Đã hủy",
-      population: stats.orders.cancelled || 0,
-      color: "#ef4444",
-      legendFontColor: "#7f7f7f",
-    },
+  const sections = [
+    { id: "revenue", label: "Doanh thu", icon: "cash" },
+    { id: "orders", label: "Đơn hàng", icon: "cart" },
+    { id: "services", label: "Dịch vụ", icon: "briefcase" },
+    { id: "customers", label: "Khách hàng", icon: "people" },
   ];
-
-  const orderTrendsData = {
-    labels: stats.orders.trends.labels || [],
-    datasets: [
-      {
-        data: stats.orders.trends.data.length ? stats.orders.trends.data : [0],
-        color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
-        strokeWidth: 2,
-      },
-    ],
-  };
-
-  const topServices = stats.services.services?.slice(0, 5) || [];
-  const serviceData = {
-    labels: topServices.map((service: StatisticsService) => service.name),
-    datasets: [
-      {
-        data: topServices.map(
-          (service: StatisticsService) => service.order_count
-        ),
-      },
-    ],
-  };
 
   if (isLoading && !refreshing) {
     return (
@@ -220,389 +243,215 @@ const StatsScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
+      <StatsHeader periodInfo={stats?.period_info} />
+
       <ScrollView
+        className="bg-gray-100 flex-1"
+        contentContainerStyle={{ paddingBottom: 50 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header */}
-        <View className="bg-primary-500 p-4">
-          <Text className="text-2xl font-pbold text-white">Thống kê</Text>
-          <Text className="text-white opacity-80 font-pmedium">
-            Phân tích hiệu suất của bạn
-          </Text>
-        </View>
-
-        {/* Period Selection */}
-        <View className="flex-row bg-white p-4 justify-between items-center shadow-sm mx-4 my-2 rounded-lg">
-          <Text className="font-pbold text-gray-700">Thời gian:</Text>
-          <View className="flex-row">
-            {periods.map((period) => (
-              <TouchableOpacity
-                key={period.id}
-                onPress={() => setSelectedPeriod(period.id)}
-                className={`px-4 py-2 rounded-full mr-2 ${
-                  selectedPeriod === period.id
-                    ? "bg-primary-500"
-                    : "bg-gray-100"
-                }`}
-              >
-                <Text
-                  className={`font-pmedium ${
-                    selectedPeriod === period.id
-                      ? "text-white"
-                      : "text-gray-600"
-                  }`}
-                >
-                  {period.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Summary Cards */}
-        <View className="flex-row flex-wrap justify-between px-4 mt-2">
-          <Card
-            className="bg-white p-4 rounded-lg shadow-sm w-[48%] mb-3"
-            icon={
-              <MaterialCommunityIcons
-                name="currency-usd"
-                size={24}
-                color="#3b82f6"
-              />
-            }
-            title="Doanh thu"
-            value={formatCurrency(stats.revenue.total)}
-            trend={stats.revenue.trend}
-            suffix={`${stats.revenue.trend >= 0 ? "+" : ""}${stats.revenue.trend}%`}
-          />
-
-          <Card
-            className="bg-white p-4 rounded-lg shadow-sm w-[48%] mb-3"
-            icon={
-              <MaterialCommunityIcons
-                name="shopping"
-                size={24}
-                color="#f59e0b"
-              />
-            }
-            title="Đơn dịch vụ"
-            value={stats.orders.total.toString()}
-            trend={0}
-          />
-
-          <Card
-            className="bg-white p-4 rounded-lg shadow-sm w-[48%] mb-3"
-            icon={
-              <MaterialCommunityIcons
-                name="check-circle"
-                size={24}
-                color="#10b981"
-              />
-            }
-            title="Tỷ lệ hoàn thành"
-            value={`${stats.orders.completion_rate}%`}
-            trend={0}
-          />
-
-          <Card
-            className="bg-white p-4 rounded-lg shadow-sm w-[48%] mb-3"
-            icon={<Ionicons name="star" size={24} color="#eab308" />}
-            title="Đánh giá trung bình"
-            value={`${stats.summary.average_rating} ⭐`}
-            trend={0}
-          />
-        </View>
-
-        {/* Revenue Chart */}
-        <View className="bg-white mt-2 p-4 mx-4 rounded-lg shadow-sm">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-xl font-pbold text-gray-800">Doanh thu</Text>
-            <View className="flex-row items-center">
-              <Text className="text-primary-500 font-pbold text-lg mr-2">
-                {formatCurrency(stats.revenue.total)}
-              </Text>
-              <View className="flex-row items-center bg-gray-100 px-2 py-1 rounded-full">
-                <Ionicons
-                  name={
-                    stats.revenue.trend >= 0 ? "trending-up" : "trending-down"
-                  }
-                  size={16}
-                  color={stats.revenue.trend >= 0 ? "#10b981" : "#ef4444"}
-                />
-                <Text
-                  className={`ml-1 ${stats.revenue.trend >= 0 ? "text-green-500" : "text-red-500"} font-pmedium text-xs`}
-                >
-                  {stats.revenue.trend}%
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {stats.revenue.data.length > 1 ? (
-            <LineChart
-              data={revenueData}
-              width={screenWidth - 48}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={{
-                marginVertical: 8,
-                borderRadius: 16,
-              }}
-              yAxisSuffix="đ"
-              formatYLabel={(value) => {
-                const num = parseInt(value);
-                if (num >= 1000000) {
-                  return (num / 1000000).toFixed(1) + "tr";
-                } else if (num >= 1000) {
-                  return (num / 1000).toFixed(0) + "k";
+        {/* Stats Summary Cards */}
+        <View className="px-4 py-3">
+          <View className="flex-row flex-wrap">
+            <View className="w-1/2 pr-2 mb-3">
+              <SummaryCard
+                title="Doanh thu"
+                value={formatCurrency(stats.revenue.total)}
+                trend={stats.revenue.trend}
+                icon={
+                  <FontAwesome5
+                    name="money-bill-wave"
+                    size={16}
+                    color="#3b82f6"
+                  />
                 }
-                return value;
-              }}
-            />
-          ) : (
-            <View className="h-[220] justify-center items-center">
-              <Text className="text-gray-500 font-pmedium">
-                Không đủ dữ liệu
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Orders Analysis */}
-        <View className="flex-row flex-wrap justify-between px-4 mt-4">
-          {/* Order Status Chart */}
-          <View className="bg-white p-4 rounded-lg shadow-sm w-full mb-4">
-            <Text className="text-xl font-pbold text-gray-800 mb-4">
-              Trạng thái đơn dịch vụ
-            </Text>
-
-            {stats.orders.total > 0 ? (
-              <PieChart
-                data={orderStatusData.filter((d) => d.population > 0)}
-                width={screenWidth - 48}
-                height={200}
-                chartConfig={chartConfig}
-                accessor="population"
-                backgroundColor="transparent"
-                paddingLeft="15"
-                absolute
               />
-            ) : (
-              <View className="h-[200] justify-center items-center">
-                <Text className="text-gray-500 font-pmedium">
-                  Không có đơn dịch vụ
-                </Text>
-              </View>
-            )}
-
-            {/* Stats summary */}
-            <View className="flex-row flex-wrap justify-between mt-4">
-              <View className="p-2 w-1/2">
-                <View className="flex-row items-center">
-                  <View className="w-3 h-3 rounded-full bg-green-500 mr-2" />
-                  <Text className="font-pmedium text-gray-700">
-                    Hoàn thành:
-                  </Text>
-                </View>
-                <Text className="text-gray-900 font-pbold ml-5">
-                  {stats.orders.completed}
-                </Text>
-              </View>
-
-              <View className="p-2 w-1/2">
-                <View className="flex-row items-center">
-                  <View className="w-3 h-3 rounded-full bg-blue-500 mr-2" />
-                  <Text className="font-pmedium text-gray-700">
-                    Đang thực hiện:
-                  </Text>
-                </View>
-                <Text className="text-gray-900 font-pbold ml-5">
-                  {stats.orders.in_progress}
-                </Text>
-              </View>
-
-              <View className="p-2 w-1/2">
-                <View className="flex-row items-center">
-                  <View className="w-3 h-3 rounded-full bg-yellow-500 mr-2" />
-                  <Text className="font-pmedium text-gray-700">Đang chờ:</Text>
-                </View>
-                <Text className="text-gray-900 font-pbold ml-5">
-                  {stats.orders.pending}
-                </Text>
-              </View>
-
-              <View className="p-2 w-1/2">
-                <View className="flex-row items-center">
-                  <View className="w-3 h-3 rounded-full bg-red-500 mr-2" />
-                  <Text className="font-pmedium text-gray-700">Đã hủy:</Text>
-                </View>
-                <Text className="text-gray-900 font-pbold ml-5">
-                  {stats.orders.cancelled}
-                </Text>
-              </View>
+            </View>
+            <View className="w-1/2 pl-2 mb-3">
+              <SummaryCard
+                title="Đơn dịch vụ"
+                value={stats.orders.total.toString()}
+                trend={
+                  stats.orders.trends
+                    ? stats.orders.trends.data.length > 0
+                      ? ((stats.orders.trends.data[
+                          stats.orders.trends.data.length - 1
+                        ] -
+                          stats.orders.trends.data[0]) /
+                          Math.max(stats.orders.trends.data[0], 1)) *
+                        100
+                      : 0
+                    : 0
+                }
+                icon={<Octicons name="package" size={16} color="#f97316" />}
+              />
+            </View>
+            <View className="w-1/2 pr-2 mb-3">
+              <SummaryCard
+                title="Khách hàng"
+                value={stats.customer_insights.total_customers.toString()}
+                trend={
+                  stats.comparison?.orders
+                    ? stats.comparison.orders.growth_percentage
+                    : 0
+                }
+                icon={<Ionicons name="people" size={16} color="#0ea5e9" />}
+              />
+            </View>
+            <View className="w-1/2 pl-2 mb-3">
+              <SummaryCard
+                title="Đánh giá"
+                value={`${parseFloat(stats.summary.average_rating.toString()).toFixed(1)}`}
+                trend={0}
+                icon={<Ionicons name="star" size={16} color="#facc15" />}
+                suffix="⭐"
+              />
             </View>
           </View>
         </View>
 
-        {/* Order Trends */}
-        <View className="bg-white mt-2 p-4 mx-4 rounded-lg shadow-sm">
-          <Text className="text-xl font-pbold text-gray-800 mb-4">
-            Xu hướng đơn dịch vụ
-          </Text>
-
-          {stats.orders.trends.data.length > 1 ? (
-            <LineChart
-              data={orderTrendsData}
-              width={screenWidth - 48}
-              height={220}
-              chartConfig={{
-                ...chartConfig,
-                color: (opacity = 1) => `rgba(249, 115, 22, ${opacity})`,
-              }}
-              bezier
-              style={{
-                marginVertical: 8,
-                borderRadius: 16,
-              }}
-            />
-          ) : (
-            <View className="h-[220] justify-center items-center">
-              <Text className="text-gray-500 font-pmedium">
-                Không đủ dữ liệu
-              </Text>
-            </View>
-          )}
+        {/* Period Selector */}
+        <View className="px-4 mb-3">
+          <PeriodSelector
+            periods={periods}
+            selectedPeriod={selectedPeriod}
+            setSelectedPeriod={setSelectedPeriod}
+          />
         </View>
 
-        {/* Service Effectiveness */}
-        <View className="bg-white mt-4 p-4 mx-4 rounded-lg shadow-sm">
-          <Text className="text-xl font-pbold text-gray-800 mb-4">
-            Hiệu quả dịch vụ
-          </Text>
+        {/* Service Filter */}
+        <View className="px-4">
+          <ServiceFilter
+            stats={stats}
+            selectedService={selectedService}
+            onServiceSelect={setSelectedService}
+          />
+        </View>
 
-          {topServices.length > 0 ? (
+        {/* Tabs */}
+        <View className="flex-row px-4 mt-3">
+          <TouchableOpacity
+            onPress={() => setActiveSection("revenue")}
+            className={`px-4 py-2 rounded-full mr-2 ${
+              activeSection === "revenue"
+                ? "bg-primary-500"
+                : "bg-white border border-gray-300"
+            }`}
+          >
+            <Text
+              className={`${
+                activeSection === "revenue"
+                  ? "text-white font-pbold"
+                  : "text-gray-700 font-pregular"
+              }`}
+            >
+              Doanh thu
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveSection("orders")}
+            className={`px-4 py-2 rounded-full mr-2 ${
+              activeSection === "orders"
+                ? "bg-orange-500"
+                : "bg-white border border-gray-300"
+            }`}
+          >
+            <Text
+              className={`${
+                activeSection === "orders"
+                  ? "text-white font-pbold"
+                  : "text-gray-700 font-pregular"
+              }`}
+            >
+              Đơn hàng
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveSection("services")}
+            className={`px-4 py-2 rounded-full mr-2 ${
+              activeSection === "services"
+                ? "bg-green-500"
+                : "bg-white border border-gray-300"
+            }`}
+          >
+            <Text
+              className={`${
+                activeSection === "services"
+                  ? "text-white font-pbold"
+                  : "text-gray-700 font-pregular"
+              }`}
+            >
+              Dịch vụ
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveSection("customers")}
+            className={`px-4 py-2 rounded-full ${
+              activeSection === "customers"
+                ? "bg-blue-500"
+                : "bg-white border border-gray-300"
+            }`}
+          >
+            <Text
+              className={`${
+                activeSection === "customers"
+                  ? "text-white font-pbold"
+                  : "text-gray-700 font-pregular"
+              }`}
+            >
+              Khách hàng
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Section Content */}
+        <View className="px-4 mt-3">
+          {selectedService ? (
+            <ServiceSpecificStats
+              service={selectedService}
+              stats={stats}
+              chartConfig={chartConfig}
+              screenWidth={screenWidth}
+              activeTab={activeSection}
+            />
+          ) : (
             <>
-              <View className="bg-gray-50 p-3 rounded-lg mb-4">
-                <View className="flex-row justify-between">
-                  <View className="flex-1">
-                    <Text className="font-pmedium text-gray-500 mb-1">
-                      Dịch vụ phổ biến nhất
-                    </Text>
-                    <Text className="font-pbold text-gray-800">
-                      {stats.services.most_popular || "Chưa có dữ liệu"}
-                    </Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-pmedium text-gray-500 mb-1">
-                      Đánh giá cao nhất
-                    </Text>
-                    <Text className="font-pbold text-gray-800">
-                      {stats.services.highest_rated || "Chưa có dữ liệu"}
-                    </Text>
-                  </View>
-                </View>
-                <View className="flex-row justify-between mt-3">
-                  <View className="flex-1">
-                    <Text className="font-pmedium text-gray-500 mb-1">
-                      Sinh lời nhất
-                    </Text>
-                    <Text className="font-pbold text-gray-800">
-                      {stats.services.most_profitable || "Chưa có dữ liệu"}
-                    </Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-pmedium text-gray-500 mb-1">
-                      Tổng số dịch vụ
-                    </Text>
-                    <Text className="font-pbold text-gray-800">
-                      {stats.services.total_services}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <Text className="text-lg font-pbold text-gray-800 mb-2">
-                Top 5 dịch vụ
-              </Text>
-
-              {/* Service popularities */}
-              {serviceData?.labels.length > 0 ? (
-                <BarChart
-                  data={serviceData}
-                  width={screenWidth - 48}
-                  height={220}
-                  chartConfig={{
-                    ...chartConfig,
-                    color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                  }}
-                  style={{
-                    marginVertical: 8,
-                    borderRadius: 16,
-                  }}
-                  showValuesOnTopOfBars
-                  yAxisLabel=""
-                  yAxisSuffix=""
+              {activeSection === "revenue" && (
+                <RevenueSection
+                  stats={stats}
+                  chartConfig={chartConfig}
+                  screenWidth={screenWidth}
                 />
-              ) : (
-                <View className="h-[220] justify-center items-center">
-                  <Text className="text-gray-500 font-pmedium">
-                    Không có dữ liệu dịch vụ
-                  </Text>
-                </View>
               )}
 
-              {/* Service ratings */}
-              <Text className="text-lg font-pbold text-gray-800 mt-4 mb-2">
-                Đánh giá dịch vụ
-              </Text>
-              {topServices.map((service: StatisticsService, index: number) => (
-                <View key={index} className="mb-3 bg-gray-50 p-3 rounded-lg">
-                  <View className="flex-row justify-between items-center">
-                    <Text
-                      className="font-pmedium text-gray-800 w-2/5"
-                      numberOfLines={1}
-                    >
-                      {service.name}
-                    </Text>
-                    <View className="flex-row items-center w-3/5">
-                      <View className="flex-1 h-2 bg-gray-200 rounded-full mr-2">
-                        <View
-                          className="h-2 bg-yellow-500 rounded-full"
-                          style={{
-                            width: `${(service.average_rating / 5) * 100}%`,
-                          }}
-                        />
-                      </View>
-                      <Text className="font-pbold text-gray-800 w-10 text-right">
-                        {service.average_rating}⭐
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="flex-row justify-between mt-2">
-                    <Text className="text-xs text-gray-500">
-                      {service.order_count} đơn dịch vụ
-                    </Text>
-                    <Text className="text-xs text-gray-500">
-                      {service.review_count} đánh giá
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              {activeSection === "orders" && (
+                <OrdersSection
+                  stats={stats}
+                  chartConfig={chartConfig}
+                  screenWidth={screenWidth}
+                />
+              )}
+
+              {activeSection === "services" && (
+                <ServicesSection
+                  stats={stats}
+                  chartConfig={chartConfig}
+                  screenWidth={screenWidth}
+                />
+              )}
+
+              {activeSection === "customers" && (
+                <CustomersSection
+                  stats={stats}
+                  chartConfig={chartConfig}
+                  screenWidth={screenWidth}
+                />
+              )}
             </>
-          ) : (
-            <View className="h-[220] justify-center items-center">
-              <Text className="text-gray-500 font-pmedium">
-                Không có dữ liệu dịch vụ
-              </Text>
-            </View>
           )}
         </View>
-
-        {/* Bottom padding */}
-        <View className="h-20" />
       </ScrollView>
     </SafeAreaView>
   );

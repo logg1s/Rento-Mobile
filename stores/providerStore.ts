@@ -1,10 +1,6 @@
 import { create } from "zustand";
-import {
-  ProviderStatistics,
-  ProviderService,
-  ProviderOrder,
-  ServiceType,
-} from "@/types/type";
+import { ProviderService, ProviderOrder, ServiceType } from "@/types/type";
+import { ProviderStatistics } from "@/app/types/statistics";
 import { axiosFetch } from "./dataStore";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,7 +17,10 @@ interface ProviderStore {
   error: string | null;
 
   fetchStatistics: () => Promise<void>;
-  fetchStatisticsWithPeriod: (period: StatisticsPeriod) => Promise<void>;
+  fetchStatisticsWithPeriod: (
+    period: StatisticsPeriod,
+    comparison: boolean
+  ) => Promise<void>;
   fetchServices: () => Promise<void>;
   fetchOrders: (
     status: string,
@@ -101,11 +100,14 @@ const useProviderStore = create<ProviderStore>((set, get) => ({
     }
   },
 
-  fetchStatisticsWithPeriod: async (period: StatisticsPeriod = "week") => {
+  fetchStatisticsWithPeriod: async (
+    period: StatisticsPeriod = "week",
+    comparison: boolean = true
+  ) => {
     try {
       set({ isLoading: true, error: null });
       const response = await axiosFetch(
-        `/provider/statistics?period=${period}`
+        `/provider/statistics?period=${period}&comparison=${comparison ? "true" : "false"}`
       );
       set({ statistics: response?.data || null, isLoading: false });
       return response?.data;
