@@ -32,10 +32,6 @@ export const OrdersSection: React.FC<OrdersSectionProps> = ({
     numericOrderData.some((value) => value > 0) ||
     numericCompletedData.some((value) => value > 0);
 
-  console.log("Order trends data:", numericOrderData);
-  console.log("Completed order data:", numericCompletedData);
-  console.log("Has order trend data:", hasOrderTrendData);
-
   const orderStatusData = [
     {
       name: "Hoàn thành",

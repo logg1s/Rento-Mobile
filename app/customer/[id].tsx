@@ -33,7 +33,6 @@ export default function CustomerDetails() {
 
       if (response?.data) {
         setUser(response.data);
-        console.log("Thông tin khách hàng:", response.data);
       } else {
         Alert.alert("Lỗi", "Không thể tải thông tin khách hàng");
       }

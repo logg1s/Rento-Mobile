@@ -32,7 +32,6 @@ const TabHome = () => {
   const nextCursor = useRef<string | null>(null);
   const fetchFav = useRentoData((state) => state.fetchFavIds);
   const favIds = useRentoData((state) => state.favIds);
-  console.log("favIds", favIds);
 
   const fetchServiceWithRetry = async () => {
     try {
@@ -90,7 +89,6 @@ const TabHome = () => {
   };
 
   const onTapBanner = (index: number) => {
-    console.log("onTapBanner", index);
     router.push({
       pathname: "/(tabs)/search",
       params: { fromHome: "true", searchText: searchText.trim() },

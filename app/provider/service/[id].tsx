@@ -1029,7 +1029,6 @@ const ProviderServiceDetail = () => {
 
   const [isLoadMoreComment, setIsLoadMoreComment] = useState(false);
   const loadMoreComment = async () => {
-    console.log(nextCursorComment.current);
     if (nextCursorComment.current) {
       await fetchComments();
     }

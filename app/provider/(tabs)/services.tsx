@@ -233,19 +233,16 @@ export default function ProviderServices() {
 
       if (debouncedSearchQuery.trim()) {
         params.append("search", debouncedSearchQuery.trim());
-        console.log(`Searching with query: "${debouncedSearchQuery.trim()}"`);
       }
 
       if (filterCategory !== "all") {
         params.append("category_id", filterCategory);
-        console.log(`Filtering by category ID: ${filterCategory}`);
       }
 
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
 
-      console.log("Loading services with URL:", url);
       const response = await axiosFetch(url);
 
       if (response?.data) {
@@ -254,10 +251,6 @@ export default function ProviderServices() {
         const services = Array.isArray(paginatedData.data)
           ? paginatedData.data
           : [];
-
-        console.log(
-          `Loaded ${services.length} services for category: ${filterCategory}`
-        );
 
         setServicesList(services);
         setPaginationData({
@@ -302,14 +295,6 @@ export default function ProviderServices() {
       paginationData.isLoadingMore ||
       paginationData.isFilterChanging
     ) {
-      console.log(
-        "Skipping loadMoreServices - hasMore:",
-        paginationData.hasMore,
-        "isLoadingMore:",
-        paginationData.isLoadingMore,
-        "isFilterChanging:",
-        paginationData.isFilterChanging
-      );
       return;
     }
 
@@ -319,9 +304,6 @@ export default function ProviderServices() {
     }
 
     try {
-      console.log(
-        `Loading more services... ${isRetry ? "(Retry attempt)" : ""}`
-      );
       setPaginationData((prev) => ({ ...prev, isLoadingMore: true }));
 
       const params = new URLSearchParams();
@@ -336,21 +318,18 @@ export default function ProviderServices() {
       }
 
       const url = `/provider/services/my-services?${params.toString()}`;
-      console.log("Loading more services with URL:", url);
       const response = await axiosFetch(url);
 
       if (response?.data) {
         loadMoreAttempts.current = 0;
 
         const paginatedData = response.data;
-        console.log("Load more API response received");
 
         const newServices = Array.isArray(paginatedData.data)
           ? paginatedData.data
           : [];
 
         if (newServices.length > 0) {
-          console.log(`Received ${newServices.length} new services`);
           setServicesList((prev) => [...prev, ...newServices]);
           setPaginationData((prev) => ({
             ...prev,
@@ -361,7 +340,6 @@ export default function ProviderServices() {
             lastEndReachTime: Date.now(),
           }));
         } else {
-          console.log("No new services received");
           setPaginationData((prev) => ({
             ...prev,
             nextCursor: paginatedData.next_cursor,
@@ -371,7 +349,6 @@ export default function ProviderServices() {
           }));
         }
       } else {
-        console.log("No data in response");
         setPaginationData((prev) => ({
           ...prev,
           hasMore: false,
@@ -384,16 +361,12 @@ export default function ProviderServices() {
 
       if (loadMoreAttempts.current < 3) {
         loadMoreAttempts.current += 1;
-        console.log(
-          `Load more failed, scheduling retry #${loadMoreAttempts.current} in 2 seconds...`
-        );
 
         loadMoreRetryTimeout.current = setTimeout(() => {
           setPaginationData((prev) => ({ ...prev, isLoadingMore: false }));
           loadMoreServices(true);
         }, 2000);
       } else {
-        console.log("Max retry attempts reached, giving up");
         loadMoreAttempts.current = 0;
         setPaginationData((prev) => ({
           ...prev,
@@ -428,9 +401,6 @@ export default function ProviderServices() {
       const timeSinceLastEndReach = now - paginationData.lastEndReachTime;
 
       if (timeSinceLastEndReach < 1000) {
-        console.log(
-          `Ignoring end reached - too soon (${timeSinceLastEndReach}ms since last call)`
-        );
         return;
       }
 
@@ -440,9 +410,6 @@ export default function ProviderServices() {
         !paginationData.isLoadingMore &&
         !paginationData.isFilterChanging
       ) {
-        console.log(
-          `End reached - distance: ${distanceFromEnd} - loading more services`
-        );
         onEndReachedCalledDuringMomentum.current = true;
 
         setPaginationData((prev) => ({
@@ -658,7 +625,7 @@ export default function ProviderServices() {
       const response = await axiosFetch(url, "get");
       const paginateComment: PaginationType<CommentType> = response?.data;
       const commentData = paginateComment?.data || [];
-      console.log(paginateComment.next_cursor);
+
       if (commentData?.length > 0) {
         nextCursorComment.current = paginateComment?.next_cursor || null;
         retryLoadComment.current = 0;
@@ -745,8 +712,6 @@ export default function ProviderServices() {
   const handleCategorySwitch = useCallback(
     (categoryId: string) => {
       if (filterCategory !== categoryId) {
-        console.log(`Switching to category ID: ${categoryId}`);
-
         setServicesList([]);
 
         setFilterCategory(categoryId);

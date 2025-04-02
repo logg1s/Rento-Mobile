@@ -49,7 +49,7 @@ type DataState = {
           old_password: string;
           new_password: string;
         },
-    isUpdatePassword?: boolean,
+    isUpdatePassword?: boolean
   ) => Promise<boolean>;
   uploadAvatar: (imageUri: string) => Promise<boolean>;
   uploadImage: (imageUri: string) => Promise<string>;
@@ -62,7 +62,7 @@ const fetchApi = async (
   url: string,
   method: Method = "get",
   data?: any,
-  isUpload = false,
+  isUpload = false
 ) => {
   const token = await AsyncStorage.getItem("jwtToken");
   const result = await axios({
@@ -82,13 +82,13 @@ export const axiosFetch = async (
   url: string,
   method: Method = "get",
   data?: any,
-  isUpload = false,
+  isUpload = false
 ): Promise<AxiosResponse | undefined> => {
   console.log(
     "fetching",
     rentoHost + url,
     method,
-    data ? JSON.stringify(data) : "",
+    data ? JSON.stringify(data) : ""
   );
   try {
     return await fetchApi(url, method, data, isUpload);
@@ -152,7 +152,7 @@ const useRentoData = create<DataState>((set, get) => ({
     } catch (error: any) {
       console.error(
         "Lỗi khi tải thông tin người dùng:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       return null;
     }
@@ -179,7 +179,7 @@ const useRentoData = create<DataState>((set, get) => ({
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật yêu thích:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       throw error;
     }
@@ -204,7 +204,7 @@ const useRentoData = create<DataState>((set, get) => ({
     } catch (error: any) {
       console.error(
         "Lỗi khi đánh dấu tất cả đã đọc:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       throw error;
     }
@@ -226,7 +226,7 @@ const useRentoData = create<DataState>((set, get) => ({
           old_password: string;
           new_password: string;
         },
-    isUpdatePassword = false,
+    isUpdatePassword = false
   ) => {
     try {
       const endpoint = isUpdatePassword
@@ -240,11 +240,11 @@ const useRentoData = create<DataState>((set, get) => ({
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật thông tin:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       Alert.alert(
         "Lỗi",
-        error?.response?.data?.message || "Không thể cập nhật thông tin",
+        error?.response?.data?.message || "Không thể cập nhật thông tin"
       );
       return false;
     }
@@ -266,18 +266,18 @@ const useRentoData = create<DataState>((set, get) => ({
         "/users/uploadAvatar",
         "post",
         formData,
-        true,
+        true
       );
       await get().fetchUser();
       return true;
     } catch (error: any) {
       console.error(
         "Lỗi khi tải lên ảnh đại diện:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       Alert.alert(
         "Lỗi",
-        error?.response?.data?.message || "Không thể tải lên ảnh đại diện",
+        error?.response?.data?.message || "Không thể tải lên ảnh đại diện"
       );
       return false;
     }
@@ -299,17 +299,17 @@ const useRentoData = create<DataState>((set, get) => ({
         "/users/uploadImage",
         "post",
         formData,
-        true,
+        true
       );
       return response?.data?.path || "";
     } catch (error: any) {
       console.error(
         "Lỗi khi tải lên hình ảnh:",
-        error?.response?.data || error,
+        error?.response?.data || error
       );
       Alert.alert(
         "Lỗi",
-        error?.response?.data?.message || "Không thể tải lên hình ảnh",
+        error?.response?.data?.message || "Không thể tải lên hình ảnh"
       );
       return "";
     }
@@ -317,14 +317,11 @@ const useRentoData = create<DataState>((set, get) => ({
 
   deleteImage: async (imagePath: string) => {
     try {
-      console.log("Gọi API xóa hình ảnh với đường dẫn:", imagePath);
-
       const response = await axiosFetch(
         `/users/deleteImage?imagePath=${encodeURIComponent(imagePath)}`,
-        "delete",
+        "delete"
       );
 
-      console.log("Kết quả xóa hình ảnh:", response?.data);
       return true;
     } catch (error: any) {
       console.error("Lỗi khi xóa hình ảnh:", error?.response?.data || error);
@@ -335,7 +332,6 @@ const useRentoData = create<DataState>((set, get) => ({
 
   updateStatusOrder: async (id: number, status: OrderStatus) => {
     try {
-      console.log("status", status);
       await axiosFetch(`/users/orders/${id}/update-status`, "put", {
         status: status,
       });
@@ -343,7 +339,7 @@ const useRentoData = create<DataState>((set, get) => ({
     } catch (error: any) {
       console.error(
         "Lỗi khi cập nhật trạng thái đơn dịch vụ:",
-        error?.response?.data,
+        error?.response?.data
       );
       return false;
     }

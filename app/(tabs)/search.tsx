@@ -71,7 +71,7 @@ const SearchTab = () => {
       setIsRefreshing(true);
       fetchCategories();
     } catch (error) {
-      console.log(error);
+      console.error(error);
     } finally {
       setIsRefreshing(false);
     }
@@ -122,7 +122,6 @@ const SearchTab = () => {
       } catch (error) {
         console.error("Error fetching services:", error);
         if (retryTimeRef.current < 10) {
-          console.log("retry", retryTimeRef.current);
           retryTimeRef.current++;
           fetchServices(currentService);
         }

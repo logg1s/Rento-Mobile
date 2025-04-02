@@ -23,7 +23,6 @@ const WelcomeScreen = () => {
         try {
           setIsLoading(true);
           const user = await fetchUser();
-          console.log("user", user);
           if (user) {
             if (user.role?.some((r) => r.id === "provider")) {
               router.push("/provider/services");

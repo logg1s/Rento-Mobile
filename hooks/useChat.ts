@@ -493,7 +493,7 @@ export const useRetractMessage = () => {
 
           const success = await deleteImage(imagePath);
           if (!success) {
-            console.log("Không thể xóa hình ảnh:", imagePath);
+            console.error("Không thể xóa hình ảnh:", imagePath);
           }
 
           updatedData = {

@@ -31,16 +31,6 @@ export const RevenueSection: React.FC<RevenueSectionProps> = ({
   const hasRawRevenueData = (stats.revenue as any).raw_revenue_count > 0;
   const rawTotalRevenue = (stats.revenue as any).raw_total_revenue || 0;
 
-  console.log("Raw revenue data:", stats.revenue);
-  console.log("Numeric revenue data:", numericRevenueData);
-  console.log(
-    "Has raw revenue data:",
-    hasRawRevenueData,
-    "Raw total:",
-    rawTotalRevenue
-  );
-  console.log("Total revenue:", stats.revenue.total);
-
   const revenueData = {
     labels: stats.revenue.labels,
     datasets: [

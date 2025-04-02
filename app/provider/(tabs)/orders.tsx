@@ -19,6 +19,7 @@ import { SelectList } from "react-native-dropdown-select-list";
 import { OrderStatus, ProviderOrder } from "@/types/type";
 import { searchFilter, normalizeVietnamese, formatToVND } from "@/utils/utils";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import CustomModal from "@/app/components/CustomModal";
 
 const ORDER_STATUS = {
   all: { label: "Tất cả", value: "all", icon: "list", color: "blue" },
@@ -103,6 +104,7 @@ export default function ProviderOrders() {
   });
   const [totalCompletedRevenue, setTotalCompletedRevenue] = useState(0);
   const retryCount = useRef(0);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const loadOrders = async (refresh = true) => {
     try {
@@ -218,7 +220,9 @@ export default function ProviderOrders() {
     try {
       const success = await updateOrderStatus(orderId, newStatus);
       if (success) {
-        Alert.alert("Thành công", "Trạng thái đơn dịch vụ đã được cập nhật");
+        if (newStatus === ORDER_STATUS.completed.value) {
+          setModalVisible(true);
+        }
         await loadOrders(true);
         try {
           await fetchStatistics();
@@ -745,6 +749,16 @@ export default function ProviderOrders() {
           onChange={handleDateChange}
         />
       )}
+
+      <CustomModal
+        visible={modalVisible}
+        title="Thành công"
+        message="Đã cập nhật trạng thái đơn dịch vụ"
+        type="success"
+        onClose={() => {
+          setModalVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
