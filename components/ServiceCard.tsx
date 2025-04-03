@@ -46,7 +46,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   return (
     <TouchableOpacity
       className={twMerge(
-        `rounded-xl p-4 gap-3 border border-general-100 bg-white shadow-md shadow-gray-500`,
+        `rounded-xl p-4 gap-3 border border-general-100 bg-white shadow shadow-gray-500`,
         containerStyles
       )}
       onPress={onPressServiceCard}

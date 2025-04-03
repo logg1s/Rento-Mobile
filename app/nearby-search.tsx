@@ -42,6 +42,11 @@ import Slider from "@react-native-community/slider";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { SearchBar } from "react-native-screens";
+import InputField from "@/components/InputField";
+import { searchFilter } from "@/utils/utils";
+import { CategoryType } from "@/types/type";
+import { SelectList } from "react-native-dropdown-select-list";
 
 const { width, height } = Dimensions.get("window");
 
@@ -51,6 +56,10 @@ export default function NearbySearch() {
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<ServiceWithDistance[]>([]);
+  const [originalServices, setOriginalServices] = useState<
+    ServiceWithDistance[]
+  >([]);
+  const [categories, setCategories] = useState<CategoryType[]>([]);
   const [searchRadius, setSearchRadius] = useState(10);
   const [displayRadius, setDisplayRadius] = useState(10);
   const [showMap, setShowMap] = useState(true);
@@ -59,9 +68,28 @@ export default function NearbySearch() {
   const [showRadius, setShowRadius] = useState(false);
   const [mapStyle, setMapStyle] = useState("light");
   const [mapVisible, setMapVisible] = useState(true);
-
+  const [searchText, setSearchText] = useState("");
   const [listSheetExpanded, setListSheetExpanded] = useState(false);
   const listSheetAnimation = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (searchText.trim().length > 0) {
+      setServices(
+        originalServices.filter((service) =>
+          searchFilter(service.service_name, searchText)
+        )
+      );
+    } else {
+      setServices(originalServices);
+    }
+  }, [searchText]);
+
+  useEffect(() => {
+    const categories = originalServices
+      .map((service) => service.category)
+      .filter((category) => category !== undefined)
+      .filter((category, index, self) => self.indexOf(category) === index);
+    setCategories(categories || []);
+  }, [originalServices]);
 
   const updateFavorite = useRentoData((state) => state.updateFavorite);
   const user = useRentoData((state) => state.user);
@@ -118,6 +146,7 @@ export default function NearbySearch() {
         );
         if (isMountedRef.current) {
           setServices(results);
+          setOriginalServices(results);
           if (moveCamera && cameraRef.current && results.length > 0) {
             cameraRef.current.setCamera({
               centerCoordinate: [lng, lat],
@@ -131,6 +160,7 @@ export default function NearbySearch() {
         if (isMountedRef.current) {
           Alert.alert("Lỗi", "Không thể tìm dịch vụ gần đây");
           setServices([]);
+          setOriginalServices([]);
         }
       } finally {
         if (isMountedRef.current) {
@@ -149,6 +179,7 @@ export default function NearbySearch() {
       const results = await fetchNearbyServicesByProvince(provinceId);
       if (isMountedRef.current) {
         setServices(results);
+        setOriginalServices(results);
         if (
           results.length > 0 &&
           results[0].location?.lng !== undefined &&
@@ -169,6 +200,7 @@ export default function NearbySearch() {
       if (isMountedRef.current) {
         Alert.alert("Lỗi", "Không thể tìm dịch vụ theo khu vực");
         setServices([]);
+        setOriginalServices([]);
       }
     } finally {
       if (isMountedRef.current) {
@@ -977,6 +1009,17 @@ export default function NearbySearch() {
         </View>
 
         <View style={styles.listSheetHeader}>
+          <Text className="text-lg font-pbold">Tìm kiếm dịch vụ</Text>
+          <View className="flex-row justify-between items-center">
+            <View className="flex-1">
+              <InputField
+                placeholder="Tìm kiếm dịch vụ"
+                value={searchText}
+                onChangeText={setSearchText}
+                enableValidate={false}
+              />
+            </View>
+          </View>
           <Text style={styles.listSheetTitle}>
             {services.length
               ? `Đã tìm thấy ${services.length} dịch vụ`
@@ -1388,6 +1431,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 10,
+    gap: 15,
   },
   emptyContainer: {
     flex: 1,
@@ -1430,11 +1474,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: "#fff",
     borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   serviceCardHeader: {
     flexDirection: "row",
@@ -1657,6 +1696,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   listSheetHeader: {
+    gap: 15,
     paddingVertical: 15,
     paddingHorizontal: 10,
     borderBottomWidth: 1,

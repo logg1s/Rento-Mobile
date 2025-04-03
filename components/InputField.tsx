@@ -82,9 +82,11 @@ const InputField = ({
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="gap-1">
-          <Text className="font-psemibold text-xl text-secondary-900">
-            {nameField} {required && <Text className="text-red-500">*</Text>}
-          </Text>
+          {nameField && (
+            <Text className="font-psemibold text-xl text-secondary-900">
+              {nameField} {required && <Text className="text-red-500">*</Text>}
+            </Text>
+          )}
           <View
             className={twMerge(
               `w-full bg-general-300  ${isFocused ? "border-2 border-primary-500" : "border border-neutral-50"} rounded-xl px-3 flex-row items-center ${multiline && isFocused ? "h-40" : "h-16"}`,
