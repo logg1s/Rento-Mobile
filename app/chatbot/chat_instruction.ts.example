@@ -1,0 +1,2 @@
+export const chatInstruction = (userId: number | string): string =>
+  `Your instruction here !!!!`;

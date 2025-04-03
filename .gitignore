@@ -55,5 +55,5 @@ Backend/
 backend/
 
 lib/dbtable/
-chat_history.ts
-chat_instruction.ts
+app/chatbot/chat_history.ts
+app/chatbot/chat_instruction.ts
