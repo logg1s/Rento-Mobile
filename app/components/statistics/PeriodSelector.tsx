@@ -17,7 +17,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
   setSelectedPeriod,
 }) => {
   return (
-    <View className="flex-row bg-white p-4 justify-between items-center shadow-sm mx-4 my-2 rounded-lg">
+    <View className="flex-row bg-white p-4 justify-between items-center shadow-sm  my-2 rounded-lg">
       <Text className="font-pbold text-gray-700">Thời gian:</Text>
       <View className="flex-row">
         {periods.map((period) => (

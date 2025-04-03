@@ -221,13 +221,13 @@ export const OrdersSection: React.FC<OrdersSectionProps> = ({
                 Ngày cao điểm
               </Text>
               <Text className="text-base font-pbold text-gray-800">
-                {stats.orders.busiest_day || "N/A"}
+                {stats.orders.busiest_day || "N/A"}{" "}
+                {stats.orders.busiest_day && (
+                  <Text className="text-sm text-gray-500 mt-1 font-pmedium">
+                    ({stats.orders.max_orders || 0} đơn)
+                  </Text>
+                )}
               </Text>
-              {stats.orders.busiest_day && (
-                <Text className="text-xs text-gray-500 mt-1">
-                  {stats.orders.max_orders || 0} đơn
-                </Text>
-              )}
             </View>
           </View>
 

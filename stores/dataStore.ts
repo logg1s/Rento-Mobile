@@ -93,8 +93,8 @@ export const axiosFetch = async (
   try {
     return await fetchApi(url, method, data, isUpload);
   } catch (error: any) {
-    await useAuthStore.getState().refreshAccessToken();
     try {
+      await useAuthStore.getState().refreshAccessToken();
       return await fetchApi(url, method, data, isUpload);
     } catch (err) {
       console.warn("Error fetch", error?.response?.data);

@@ -233,8 +233,7 @@ export const OrderCard = ({
   };
 
   return (
-    <View className="bg-white p-5 mb-3 rounded-2xl">
-      {/* Header - Status & Date */}
+    <View className="bg-white p-5 mb-3 rounded-2xl border border-gray-200 shadow">
       <View className="flex-row items-center justify-between mb-5">
         <View style={[styles.statusContainer, statusConfig.style.container]}>
           <Text style={[styles.statusText, statusConfig.style.text]}>
@@ -290,7 +289,6 @@ export const OrderCard = ({
           <Text className="font-medium">#{order.id}</Text>
         </View>
 
-        {/* Hiển thị dịch vụ chỉ cho người dùng, không phải provider */}
         {!isProvider && (
           <>
             <View className="flex-row justify-between items-center py-3 border-b border-gray-100">
@@ -317,7 +315,6 @@ export const OrderCard = ({
 
         {isProvider && (
           <>
-            {/* Nút xem dịch vụ */}
             <TouchableOpacity
               className="py-3 border-b border-gray-100"
               onPress={() =>

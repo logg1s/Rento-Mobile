@@ -894,9 +894,8 @@ export default function ProviderServices() {
               </TouchableOpacity>
             </View>
 
-            {/* Thêm thanh tìm kiếm */}
             <View className="mx-4 mb-4">
-              <View className="flex-row items-center bg-white rounded-lg px-3 py-2 mb-4">
+              <View className="flex-row items-center bg-white rounded-lg px-3 py-2 mb-4 shadow border border-gray-200">
                 <FontAwesome name="search" size={16} color="gray" />
                 <TextInput
                   placeholder="Tìm kiếm dịch vụ..."
@@ -921,14 +920,16 @@ export default function ProviderServices() {
                 )}
               </View>
 
-              {/* Thêm bộ lọc danh mục */}
-              <View className="mb-4">
+              <View className="mb-4 mt-2">
+                <Text className="font-pmedium text-xl text-gray-700 mb-2">
+                  Danh mục dịch vụ
+                </Text>
                 <View className="flex-row flex-wrap gap-3">
                   <TouchableOpacity
                     onPress={() => handleCategorySwitch("all")}
                     activeOpacity={0.6}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                    className={`py-3 px-5 rounded-full border mb-2 ${
+                    className={`py-1 px-3 justify-center items-center rounded-full border mb-2 ${
                       filterCategory === "all"
                         ? "bg-primary-500 border-primary-500"
                         : "border-gray-300"
@@ -965,7 +966,7 @@ export default function ProviderServices() {
                         }
                         activeOpacity={0.6}
                         hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                        className={`py-3 px-5 rounded-full border mb-2 ${
+                        className={`py-1 px-3 justify-center items-center  rounded-full border mb-2 ${
                           filterCategory === String(category.id)
                             ? "bg-primary-500 border-primary-500"
                             : "border-gray-300"
@@ -993,7 +994,7 @@ export default function ProviderServices() {
                         }
                         activeOpacity={0.6}
                         hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                        className="py-3 px-5 rounded-full border border-gray-300 mb-2 flex-row items-center"
+                        className="py-1 px-3 justify-center items-center rounded-full border border-gray-300 mb-2 flex-row items-center"
                       >
                         <Text className="font-pmedium text-gray-700">
                           {isExpandedCategories

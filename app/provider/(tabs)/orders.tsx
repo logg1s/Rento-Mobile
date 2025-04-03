@@ -75,6 +75,7 @@ export default function ProviderOrders() {
     statistics,
     fetchStatistics,
   } = useProviderStore();
+  const [isExpanded, setIsExpanded] = useState(false);
   const [orders, setOrders] = useState<ProviderOrder[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchFilter, setSearchFilter] = useState("service");
@@ -256,7 +257,7 @@ export default function ProviderOrders() {
     item: ProviderOrder;
     index: number;
   }) => (
-    <View key={`order-${item.id}`}>
+    <View key={`order-${item.id}`} className="mb-10">
       <Text className="text-gray-500 font-pmedium mb-2">#{index + 1}</Text>
       <OrderCard
         order={item}
@@ -309,15 +310,15 @@ export default function ProviderOrders() {
   ) => (
     <TouchableOpacity
       key={status}
-      className={`flex-col items-center justify-center px-3 py-1.5 rounded-md ${
+      className={`flex-row gap-2 items-center justify-center px-5 rounded-md ${
         statusFilter === status
           ? `bg-${color}-500`
           : "bg-white border border-gray-200"
       }`}
       onPress={() => handleStatusFilterChange(status)}
-      style={{ height: 60, width: "100%" }}
+      style={{ height: 50, width: "100%" }}
     >
-      <View className="flex-row items-center justify-center mb-1">
+      <View className="flex-row items-center justify-center">
         {status === "all" ? (
           <MaterialIcons
             name="list-alt"
@@ -529,60 +530,76 @@ export default function ProviderOrders() {
         </View>
         {renderSearchFilterDropdown()}
 
-        {/* Status filter chips */}
-        <View className="mb-3">
-          {/* Row 1: All and Processing */}
-          <View className="flex-row mb-2 justify-between">
-            <View className="flex-1 mr-2">
-              {renderStatusChip(
-                "all",
-                "Tất cả",
-                orderCounts.total,
-                "list",
-                "blue"
-              )}
+        <View className="flex-row justify-between items-center gap-5">
+          {/* Status filter chips */}
+          <ScrollView
+            className="mb-3"
+            horizontal={isExpanded}
+            contentContainerClassName="gap-3"
+            showsHorizontalScrollIndicator={false}
+          >
+            {/* Row 1: All and Processing */}
+            <View className="flex-row mb-2 justify-between gap-2">
+              <View className="flex-1 mr-1">
+                {renderStatusChip(
+                  "all",
+                  "Tất cả",
+                  orderCounts.total,
+                  "list",
+                  "blue"
+                )}
+              </View>
+              <View className="flex-1">
+                {renderStatusChip(
+                  "processing",
+                  "Đang thực hiện",
+                  orderCounts.processing,
+                  "hammer",
+                  "blue"
+                )}
+              </View>
             </View>
-            <View className="flex-1">
-              {renderStatusChip(
-                "processing",
-                "Đang thực hiện",
-                orderCounts.processing,
-                "hammer",
-                "blue"
-              )}
-            </View>
-          </View>
 
-          {/* Row 2: Pending, Completed, Cancelled */}
-          <View className="flex-row justify-between">
-            <View className="flex-1 mr-2">
-              {renderStatusChip(
-                "pending",
-                "Chờ xử lý",
-                orderCounts.pending,
-                "clock",
-                "yellow"
-              )}
+            {/* Row 2: Pending, Completed, Cancelled */}
+            <View className="flex-row justify-between gap-2">
+              <View className="flex-1 mr-1">
+                {renderStatusChip(
+                  "pending",
+                  "Chờ xử lý",
+                  orderCounts.pending,
+                  "clock",
+                  "yellow"
+                )}
+              </View>
+              <View className="flex-1 mr-1">
+                {renderStatusChip(
+                  "completed",
+                  "Hoàn thành",
+                  orderCounts.completed,
+                  "check-circle",
+                  "green"
+                )}
+              </View>
+              <View className="flex-1">
+                {renderStatusChip(
+                  "cancelled",
+                  "Đã hủy",
+                  orderCounts.cancelled,
+                  "times-circle",
+                  "red"
+                )}
+              </View>
             </View>
-            <View className="flex-1 mr-2">
-              {renderStatusChip(
-                "completed",
-                "Hoàn thành",
-                orderCounts.completed,
-                "check-circle",
-                "green"
-              )}
-            </View>
-            <View className="flex-1">
-              {renderStatusChip(
-                "cancelled",
-                "Đã hủy",
-                orderCounts.cancelled,
-                "times-circle",
-                "red"
-              )}
-            </View>
-          </View>
+          </ScrollView>
+          <TouchableOpacity
+            onPress={() => setIsExpanded(!isExpanded)}
+            className="justify-center items-center rounded-full bg-blue-50 p-2 w-10"
+          >
+            <MaterialIcons
+              name={isExpanded ? "keyboard-arrow-down" : "keyboard-arrow-up"}
+              size={20}
+            />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -622,7 +639,7 @@ export default function ProviderOrders() {
           <View className="items-center justify-center py-8">
             {isLoading ? (
               <View>
-                <ActivityIndicator size="large" color="#3b82f6" />
+                {/* <ActivityIndicator size="large" color="#3b82f6" /> */}
                 <Text className="text-gray-500 mt-4 font-pmedium">
                   Đang tải đơn dịch vụ...
                 </Text>

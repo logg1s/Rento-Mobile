@@ -130,7 +130,6 @@ export default function CustomerDetails() {
         )}
       </View>
 
-      {/* Thông tin chi tiết */}
       <View style={styles.detailSection}>
         <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
 

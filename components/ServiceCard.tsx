@@ -47,7 +47,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     <TouchableOpacity
       className={twMerge(
         `rounded-xl p-4 gap-3 border border-general-100 bg-white shadow-md shadow-gray-500`,
-        containerStyles,
+        containerStyles
       )}
       onPress={onPressServiceCard}
     >
@@ -103,7 +103,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         {service_description}
       </Text>
       <View className="flex-row justify-between items-center">
-        <View className="flex-row items-center">
+        <View className="flex-row items-center flex-1">
           <Ionicons name="cash-outline" size={16} color="green" />
           <Text className="ml-1 font-pmedium text-sm">
             Từ {convertedPrice(price)}

@@ -157,13 +157,13 @@ export const RevenueSection: React.FC<RevenueSectionProps> = ({
                 Doanh thu cao nhất
               </Text>
               <Text className="text-base font-pbold text-gray-800">
-                {formatCurrency(stats.revenue.max_revenue?.value || 0)}
+                {formatCurrency(stats.revenue.max_revenue?.value || 0)}{" "}
+                {stats.revenue.max_revenue?.date && (
+                  <Text className="text-sm text-gray-500 mt-1 font-pmedium">
+                    ({stats.revenue.max_revenue.date})
+                  </Text>
+                )}
               </Text>
-              {stats.revenue.max_revenue?.date && (
-                <Text className="text-xs text-gray-500 mt-1">
-                  Ngày {stats.revenue.max_revenue.date}
-                </Text>
-              )}
             </View>
           </View>
 
