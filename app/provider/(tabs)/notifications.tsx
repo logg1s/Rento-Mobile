@@ -80,9 +80,9 @@ const NotificationScreen = () => {
     setRefreshing(true);
     retryCount.current = 0;
     setNotifications([]);
-    fetchUnReadNotifications();
     await fetchNotificationsWithRetry();
     setRefreshing(false);
+    fetchUnReadNotifications();
   };
 
   const deleteNotification = async (id: number) => {
@@ -100,7 +100,7 @@ const NotificationScreen = () => {
       case "message":
         if (data?.id) {
           router.push({
-            pathname: "/(tabs)/message",
+            pathname: "/provider/(tabs)/chat",
             params: {
               chatWithId: data.id,
             },

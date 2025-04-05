@@ -5,7 +5,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { axiosFetch } from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { router } from "expo-router";
 
 Notifications.setNotificationHandler({
@@ -68,11 +68,13 @@ export const useNotification = () => {
 
 function handleNotification(notification: Notifications.Notification) {
   const data = notification.request.content.data;
+  const user = useRentoData((state) => state.user);
+  const isProvider = user?.role.some((role) => role.id === "provider");
   switch (data.type) {
     case "message":
       if (data?.id) {
         router.push({
-          pathname: "/(tabs)/message",
+          pathname: isProvider ? "/provider/(tabs)/chat" : "/(tabs)/message",
           params: {
             chatWithId: data.id,
           },

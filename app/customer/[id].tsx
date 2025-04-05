@@ -48,7 +48,7 @@ export default function CustomerDetails() {
     if (!user?.id) return;
 
     router.push({
-      pathname: "/message",
+      pathname: "/provider/(tabs)/chat",
       params: {
         chatWithId: user.id,
       },

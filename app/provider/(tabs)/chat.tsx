@@ -856,7 +856,7 @@ const ChatScreen = () => {
               <React.Fragment key="empty-list">
                 <View className="flex-1 justify-center items-center p-10">
                   <Text className="text-gray-500 text-center font-pmedium">
-                    Không có cuộc trò chuyện nào.
+                    Chưa có cuộc trò chuyện nào
                   </Text>
                 </View>
               </React.Fragment>

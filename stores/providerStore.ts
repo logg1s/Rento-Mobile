@@ -7,7 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
 
-export type StatisticsPeriod = "week" | "month" | "year";
+export type StatisticsPeriod = "week" | "month" | "year" | "today";
 
 interface ProviderStore {
   statistics: ProviderStatistics | null;

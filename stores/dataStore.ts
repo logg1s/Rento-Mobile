@@ -25,6 +25,7 @@ type DataState = {
   notifications: NotificationType[];
   favorites: ServiceType[];
   favIds: number[];
+  unReadNotifications: number;
   fetchServices: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchUser: () => Promise<UserType | null>;
@@ -55,6 +56,7 @@ type DataState = {
   uploadImage: (imageUri: string) => Promise<string>;
   deleteImage: (imagePath: string) => Promise<boolean>;
   updateStatusOrder: (id: number, status: OrderStatus) => Promise<boolean>;
+  fetchUnReadNotifications: () => Promise<void>;
 };
 
 const rentoHost = process.env.EXPO_PUBLIC_API_HOST + "/api";
@@ -110,6 +112,7 @@ const useRentoData = create<DataState>((set, get) => ({
   notifications: [],
   favorites: [],
   favIds: [],
+  unReadNotifications: 0,
 
   fetchFavIds: async () => {
     const response = await axiosFetch(`/favorites/list`);
@@ -147,7 +150,9 @@ const useRentoData = create<DataState>((set, get) => ({
   fetchUser: async () => {
     try {
       const response = await axiosFetch(`/users/me`);
-      set({ user: response?.data || null });
+      set({
+        user: response?.data || null,
+      });
       return response?.data;
     } catch (error: any) {
       console.error(
@@ -343,6 +348,10 @@ const useRentoData = create<DataState>((set, get) => ({
       );
       return false;
     }
+  },
+  fetchUnReadNotifications: async () => {
+    const response = await axiosFetch(`/notifications/unread-count`);
+    set({ unReadNotifications: response?.data?.unReadNotificationsCount || 0 });
   },
 }));
 

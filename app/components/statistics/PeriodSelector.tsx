@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { StatisticsPeriod } from "@/stores/providerStore";
 
 interface PeriodSelectorProps {
@@ -17,27 +17,29 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
   setSelectedPeriod,
 }) => {
   return (
-    <View className="flex-row bg-white p-4 justify-between items-center shadow-sm  my-2 rounded-lg">
+    <View className="flex-row bg-white p-4 justify-between items-center shadow-sm  my-2 rounded-lg gap-5">
       <Text className="font-pbold text-gray-700">Thời gian:</Text>
-      <View className="flex-row">
-        {periods.map((period) => (
-          <TouchableOpacity
-            key={period.id}
-            onPress={() => setSelectedPeriod(period.id)}
-            className={`px-4 py-2 rounded-full mr-2 ${
-              selectedPeriod === period.id ? "bg-primary-500" : "bg-gray-100"
-            }`}
-          >
-            <Text
-              className={`font-pmedium ${
-                selectedPeriod === period.id ? "text-white" : "text-gray-600"
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View className="flex-row">
+          {periods.map((period) => (
+            <TouchableOpacity
+              key={period.id}
+              onPress={() => setSelectedPeriod(period.id)}
+              className={`px-4 py-2 rounded-full mr-2 ${
+                selectedPeriod === period.id ? "bg-primary-500" : "bg-gray-100"
               }`}
             >
-              {period.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                className={`font-pmedium ${
+                  selectedPeriod === period.id ? "text-white" : "text-gray-600"
+                }`}
+              >
+                {period.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 };

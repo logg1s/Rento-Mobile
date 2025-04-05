@@ -81,6 +81,7 @@ const StatsScreen = () => {
     useState<StatisticsService | null>(null);
 
   const periods = [
+    { id: "today" as StatisticsPeriod, label: "Hôm nay" },
     { id: "week" as StatisticsPeriod, label: "Tuần" },
     { id: "month" as StatisticsPeriod, label: "Tháng" },
     { id: "year" as StatisticsPeriod, label: "Năm" },
