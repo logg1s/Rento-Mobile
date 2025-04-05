@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   FlatList,
@@ -20,6 +26,7 @@ import { OrderStatus, ProviderOrder } from "@/types/type";
 import { searchFilter, normalizeVietnamese, formatToVND } from "@/utils/utils";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import CustomModal from "@/app/components/CustomModal";
+import { useFocusEffect } from "expo-router";
 
 const ORDER_STATUS = {
   all: { label: "Tất cả", value: "all", icon: "list", color: "blue" },
@@ -83,6 +90,7 @@ export default function ProviderOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [dateRange, setDateRange] = useState({
     startDate: null as Date | null,
     endDate: null as Date | null,
@@ -209,9 +217,11 @@ export default function ProviderOrders() {
     }
   };
 
-  useEffect(() => {
-    handleRefresh();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
 
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
@@ -219,10 +229,12 @@ export default function ProviderOrders() {
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     try {
+      setModalVisible(true);
+      setIsUpdatingStatus(true);
       const success = await updateOrderStatus(orderId, newStatus);
       if (success) {
-        if (newStatus === ORDER_STATUS.completed.value) {
-          setModalVisible(true);
+        if (newStatus !== ORDER_STATUS.completed.value) {
+          setModalVisible(false);
         }
         await loadOrders(true);
         try {
@@ -243,12 +255,10 @@ export default function ProviderOrders() {
         "Lỗi",
         "Không thể cập nhật trạng thái đơn dịch vụ. Vui lòng thử lại sau."
       );
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
-
-  const filteredOrders = useMemo(() => {
-    return orders;
-  }, [orders]);
 
   const renderOrderItem = ({
     item,
@@ -335,8 +345,8 @@ export default function ProviderOrders() {
         <Text
           className={`ml-1.5 ${
             statusFilter === status
-              ? "text-white font-pbold"
-              : "text-gray-700 font-pmedium"
+              ? "text-white font-psemibold "
+              : "text-gray-700 font-pmedium text-sm"
           }`}
         >
           {label}
@@ -775,6 +785,7 @@ export default function ProviderOrders() {
         onClose={() => {
           setModalVisible(false);
         }}
+        isLoading={isUpdatingStatus}
       />
     </SafeAreaView>
   );

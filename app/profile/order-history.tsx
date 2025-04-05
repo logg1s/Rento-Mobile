@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { OrderCard } from "@/components/OrderCard";
 import { axiosFetch } from "@/stores/dataStore";
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -35,7 +35,7 @@ const OrderHistoryScreen = () => {
       const data = paginateData?.data || [];
       if (data?.length > 0) {
         nextCursor.current = paginateData?.next_cursor || null;
-        setOrders(data);
+        setOrders((prev) => [...prev, ...data]);
       } else if (retryCount.current < 10) {
         retryCount.current++;
         fetchOrders();
@@ -51,9 +51,11 @@ const OrderHistoryScreen = () => {
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setIsRefreshing(true);
@@ -78,18 +80,6 @@ const OrderHistoryScreen = () => {
       }
     }
   };
-
-  if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1 bg-gray-100 justify-center items-center">
-        <ActivityIndicator size="large" color="#0284c7" />
-        <Text className="mt-4 text-gray-600 font-medium">
-          Đang tải dữ liệu...
-        </Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <View className="flex-row items-center justify-between px-4 mb-6">
@@ -100,35 +90,47 @@ const OrderHistoryScreen = () => {
           <Text className="text-xl font-pbold ml-4">Lịch sử đơn dịch vụ</Text>
         </View>
       </View>
-
-      {!orders.length ? (
-        <View className="flex-1 justify-center items-center px-4">
-          <Ionicons name="document-text-outline" size={48} color="#9ca3af" />
-          <Text className="mt-4 text-gray-600 font-medium text-center">
-            Bạn chưa có đơn dịch vụ nào
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={orders}
-          renderItem={({ item }) => (
-            <OrderCard order={item} onOrderUpdate={onRefresh} />
-          )}
-          keyExtractor={(item, index) => index.toString()}
-          contentContainerClassName="px-4"
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-          }
-          onEndReached={loadMoreOrders}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            isLoadingMore ? (
-              <ActivityIndicator size="small" color="#0284c7" />
-            ) : null
-          }
-        />
-      )}
+      <FlatList
+        data={orders}
+        contentContainerStyle={{ flexGrow: 1 }}
+        ListEmptyComponent={() =>
+          isLoading ? (
+            <View className="flex-1 justify-center items-center px-4 ">
+              <ActivityIndicator size="large" color="#0284c7" />
+              <Text className="mt-4 text-gray-600 font-medium">
+                Đang tải dữ liệu...
+              </Text>
+            </View>
+          ) : (
+            <View className="flex-1 justify-center items-center px-4">
+              <Ionicons
+                name="document-text-outline"
+                size={48}
+                color="#9ca3af"
+              />
+              <Text className="mt-4 text-gray-600 font-medium text-center">
+                Bạn chưa có đơn dịch vụ nào
+              </Text>
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <OrderCard order={item} onOrderUpdate={onRefresh} />
+        )}
+        keyExtractor={(item, index) => index.toString()}
+        contentContainerClassName="px-4"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={loadMoreOrders}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator size="small" color="#0284c7" />
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 };

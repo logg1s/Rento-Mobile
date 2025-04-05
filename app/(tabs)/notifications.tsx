@@ -20,10 +20,10 @@ import { router } from "expo-router";
 
 const NotificationScreen = () => {
   const markNotificationAsRead = useRentoData(
-    (state) => state.markNotificationAsRead,
+    (state) => state.markNotificationAsRead
   );
   const markAllNotificationsAsRead = useRentoData(
-    (state) => state.markAllNotificationsAsRead,
+    (state) => state.markAllNotificationsAsRead
   );
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +43,7 @@ const NotificationScreen = () => {
       if (notificationData?.length > 0) {
         nextCursor.current = paginateData?.next_cursor || null;
         retryCount.current = 0;
-        setNotifications(notificationData);
+        setNotifications((prev) => [...prev, ...notificationData]);
       } else if (retryCount.current < 10) {
         retryCount.current++;
         fetchNotificationsWithRetry();
@@ -101,7 +101,7 @@ const NotificationScreen = () => {
       default:
         Alert.alert(
           "Thông báo không hợp lệ",
-          "Lỗi thông báo! Vui lòng thử lại sau!",
+          "Lỗi thông báo! Vui lòng thử lại sau!"
         );
     }
   };
@@ -168,7 +168,7 @@ const NotificationScreen = () => {
           <TouchableOpacity
             onPress={() => {
               setNotifications((prev) =>
-                prev.map((item) => ({ ...item, is_read: true })),
+                prev.map((item) => ({ ...item, is_read: true }))
               );
               markAllNotificationsAsRead();
             }}

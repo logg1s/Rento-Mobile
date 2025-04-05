@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 type ModalType = "success" | "error" | "confirm" | "info";
@@ -12,8 +19,10 @@ interface CustomModalProps {
   onClose: () => void;
   onConfirm?: () => void;
   onCancel?: () => void;
+  isLoading?: boolean;
 }
-
+//  Add animation to the modal
+// Add loading state to the modal
 const CustomModal = ({
   visible,
   title,
@@ -22,6 +31,7 @@ const CustomModal = ({
   onClose,
   onConfirm,
   onCancel,
+  isLoading,
 }: CustomModalProps) => {
   const getIconAndColor = () => {
     switch (type) {
@@ -69,55 +79,64 @@ const CustomModal = ({
     >
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
-          <View
-            style={[
-              styles.iconContainer,
-              {
-                backgroundColor: bgColor,
-              },
-            ]}
-          >
-            <Ionicons name={iconName as any} size={40} color={color} />
-          </View>
-
-          <Text style={styles.modalTitle}>{title}</Text>
-          <Text style={styles.modalText}>{message}</Text>
-
-          <View style={styles.buttonContainer}>
-            {type === "confirm" ? (
-              <>
-                <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={() => {
-                    onCancel ? onCancel() : onClose();
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Hủy</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.button, styles.confirmButton]}
-                  onPress={() => {
-                    onConfirm && onConfirm();
-                    onClose();
-                  }}
-                >
-                  <Text style={styles.confirmButtonText}>Xác nhận</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
+          {isLoading ? (
+            <View style={styles.centeredView}>
+              <ActivityIndicator size="large" color={"black"} />
+              <Text style={styles.modalTitle}>Đang xử lý...</Text>
+            </View>
+          ) : (
+            <>
+              <View
                 style={[
-                  styles.button,
+                  styles.iconContainer,
                   {
-                    backgroundColor: color,
+                    backgroundColor: bgColor,
                   },
                 ]}
-                onPress={onClose}
               >
-                <Text style={styles.buttonText}>Đóng</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+                <Ionicons name={iconName as any} size={40} color={color} />
+              </View>
+
+              <Text style={styles.modalTitle}>{title}</Text>
+              <Text style={styles.modalText}>{message}</Text>
+
+              <View style={styles.buttonContainer}>
+                {type === "confirm" ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.button, styles.cancelButton]}
+                      onPress={() => {
+                        onCancel ? onCancel() : onClose();
+                      }}
+                    >
+                      <Text style={styles.cancelButtonText}>Hủy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.button, styles.confirmButton]}
+                      onPress={() => {
+                        onConfirm && onConfirm();
+                        onClose();
+                      }}
+                    >
+                      <Text style={styles.confirmButtonText}>Xác nhận</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      styles.button,
+                      {
+                        backgroundColor: color,
+                      },
+                    ]}
+                    onPress={onClose}
+                  >
+                    <Text style={styles.buttonText}>Đóng</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          )}
         </View>
       </View>
     </Modal>

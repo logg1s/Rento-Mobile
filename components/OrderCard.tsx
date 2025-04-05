@@ -114,7 +114,7 @@ export const OrderCard = ({
     switch (order.status) {
       case OrderStatus.PENDING:
         return (
-          <View className="flex-row space-x-3 mt-5">
+          <View className="flex-row space-x-3 mt-5 gap-6">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center space-x-2 bg-red-100 py-3 rounded-xl border border-red-300 shadow-sm"
               onPress={handleCancelOrder}
@@ -147,7 +147,7 @@ export const OrderCard = ({
         );
       case OrderStatus.IN_PROGRESS:
         return (
-          <View className="flex-row space-x-3 mt-5">
+          <View className="flex-row space-x-3 mt-5 gap-6">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center space-x-2 bg-green-100 py-3 rounded-xl border border-green-300 shadow-sm"
               onPress={() => handleUpdateStatus("completed")}
@@ -177,7 +177,7 @@ export const OrderCard = ({
     switch (order.status) {
       case OrderStatus.PENDING:
         return (
-          <View className="flex-row space-x-3 mt-5">
+          <View className="flex-row space-x-3 mt-5 gap-6">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center space-x-2 bg-red-100 py-3 rounded-xl border border-red-300 shadow-sm"
               onPress={handleCancelOrder}
@@ -210,7 +210,7 @@ export const OrderCard = ({
         );
       case OrderStatus.IN_PROGRESS:
         return (
-          <View className="flex-row space-x-3 mt-5">
+          <View className="flex-row space-x-3 mt-5 gap-6">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center space-x-2 bg-blue-100 py-3 rounded-xl border border-blue-300 shadow-sm"
               onPress={handleContact}
@@ -254,7 +254,6 @@ export const OrderCard = ({
           <Text className="text-gray-500">{order.phone_number}</Text>
         </View>
       ) : (
-        /* Service Provider Info */
         <TouchableOpacity
           className="flex-row items-center space-x-4 mb-5 p-3 bg-gray-50 rounded-xl"
           onPress={() =>
