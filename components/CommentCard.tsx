@@ -112,7 +112,9 @@ const CommentCard = ({
           <View className="rounded-full border border-gray p-2 ">
             <Image source={getImageSource(user)} className="w-8 h-8" />
           </View>
-          <Text className="font-pbold self-center">{user?.name}</Text>
+          <Text className="font-pbold self-center" selectable>
+            {user?.name}
+          </Text>
         </View>
         {enableOption && (
           <View className="relative">
@@ -152,7 +154,7 @@ const CommentCard = ({
         )}
       </View>
       <View>
-        <Text className="font-pmedium" numberOfLines={2}>
+        <Text className="font-pmedium" numberOfLines={2} selectable>
           {comment_body}
         </Text>
       </View>

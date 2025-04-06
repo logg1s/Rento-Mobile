@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
@@ -22,6 +23,7 @@ import * as Clipboard from "expo-clipboard";
 
 const UserProfile = () => {
   const { id } = useLocalSearchParams();
+  const [isLoading, setIsLoading] = useState(false);
   const [userData, setUserData] = useState<UserType | null>(null);
   const [services, setServices] = useState<ServiceType[]>([]);
   const [categories, setCategories] = useState<CategoryType[]>([]);
@@ -34,6 +36,7 @@ const UserProfile = () => {
   const retryCount = useRef(0);
   const fetchUserData = async () => {
     try {
+      setIsLoading(true);
       const [userRes, categoriesRes] = await Promise.all([
         axiosFetch(`/users/${id}`),
         axiosFetch("/categories"),
@@ -57,6 +60,8 @@ const UserProfile = () => {
         fetchUserData();
       }
       console.error("Error fetching user data:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -69,22 +74,6 @@ const UserProfile = () => {
     retryCount.current = 0;
     await fetchUserData();
     setIsRefreshing(false);
-  };
-
-  const onPressFavorite = async (serviceId: number, action: boolean) => {
-    if (!serviceId) return;
-    try {
-      setServices((prev) =>
-        prev.map((service) =>
-          service.id === serviceId
-            ? { ...service, is_liked: !service.is_liked }
-            : service
-        )
-      );
-      await updateFavorite(serviceId, action);
-    } catch (error) {
-      console.error("Error updating favorite:", error);
-    }
   };
 
   const filteredServices = services.filter((service) => {
@@ -107,185 +96,203 @@ const UserProfile = () => {
       refreshControl={
         <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
       }
-      contentContainerClassName="gap-2 pb-5"
+      contentContainerClassName="gap-2 pb-5 flex-grow"
     >
-      {/* Header Profile */}
-      <View className="bg-white p-5">
-        <View className="items-center gap-4">
-          <TouchableOpacity onPress={() => setShowFullImage(true)}>
-            <Image
-              source={getImageSource(userData)}
-              className="w-24 h-24 rounded-full"
-            />
-          </TouchableOpacity>
-          <View className="items-center gap-2">
-            <Text
-              className="font-pbold text-2xl"
-              onPress={async () => {
-                if (userData?.name) {
-                  await Clipboard.setStringAsync(userData.name);
-                }
-              }}
-            >
-              {userData?.name}
-            </Text>
-            <TouchableOpacity
-              className="flex-row items-center gap-2"
-              onPress={async () => {
-                if (userData?.email) {
-                  await Clipboard.setStringAsync(userData.email);
-                }
-              }}
-            >
-              <Ionicons name="mail-outline" size={16} color="gray" />
-              <Text className="font-pmedium text-gray-600">
-                {userData?.email}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-row items-center gap-2"
-              onPress={async () => {
-                if (userData?.location?.location_name) {
-                  await Clipboard.setStringAsync(
-                    userData.location.location_name
-                  );
-                }
-              }}
-            >
-              {userData?.location?.location_name &&
-              userData?.location?.location_name.length > 0 ? (
-                <>
-                  <Ionicons name="location-outline" size={16} color="gray" />
-                  <Text className="font-pmedium text-gray-600">
-                    {userData.location.location_name}
-                  </Text>
-                </>
-              ) : null}
-            </TouchableOpacity>
-            {userData?.phone_number && userData.phone_number.length > 0 ? (
-              <TouchableOpacity className="flex-row items-center gap-2">
-                <Ionicons name="call-outline" size={16} color="gray" />
-                <Text className="font-pmedium text-gray-600">
-                  {userData.phone_number
-                    ?.slice(0, -3)
-                    .padEnd(userData.phone_number.length || 0, "*")}
-                </Text>
+      {isLoading ? (
+        <View className="flex-1 flex-row justify-center items-center gap-2">
+          <ActivityIndicator size="large" color="black" />
+          <Text className="font-pmedium text-gray-600">
+            Đang tải thông tin...
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* Header Profile */}
+          <View className="bg-white p-5">
+            <View className="items-center gap-4">
+              <TouchableOpacity onPress={() => setShowFullImage(true)}>
+                <Image
+                  source={getImageSource(userData)}
+                  className="w-24 h-24 rounded-full"
+                />
               </TouchableOpacity>
-            ) : null}
+              <View className="items-center gap-2">
+                <Text
+                  className="font-pbold text-2xl"
+                  selectable
+                  onPress={async () => {
+                    if (userData?.name) {
+                      await Clipboard.setStringAsync(userData.name);
+                    }
+                  }}
+                >
+                  {userData?.name}
+                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="mail-outline" size={16} color="gray" />
+                  <Text
+                    className="font-pmedium text-gray-600"
+                    selectable
+                    onPress={async () => {
+                      if (userData?.email) {
+                        await Clipboard.setStringAsync(userData.email);
+                      }
+                    }}
+                  >
+                    {userData?.email}
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-2">
+                  {userData?.location?.location_name &&
+                  userData?.location?.location_name.length > 0 ? (
+                    <>
+                      <Ionicons
+                        name="location-outline"
+                        size={16}
+                        color="gray"
+                      />
+                      <Text
+                        className="font-pmedium text-gray-600"
+                        selectable
+                        onPress={async () => {
+                          if (userData?.location?.location_name) {
+                            await Clipboard.setStringAsync(
+                              userData.location.location_name
+                            );
+                          }
+                        }}
+                      >
+                        {userData.location.location_name}
+                      </Text>
+                    </>
+                  ) : null}
+                </View>
+                {userData?.phone_number && userData.phone_number.length > 0 ? (
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="call-outline" size={16} color="gray" />
+                    <Text className="font-pmedium text-gray-600" selectable>
+                      {userData.phone_number
+                        ?.slice(0, -3)
+                        .padEnd(userData.phone_number.length || 0, "*")}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
 
-      {/* Search */}
-      <View className="bg-white p-5">
-        <View className="flex-row items-center bg-gray-100 rounded-lg px-3 py-2 mb-4">
-          <FontAwesome name="search" size={16} color="gray" />
-          <TextInput
-            placeholder="Tìm kiếm dịch vụ..."
-            className="ml-2 flex-1 font-pregular"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color="gray" />
-            </TouchableOpacity>
-          )}
-        </View>
+          {/* Search */}
+          <View className="bg-white p-5">
+            <View className="flex-row items-center bg-gray-100 rounded-lg px-3 py-2 mb-4">
+              <FontAwesome name="search" size={16} color="gray" />
+              <TextInput
+                placeholder="Tìm kiếm dịch vụ..."
+                className="ml-2 flex-1 font-pregular"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={20} color="gray" />
+                </TouchableOpacity>
+              )}
+            </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-2"
-        >
-          <TouchableOpacity
-            onPress={() => setSelectedCategory("all")}
-            className={`px-4 py-2 rounded-full border ${
-              selectedCategory === "all"
-                ? "bg-black border-black"
-                : "border-gray-300"
-            }`}
-          >
-            <Text
-              className={`font-pmedium ${
-                selectedCategory === "all" ? "text-white" : "text-gray-700"
-              }`}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerClassName="gap-2"
             >
-              Tất cả ({services.length})
-            </Text>
-          </TouchableOpacity>
-          {categories.map((category) => {
-            const serviceCount = services.filter(
-              (service) => service.category?.id === category.id
-            ).length;
-
-            return (
               <TouchableOpacity
-                key={category.id}
-                onPress={() => setSelectedCategory(String(category.id))}
+                onPress={() => setSelectedCategory("all")}
                 className={`px-4 py-2 rounded-full border ${
-                  selectedCategory === String(category.id)
+                  selectedCategory === "all"
                     ? "bg-black border-black"
                     : "border-gray-300"
                 }`}
               >
                 <Text
                   className={`font-pmedium ${
-                    selectedCategory === String(category.id)
-                      ? "text-white"
-                      : "text-gray-700"
+                    selectedCategory === "all" ? "text-white" : "text-gray-700"
                   }`}
                 >
-                  {category.category_name} ({serviceCount})
+                  Tất cả ({services.length})
                 </Text>
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+              {categories.map((category) => {
+                const serviceCount = services.filter(
+                  (service) => service.category?.id === category.id
+                ).length;
 
-      {/* Services List */}
-      <View className="bg-white p-5">
-        <Text className="font-pbold text-xl mb-4">
-          Dịch vụ ({filteredServices.length})
-        </Text>
-        <View className="gap-4">
-          {filteredServices.map((service) => (
-            <ServiceCard key={service.id} data={service} />
-          ))}
-          {filteredServices.length === 0 && (
-            <Text className="text-center text-gray-500 mt-4">
-              Không tìm thấy dịch vụ nào
-            </Text>
-          )}
-        </View>
-      </View>
-
-      <Modal
-        visible={showFullImage}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowFullImage(false)}
-      >
-        <View className="flex-1 bg-black">
-          <TouchableOpacity
-            onPress={() => setShowFullImage(false)}
-            className="absolute right-4 top-12 z-10"
-          >
-            <Ionicons name="close" size={30} color="white" />
-          </TouchableOpacity>
-          <View className="flex-1 justify-center">
-            <Image
-              source={getImageSource(userData)}
-              style={{
-                width: Dimensions.get("window").width,
-                height: Dimensions.get("window").width,
-              }}
-              resizeMode="contain"
-            />
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    onPress={() => setSelectedCategory(String(category.id))}
+                    className={`px-4 py-2 rounded-full border ${
+                      selectedCategory === String(category.id)
+                        ? "bg-black border-black"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <Text
+                      className={`font-pmedium ${
+                        selectedCategory === String(category.id)
+                          ? "text-white"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {category.category_name} ({serviceCount})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
-        </View>
-      </Modal>
+
+          {/* Services List */}
+          <View className="bg-white p-5">
+            <Text className="font-pbold text-xl mb-4">
+              Dịch vụ ({filteredServices.length})
+            </Text>
+            <View className="gap-4">
+              {filteredServices.map((service) => (
+                <ServiceCard key={service.id} data={service} />
+              ))}
+              {filteredServices.length === 0 && (
+                <Text className="text-center text-gray-500 mt-4">
+                  Không tìm thấy dịch vụ nào
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <Modal
+            visible={showFullImage}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowFullImage(false)}
+          >
+            <View className="flex-1 bg-black">
+              <TouchableOpacity
+                onPress={() => setShowFullImage(false)}
+                className="absolute right-4 top-12 z-10"
+              >
+                <Ionicons name="close" size={30} color="white" />
+              </TouchableOpacity>
+              <View className="flex-1 justify-center">
+                <Image
+                  source={getImageSource(userData)}
+                  style={{
+                    width: Dimensions.get("window").width,
+                    height: Dimensions.get("window").width,
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          </Modal>
+        </>
+      )}
     </ScrollView>
   );
 };

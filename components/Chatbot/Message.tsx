@@ -36,7 +36,9 @@ export default function Message({
         </View>
         <Text className="text-sm font-medium text-white">{time}</Text>
       </View>
-      <Text className="text-base w-full flex-1 text-white">{message}</Text>
+      <Text className="text-base w-full flex-1 text-white" selectable>
+        {message}
+      </Text>
     </View>
   );
 }

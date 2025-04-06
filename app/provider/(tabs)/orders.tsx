@@ -774,7 +774,7 @@ export default function ProviderOrders() {
       <CustomModal
         visible={modalVisible}
         title="Thành công"
-        message="Đã cập nhật trạng thái đơn dịch vụ"
+        message="Đã hoàn thành đơn dịch vụ"
         type="success"
         onClose={() => {
           setModalVisible(false);

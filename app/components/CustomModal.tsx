@@ -80,9 +80,9 @@ const CustomModal = ({
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
           {isLoading ? (
-            <View style={styles.centeredView}>
-              <ActivityIndicator size="large" color={"black"} />
-              <Text style={styles.modalTitle}>Đang xử lý...</Text>
+            <View className="flex-row items-center justify-center gap-2">
+              <ActivityIndicator size="small" color={"black"} />
+              <Text className="font-pmedium ">Đang xử lý...</Text>
             </View>
           ) : (
             <>

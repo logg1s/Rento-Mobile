@@ -6,6 +6,7 @@ import {
   Alert,
   StyleSheet,
   Image,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { router } from "expo-router";
 import {
@@ -240,13 +241,13 @@ export const OrderCard = ({
 
   return (
     <TouchableOpacity
+      activeOpacity={1}
       className="bg-white p-5 mb-3 rounded-2xl border border-gray-200 shadow"
       onPress={() =>
         router.push({
           pathname: "/customer",
           params: {
-            user_id: isProvider ? order.user_id : provider?.id,
-            order_id: order.id,
+            orderId: order.id,
           },
         })
       }

@@ -8,7 +8,20 @@ import {
   TouchableOpacity,
   Linking,
   Platform,
+  ActivityIndicator,
 } from "react-native";
+import { useFonts } from "expo-font";
+import {
+  Poppins_100Thin,
+  Poppins_200ExtraLight,
+  Poppins_300Light,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  Poppins_800ExtraBold,
+  Poppins_900Black,
+} from "@expo-google-fonts/poppins";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,39 +30,64 @@ import {
   formatToVND,
   formatDateToVietnamese,
 } from "@/utils/utils";
-import { axiosFetch } from "@/stores/dataStore";
+import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { OrderType, UserType } from "@/types/type";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CustomerDetails() {
-  const { user_id, order_id } = useLocalSearchParams<{
-    user_id: string;
-    order_id: string;
+  const { orderId } = useLocalSearchParams<{
+    orderId: string;
   }>();
-  const [user, setUser] = useState<UserType | null>(null);
+  const user = useRentoData((state) => state.user);
+  const isProvider = user?.role.some((role) => role.id === "provider");
+  const [userInfo, setUserInfo] = useState<UserType | null>(null);
   const [order, setOrder] = useState<OrderType | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [loaded, error] = useFonts({
+    Poppins_100Thin,
+    Poppins_200ExtraLight,
+    Poppins_300Light,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
+    Poppins_900Black,
+  });
+
   useEffect(() => {
     fetchOrderDetails();
-  }, [user_id, order_id]);
+  }, [orderId]);
 
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
-      const response = await Promise.all([
-        axiosFetch(`/users/${user_id}`),
-        axiosFetch(`/orders/${order_id}`),
-      ]);
+      const orderResponse = await axiosFetch(`/orders/${orderId}`);
+      const orderData = orderResponse?.data as OrderType;
 
-      if (response[0]?.data && response[1]?.data) {
-        setUser(response[0].data);
-        setOrder(response[1].data);
-      } else {
-        Alert.alert("Lỗi", "Không thể tải thông tin đơn dịch vụ");
+      if (!orderData || !orderData?.user_id) {
+        throw new Error();
       }
+
+      setOrder(orderData);
+
+      const userId = isProvider
+        ? orderData.user_id
+        : orderData.service?.user_id;
+
+      const userResponse = await axiosFetch(`/users/${userId}`);
+      const userData = userResponse?.data as UserType;
+
+      if (!userData) {
+        throw new Error();
+      }
+
+      setUserInfo(userData);
     } catch (error) {
-      console.error("Lỗi khi tải thông tin đơn dịch vụ:", error);
+      console.error(
+        "Lỗi khi tải thông tin đơn dịch vụ:",
+        error?.response?.data || error
+      );
       Alert.alert("Lỗi", "Không thể tải thông tin đơn dịch vụ");
     } finally {
       setLoading(false);
@@ -57,23 +95,23 @@ export default function CustomerDetails() {
   };
 
   const handleChat = () => {
-    if (!user?.id) return;
+    if (!userInfo?.id) return;
 
     router.push({
       pathname: "/provider/(tabs)/chat",
       params: {
-        chatWithId: user.id,
+        chatWithId: userInfo.id,
       },
     });
   };
 
   const handleOpenMap = () => {
-    if (!user?.location?.lat || !user?.location?.lng) {
-      Alert.alert("Thông báo", "Không có thông tin vị trí");
+    if (!userInfo?.location?.lat || !userInfo?.location?.lng) {
+      Alert.alert("Thông báo", " thông tin vị trí");
       return;
     }
 
-    const { lat, lng } = user.location;
+    const { lat, lng } = userInfo.location;
     const url = Platform.select({
       ios: `maps:0,0?q=${lat},${lng}`,
       android: `geo:0,0?q=${lat},${lng}`,
@@ -85,42 +123,57 @@ export default function CustomerDetails() {
   };
 
   const handleCall = () => {
-    if (!user?.phone_number) {
-      Alert.alert("Thông báo", "Không có số điện thoại");
+    if (!userInfo?.phone_number) {
+      Alert.alert("Thông báo", " số điện thoại");
       return;
     }
 
-    Linking.openURL(`tel:${user.phone_number}`);
+    Linking.openURL(`tel:${userInfo.phone_number}`);
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Đang tải thông tin khách hàng...</Text>
+        <ActivityIndicator size="large" color="black" />
+        <Text className="font-pmedium text-gray-600">
+          Đang tải thông tin đơn dịch vụ...
+        </Text>
       </View>
     );
   }
 
-  if (!user) {
+  if (!userInfo) {
     return (
       <View style={styles.errorContainer}>
-        <Text>Không tìm thấy thông tin khách hàng</Text>
+        <Text>Không tìm thấy thông tin đơn dịch vụ</Text>
       </View>
     );
   }
 
   return (
     <ScrollView>
-      {/* Thông tin cơ bản */}
-      <View style={styles.profileHeader}>
+      <TouchableOpacity
+        style={styles.profileHeader}
+        disabled={isProvider}
+        onPressIn={() => {
+          router.push({
+            pathname: "/user/[id]",
+            params: {
+              id: userInfo.id,
+            },
+          });
+        }}
+      >
         <Image
-          source={getImageSource(user)}
+          source={getImageSource(userInfo)}
           style={styles.avatar}
           contentFit="cover"
         />
-        <Text style={styles.name}>{user.name}</Text>
-        <Text style={styles.email}>{user.email}</Text>
-      </View>
+        <View className="flex-1">
+          <Text style={styles.name}>{userInfo.name}</Text>
+          <Text style={styles.email}>{userInfo.email}</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Các nút thao tác */}
       <View style={styles.actionButtons}>
@@ -134,39 +187,42 @@ export default function CustomerDetails() {
           <Text style={styles.actionText}>Gọi điện</Text>
         </TouchableOpacity>
 
-        {user.location?.lat && user.location?.lng && (
+        {userInfo.location?.lat && userInfo.location?.lng && (
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenMap}>
             <Ionicons name="location-outline" size={24} color="#dc2626" />
             <Text style={styles.actionText}>Bản đồ</Text>
           </TouchableOpacity>
         )}
       </View>
+
       <View style={styles.detailSection}>
         <Text style={styles.sectionTitle}>Thông tin đơn dịch vụ</Text>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Mã đơn hàng</Text>
-          <Text style={styles.detailValue}>{order_id || "Không có"}</Text>
+          <Text style={styles.detailValue} selectable>
+            {orderId || ""}
+          </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Tên dịch vụ</Text>
-          <Text style={styles.detailValue}>
-            {order?.service?.service_name || "Không có"}
+          <Text style={styles.detailValue} selectable>
+            {order?.service?.service_name || ""}
           </Text>
         </View>
 
         {/* Gói dịch vụ */}
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Gói dịch vụ</Text>
-          <Text style={styles.detailValue}>
-            {order?.price?.price_name || "Không có"}
+          <Text style={styles.detailValue} selectable>
+            {order?.price?.price_name || ""}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Giá</Text>
-          <Text style={styles.detailValue}>
+          <Text style={styles.detailValue} selectable>
             {formatToVND(order?.price?.price_value || 0)}
           </Text>
         </View>
@@ -174,15 +230,25 @@ export default function CustomerDetails() {
         {/* ghi chú */}
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Ghi chú</Text>
-          <Text style={styles.detailValue}>{order?.message || "Không có"}</Text>
+          <Text style={styles.detailValue} selectable>
+            {order?.message || ""}
+          </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Ngày đặt dịch vụ</Text>
-          <Text style={styles.detailValue}>
+          <Text style={styles.detailValue} selectable>
             {order?.created_at
               ? formatDateToVietnamese(new Date(order?.created_at))
-              : "Không có"}
+              : ""}
+          </Text>
+        </View>
+
+        {/* địa chỉ */}
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Địa chỉ</Text>
+          <Text style={styles.detailValue} selectable>
+            {order?.address || ""}
           </Text>
         </View>
       </View>
@@ -192,54 +258,56 @@ export default function CustomerDetails() {
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Số điện thoại</Text>
-          <Text style={styles.detailValue}>
-            {user.phone_number || "Không có"}
+          <Text style={styles.detailValue} selectable>
+            {userInfo.phone_number || ""}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Địa chỉ</Text>
-          <Text style={styles.detailValue}>
-            {user.location?.location_name ||
-              user.location?.real_location_name ||
-              user.location?.address ||
-              "Không có"}
+          <Text style={styles.detailValue} selectable>
+            {userInfo.location?.location_name ||
+              userInfo.location?.real_location_name ||
+              userInfo.location?.address ||
+              ""}
           </Text>
         </View>
       </View>
 
-      {user.location && (
+      {userInfo.location && (
         <View style={styles.detailSection}>
           <Text style={styles.sectionTitle}>Thông tin vị trí</Text>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Tên địa điểm</Text>
-            <Text style={styles.detailValue}>
-              {user.location.location_name || "Không có"}
+            <Text style={styles.detailValue} selectable>
+              {userInfo.location.location_name || ""}
             </Text>
           </View>
 
-          {user.location.real_location_name && (
+          {userInfo.location.real_location_name && (
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Địa điểm thực tế</Text>
-              <Text style={styles.detailValue}>
-                {user.location.real_location_name}
+              <Text style={styles.detailValue} selectable>
+                {userInfo.location.real_location_name}
               </Text>
             </View>
           )}
 
-          <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Tọa độ</Text>
-            <Text style={styles.detailValue}>
-              {user.location.lat}, {user.location.lng}
-            </Text>
-          </View>
+          {userInfo.location.lat && userInfo.location.lng && (
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>Toạ độ</Text>
+              <Text style={styles.detailValue} selectable>
+                {userInfo.location.lat}, {userInfo.location.lng}
+              </Text>
+            </View>
+          )}
 
-          {user.location.province && (
+          {userInfo.location.province && (
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>Tỉnh/Thành phố</Text>
-              <Text style={styles.detailValue}>
-                {user.location.province.name}
+              <Text style={styles.detailValue} selectable>
+                {userInfo.location.province.name}
               </Text>
             </View>
           )}
@@ -256,8 +324,10 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    gap: 10,
   },
   errorContainer: {
     flex: 1,
@@ -265,34 +335,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   profileHeader: {
+    flexDirection: "row",
+    gap: 15,
     alignItems: "center",
-    padding: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
   avatar: {
-    width: 100,
-    height: 100,
+    width: 50,
+    height: 50,
     borderRadius: 50,
-    marginBottom: 12,
   },
   name: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 16,
     color: "#111827",
-    marginBottom: 5,
+    fontFamily: "Poppins_600SemiBold",
   },
   email: {
     fontSize: 16,
     color: "#6b7280",
+    fontFamily: "Poppins_500Medium",
   },
   actionButtons: {
     flexDirection: "row",
     justifyContent: "space-around",
     padding: 15,
     backgroundColor: "white",
-    marginVertical: 10,
   },
   actionButton: {
     alignItems: "center",
@@ -301,6 +372,7 @@ const styles = StyleSheet.create({
   actionText: {
     marginTop: 5,
     color: "#374151",
+    fontFamily: "Poppins_500Medium",
   },
   detailSection: {
     backgroundColor: "white",
@@ -308,8 +380,8 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontFamily: "Poppins_700Bold",
     color: "#111827",
     marginBottom: 15,
   },
@@ -322,12 +394,13 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     color: "#6b7280",
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: "Poppins_500Medium",
   },
   detailValue: {
     color: "#111827",
-    fontSize: 16,
-    fontWeight: "500",
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 15,
     maxWidth: "60%",
     textAlign: "right",
   },

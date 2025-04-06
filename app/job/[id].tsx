@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   ToastAndroid,
+  ActivityIndicator,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
@@ -16,7 +17,6 @@ import Swiper from "react-native-swiper";
 import CardPrice from "@/components/CardPrice";
 import CustomButton from "@/components/CustomButton";
 import { FontAwesome, Ionicons, Octicons } from "@expo/vector-icons";
-import { benefit_data, price_data } from "@/lib/dummy";
 import SmallerServiceCard from "@/components/SmallerServiceCard";
 import RatingStar from "@/components/RatingStar";
 import CommentCard from "@/components/CommentCard";
@@ -338,14 +338,10 @@ const DetailJob = () => {
                       pathname: "/user/[id]",
                       params: {
                         id: data.user.id,
-                        name: data.user.name,
-                        email: data.user.email,
-                        average_rate: data.user.average_rate as any,
-                        comment_count: data.user.comment_count as any,
                       },
                     });
                   } else {
-                    Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng");
+                    Alert.alert("Lỗi", "Không tìm thấy thông tin nhà cung cấp");
                   }
                 }}
               >
@@ -356,15 +352,20 @@ const DetailJob = () => {
                   />
                 </View>
                 <View>
-                  <Text className="font-pbold">{data?.user?.name}</Text>
-                  <Text className="font-pmedium text-sm text-secondary-800">
+                  <Text className="font-pbold" selectable>
+                    {data?.user?.name}
+                  </Text>
+                  <Text
+                    className="font-pmedium text-sm text-secondary-800"
+                    selectable
+                  >
                     {data?.category?.category_name}
                   </Text>
                 </View>
               </TouchableOpacity>
               <View className="flex-row items-center">
                 <Ionicons name="location-outline" size={16} color="gray" />
-                <Text className="ml-1 font-pmedium text-sm">
+                <Text className="ml-1 font-pmedium text-sm" selectable>
                   {data?.location?.province?.name ||
                     data?.location?.location_name ||
                     data?.location?.real_location_name ||
@@ -373,8 +374,10 @@ const DetailJob = () => {
               </View>
             </View>
             <View className="p-5 bg-white gap-5">
-              <Text className="font-pbold text-2xl ">{data?.service_name}</Text>
-              <Text className="font-pregular text-lg">
+              <Text className="font-pbold text-2xl " selectable>
+                {data?.service_name}
+              </Text>
+              <Text className="font-pregular text-lg" selectable>
                 {data?.service_description}
               </Text>
             </View>
@@ -418,6 +421,7 @@ const DetailJob = () => {
                       <Text
                         className="font-pregular text-lg flex-1 ml-2"
                         numberOfLines={1}
+                        selectable
                       >
                         {index + 1}. {benefit.benefit_name}
                       </Text>
@@ -598,7 +602,7 @@ const DetailJob = () => {
         <View className="flex-row items-center justify-between border-t border-gray-300 px-5 py-2 bg-white">
           <View className="flex-row w-2/4 ">
             <Text className="font-pmedium text-2xl ">Giá: </Text>
-            <Text className="font-psemibold text-3xl text-[#ee4d2d]">
+            <Text className="font-psemibold text-3xl text-[#ee4d2d]" selectable>
               {formatToVND(data?.price?.[selectedPricing]?.price_value ?? 0)}
             </Text>
           </View>

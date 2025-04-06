@@ -8,7 +8,7 @@ export default function UserLayout() {
         <Stack.Screen
           name="[id]"
           options={{
-            headerTitle: "Thông tin người dùng",
+            headerTitle: "Thông tin nhà cung cấp",
             headerBackTitle: "Quay lại",
           }}
         />

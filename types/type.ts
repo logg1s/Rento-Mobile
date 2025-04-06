@@ -96,6 +96,7 @@ export type ServiceType = {
   service_description: string;
   ordered_by_me?: boolean;
   user?: UserType;
+  user_id?: number;
   location?: LocationType;
   category?: CategoryType;
   price?: PriceType[];

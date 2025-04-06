@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { router } from "expo-router";
+import { UserType } from "@/types/type";
 
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
@@ -21,6 +22,8 @@ Notifications.setNotificationHandler({
 export const useNotification = () => {
   const notificationListener = useRef<Notifications.EventSubscription>();
   const responseListener = useRef<Notifications.EventSubscription>();
+  const user = useRentoData((state) => state.user);
+  const isProvider = user?.role.some((role) => role.id === "provider") || false;
 
   useEffect(() => {
     registerForPushNotificationsAsync()
@@ -42,7 +45,7 @@ export const useNotification = () => {
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        handleNotification(response.notification);
+        handleNotification(response.notification, isProvider);
       });
 
     return () => {
@@ -59,17 +62,18 @@ export const useNotification = () => {
     const getLastNotificationResponse = async () => {
       const response = await Notifications.getLastNotificationResponseAsync();
       if (response) {
-        handleNotification(response.notification);
+        handleNotification(response.notification, isProvider);
       }
     };
     getLastNotificationResponse();
   }, []);
 };
 
-function handleNotification(notification: Notifications.Notification) {
+function handleNotification(
+  notification: Notifications.Notification,
+  isProvider: boolean
+) {
   const data = notification.request.content.data;
-  const user = useRentoData((state) => state.user);
-  const isProvider = user?.role.some((role) => role.id === "provider");
   switch (data.type) {
     case "message":
       if (data?.id) {
@@ -83,7 +87,10 @@ function handleNotification(notification: Notifications.Notification) {
       break;
     case "order":
       router.push({
-        pathname: "/profile/order-history",
+        pathname: "/customer",
+        params: {
+          id: data.id,
+        },
       });
       break;
   }
