@@ -12,33 +12,45 @@ import {
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { getImageSource, formatToVND } from "@/utils/utils";
+import {
+  getImageSource,
+  formatToVND,
+  formatDateToVietnamese,
+} from "@/utils/utils";
 import { axiosFetch } from "@/stores/dataStore";
-import { UserType } from "@/types/type";
+import { OrderType, UserType } from "@/types/type";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CustomerDetails() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { user_id, order_id } = useLocalSearchParams<{
+    user_id: string;
+    order_id: string;
+  }>();
   const [user, setUser] = useState<UserType | null>(null);
+  const [order, setOrder] = useState<OrderType | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCustomerDetails();
-  }, [id]);
+    fetchOrderDetails();
+  }, [user_id, order_id]);
 
-  const fetchCustomerDetails = async () => {
+  const fetchOrderDetails = async () => {
     try {
       setLoading(true);
-      const response = await axiosFetch(`/users/${id}`);
+      const response = await Promise.all([
+        axiosFetch(`/users/${user_id}`),
+        axiosFetch(`/orders/${order_id}`),
+      ]);
 
-      if (response?.data) {
-        setUser(response.data);
+      if (response[0]?.data && response[1]?.data) {
+        setUser(response[0].data);
+        setOrder(response[1].data);
       } else {
-        Alert.alert("Lỗi", "Không thể tải thông tin khách hàng");
+        Alert.alert("Lỗi", "Không thể tải thông tin đơn dịch vụ");
       }
     } catch (error) {
-      console.error("Lỗi khi tải thông tin khách hàng:", error);
-      Alert.alert("Lỗi", "Không thể tải thông tin khách hàng");
+      console.error("Lỗi khi tải thông tin đơn dịch vụ:", error);
+      Alert.alert("Lỗi", "Không thể tải thông tin đơn dịch vụ");
     } finally {
       setLoading(false);
     }
@@ -128,6 +140,51 @@ export default function CustomerDetails() {
             <Text style={styles.actionText}>Bản đồ</Text>
           </TouchableOpacity>
         )}
+      </View>
+      <View style={styles.detailSection}>
+        <Text style={styles.sectionTitle}>Thông tin đơn dịch vụ</Text>
+
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Mã đơn hàng</Text>
+          <Text style={styles.detailValue}>{order_id || "Không có"}</Text>
+        </View>
+
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Tên dịch vụ</Text>
+          <Text style={styles.detailValue}>
+            {order?.service?.service_name || "Không có"}
+          </Text>
+        </View>
+
+        {/* Gói dịch vụ */}
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Gói dịch vụ</Text>
+          <Text style={styles.detailValue}>
+            {order?.price?.price_name || "Không có"}
+          </Text>
+        </View>
+
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Giá</Text>
+          <Text style={styles.detailValue}>
+            {formatToVND(order?.price?.price_value || 0)}
+          </Text>
+        </View>
+
+        {/* ghi chú */}
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Ghi chú</Text>
+          <Text style={styles.detailValue}>{order?.message || "Không có"}</Text>
+        </View>
+
+        <View style={styles.detailItem}>
+          <Text style={styles.detailLabel}>Ngày đặt dịch vụ</Text>
+          <Text style={styles.detailValue}>
+            {order?.created_at
+              ? formatDateToVietnamese(new Date(order?.created_at))
+              : "Không có"}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.detailSection}>

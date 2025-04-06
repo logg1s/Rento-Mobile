@@ -117,7 +117,6 @@ export default function ProviderOrders() {
 
   const loadOrders = async (refresh = true) => {
     try {
-      setRefreshing(refresh);
       if (refresh) {
         setNextCursor(null);
         setHasMore(true);
@@ -180,9 +179,6 @@ export default function ProviderOrders() {
         "Lỗi",
         "Không thể tải danh sách đơn dịch vụ. Vui lòng thử lại sau."
       );
-    } finally {
-      setRefreshing(false);
-      setLoadingMore(false);
     }
   };
 
@@ -194,34 +190,32 @@ export default function ProviderOrders() {
     return () => clearTimeout(debounceTimeout);
   }, [searchQuery, searchFilter]);
 
-  useEffect(() => {
-    handleRefresh();
-  }, [statusFilter, sortBy, dateRange.startDate, dateRange.endDate]);
-
   const handleLoadMore = async () => {
     if (!hasMore || loadingMore || refreshing) return;
 
     setLoadingMore(true);
     await loadOrders(false);
+    setLoadingMore(false);
   };
 
   const handleRefresh = async () => {
-    await loadOrders(true);
     try {
+      setRefreshing(true);
+      await loadOrders(true);
       await fetchStatistics();
       if (statistics && statistics.summary) {
         setTotalCompletedRevenue(statistics.summary.total_revenue || 0);
       }
     } catch (error) {
       console.error("Error fetching statistics:", error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      handleRefresh();
-    }, [])
-  );
+  useEffect(() => {
+    handleRefresh();
+  }, [statusFilter, sortBy, dateRange.startDate, dateRange.endDate]);
 
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
