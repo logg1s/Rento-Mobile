@@ -50,10 +50,15 @@ expo-env.d.ts
 google-services.json
 GoogleService-Info.plist
 
-backend-for-references/
-Backend/
-backend/
 
 lib/dbtable/
 app/chatbot/chat_history.ts
 app/chatbot/chat_instruction.ts
+
+
+.vscode/
+
+# only ignore in git
+backend-for-references/
+Backend/
+backend/
