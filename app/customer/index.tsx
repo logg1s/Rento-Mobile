@@ -31,7 +31,12 @@ import {
   formatDateToVietnamese,
 } from "@/utils/utils";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
-import { OrderType, UserType } from "@/types/type";
+import {
+  ORDER_STATUS_MAP,
+  OrderStatus,
+  OrderType,
+  UserType,
+} from "@/types/type";
 
 export default function CustomerDetails() {
   const { orderId } = useLocalSearchParams<{
@@ -65,7 +70,7 @@ export default function CustomerDetails() {
       const orderResponse = await axiosFetch(`/orders/${orderId}`);
       const orderData = orderResponse?.data as OrderType;
 
-      if (!orderData || !orderData?.user_id) {
+      if (!orderData ?? !orderData?.user_id) {
         throw new Error();
       }
 
@@ -86,7 +91,7 @@ export default function CustomerDetails() {
     } catch (error) {
       console.error(
         "Lỗi khi tải thông tin đơn dịch vụ:",
-        error?.response?.data || error
+        error?.response?.data ?? error
       );
       Alert.alert("Lỗi", "Không thể tải thông tin đơn dịch vụ");
     } finally {
@@ -107,7 +112,7 @@ export default function CustomerDetails() {
 
   const handleOpenMap = () => {
     if (!userInfo?.location?.lat || !userInfo?.location?.lng) {
-      Alert.alert("Thông báo", " thông tin vị trí");
+      Alert.alert("Thông báo", "Thông tin vị trí không hợp lệ");
       return;
     }
 
@@ -141,6 +146,31 @@ export default function CustomerDetails() {
       </View>
     );
   }
+
+  const renderOrderStatusHeader = () => {
+    if (!order) return null;
+
+    const statusConfig = ORDER_STATUS_MAP[order?.status ?? OrderStatus.PENDING];
+    return (
+      <View
+        style={[
+          styles.detailItem,
+          {
+            backgroundColor: statusConfig.style.text.color,
+            borderRadius: 8,
+            padding: 10,
+          },
+        ]}
+      >
+        <Text style={[styles.detailLabel, { color: "white" }]}>
+          Trạng thái đơn hàng
+        </Text>
+        <Text style={[styles.detailValue, { color: "white" }]}>
+          {statusConfig.text}
+        </Text>
+      </View>
+    );
+  };
 
   if (!userInfo) {
     return (
@@ -198,17 +228,32 @@ export default function CustomerDetails() {
       <View style={styles.detailSection}>
         <Text style={styles.sectionTitle}>Thông tin đơn dịch vụ</Text>
 
+        {renderOrderStatusHeader()}
+
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Mã đơn hàng</Text>
           <Text style={styles.detailValue} selectable>
-            {orderId || ""}
+            {orderId ?? ""}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Tên dịch vụ</Text>
-          <Text style={styles.detailValue} selectable>
-            {order?.service?.service_name || ""}
+          <Text
+            style={[
+              styles.detailValue,
+              { color: "royalblue", textDecorationLine: "underline" },
+            ]}
+            onPress={() => {
+              router.push({
+                pathname: "/job/[id]",
+                params: {
+                  id: order?.service?.id,
+                },
+              });
+            }}
+          >
+            {order?.service?.service_name ?? ""}
           </Text>
         </View>
 
@@ -216,14 +261,14 @@ export default function CustomerDetails() {
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Gói dịch vụ</Text>
           <Text style={styles.detailValue} selectable>
-            {order?.price?.price_name || ""}
+            {order?.price?.price_name ?? ""}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Giá</Text>
-          <Text style={styles.detailValue} selectable>
-            {formatToVND(order?.price?.price_value || 0)}
+          <Text style={[styles.detailValue, { color: "green" }]} selectable>
+            {formatToVND(order?.price?.price_value ?? 0)}
           </Text>
         </View>
 
@@ -231,7 +276,7 @@ export default function CustomerDetails() {
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Ghi chú</Text>
           <Text style={styles.detailValue} selectable>
-            {order?.message || ""}
+            {order?.message ?? ""}
           </Text>
         </View>
 
@@ -248,7 +293,7 @@ export default function CustomerDetails() {
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Địa chỉ</Text>
           <Text style={styles.detailValue} selectable>
-            {order?.address || ""}
+            {order?.address ?? ""}
           </Text>
         </View>
       </View>
@@ -259,16 +304,16 @@ export default function CustomerDetails() {
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Số điện thoại</Text>
           <Text style={styles.detailValue} selectable>
-            {userInfo.phone_number || ""}
+            {userInfo.phone_number ?? ""}
           </Text>
         </View>
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Địa chỉ</Text>
           <Text style={styles.detailValue} selectable>
-            {userInfo.location?.location_name ||
-              userInfo.location?.real_location_name ||
-              userInfo.location?.address ||
+            {userInfo.location?.location_name ??
+              userInfo.location?.real_location_name ??
+              userInfo.location?.address ??
               ""}
           </Text>
         </View>
@@ -281,7 +326,7 @@ export default function CustomerDetails() {
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Tên địa điểm</Text>
             <Text style={styles.detailValue} selectable>
-              {userInfo.location.location_name || ""}
+              {userInfo.location.location_name ?? ""}
             </Text>
           </View>
 
@@ -294,14 +339,15 @@ export default function CustomerDetails() {
             </View>
           )}
 
-          {userInfo.location.lat && userInfo.location.lng && (
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Toạ độ</Text>
-              <Text style={styles.detailValue} selectable>
-                {userInfo.location.lat}, {userInfo.location.lng}
-              </Text>
-            </View>
-          )}
+          {userInfo?.location?.lat?.toString().length > 0 &&
+            userInfo?.location?.lng?.toString().length > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Toạ độ</Text>
+                <Text style={styles.detailValue} selectable>
+                  {userInfo.location.lat}, {userInfo.location.lng}
+                </Text>
+              </View>
+            )}
 
           {userInfo.location.province && (
             <View style={styles.detailItem}>

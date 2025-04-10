@@ -495,78 +495,79 @@ const DetailJob = () => {
               )}
             </ScrollView>
           </View>
-
-          <View className="bg-white p-5">
-            {data?.comment_by_you && (
-              <View>
-                <Text className="font-psemibold text-xl">
-                  Bình luận của bạn
-                </Text>
-                <CommentCard
-                  data={data.comment_by_you}
-                  user={data?.user}
-                  containerStyles="w-full my-5"
-                  enableOption
-                  handleDeleteComment={handleDeleteComment}
+          {data?.ordered_by_me && (
+            <View className="bg-white p-5">
+              {data?.comment_by_you && (
+                <View>
+                  <Text className="font-psemibold text-xl">
+                    Bình luận của bạn
+                  </Text>
+                  <CommentCard
+                    data={data.comment_by_you}
+                    user={data?.user}
+                    containerStyles="w-full my-5"
+                    enableOption
+                    handleDeleteComment={handleDeleteComment}
+                  />
+                </View>
+              )}
+              <Text className="font-psemibold text-xl">
+                {data?.comment_by_you === null
+                  ? "Gửi đánh giá và bình luận"
+                  : "Chỉnh sửa bình luận"}
+              </Text>
+              <View className=" justify-center items-center mt-5">
+                <RatingStar
+                  rating={selectedRating}
+                  maxStar={5}
+                  isAverage={false}
+                  showRateNumber={false}
+                  setSelectedRating={(rating) => setSelectedRating(rating)}
+                  size={38}
                 />
               </View>
-            )}
-            <Text className="font-psemibold text-xl">
-              {data?.comment_by_you === null
-                ? "Gửi đánh giá và bình luận"
-                : "Chỉnh sửa bình luận"}
-            </Text>
-            <View className=" justify-center items-center mt-5">
-              <RatingStar
-                rating={selectedRating}
-                maxStar={5}
-                isAverage={false}
-                showRateNumber={false}
-                setSelectedRating={(rating) => setSelectedRating(rating)}
-                size={38}
-              />
-            </View>
-            <View className="gap-5 w-full">
-              <InputField
-                nameField="Bình luận"
-                placeholder="Nhập bình luận của bạn"
-                onChangeText={setComment}
-                value={comment}
-                rules={[
-                  {
-                    isValid: comment.length > 0,
-                    message: "Bình luận không được để trống",
-                  },
-                ]}
-                multiline
-              />
-            </View>
-            {selectedImage && (
-              <View style={{ position: "relative", marginTop: 10 }}>
-                <Image
-                  source={{ uri: selectedImage }}
-                  style={{ width: 100, height: 100 }}
+              <View className="gap-5 w-full">
+                <InputField
+                  nameField="Bình luận"
+                  placeholder="Nhập bình luận của bạn"
+                  onChangeText={setComment}
+                  value={comment}
+                  rules={[
+                    {
+                      isValid: comment.length > 0,
+                      message: "Bình luận không được để trống",
+                    },
+                  ]}
+                  multiline
                 />
-                <TouchableOpacity
-                  style={{ position: "absolute", top: 0, right: 0 }}
-                  onPress={() => setSelectedImage(null)}
-                >
-                  <FontAwesome name="times" size={20} color="red" />
-                </TouchableOpacity>
               </View>
-            )}
-            <View className="bg-white">
-              <CustomButton
-                title={data?.comment_by_you === null ? "Gửi" : "Cập nhật"}
-                onPress={() =>
-                  submitComment(
-                    data?.comment_by_you === null ? "submit" : "update"
-                  )
-                }
-                containerStyles="w-1/3 self-center mt-5"
-              />
+              {selectedImage && (
+                <View style={{ position: "relative", marginTop: 10 }}>
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={{ width: 100, height: 100 }}
+                  />
+                  <TouchableOpacity
+                    style={{ position: "absolute", top: 0, right: 0 }}
+                    onPress={() => setSelectedImage(null)}
+                  >
+                    <FontAwesome name="times" size={20} color="red" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View className="bg-white">
+                <CustomButton
+                  title={data?.comment_by_you === null ? "Gửi" : "Cập nhật"}
+                  onPress={() =>
+                    submitComment(
+                      data?.comment_by_you === null ? "submit" : "update"
+                    )
+                  }
+                  containerStyles="w-1/3 self-center mt-5"
+                />
+              </View>
             </View>
-          </View>
+          )}
 
           {suggestedServices.length > 0 && (
             <View className="bg-white p-5">

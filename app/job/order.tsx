@@ -36,9 +36,9 @@ const OrderService = () => {
       setFormData((prev) => ({
         ...prev,
         address:
-          user.location?.location_name ||
-          user.location?.real_location_name ||
-          user.location?.address ||
+          user.location?.location_name ??
+          user.location?.real_location_name ??
+          user.location?.address ??
           prev.address,
         phone_number: user.phone_number || prev.phone_number,
       }));
@@ -108,7 +108,7 @@ const OrderService = () => {
   const [isValid, setIsValid] = useState(false);
   useEffect(() => {
     const checkValid = Object.keys(rules).every((key) =>
-      rules[key].every((rule) => rule.isValid),
+      rules[key].every((rule) => rule.isValid)
     );
     setIsValid(checkValid);
   }, [formData, rules]);
@@ -153,10 +153,10 @@ const OrderService = () => {
         <View className="gap-5">
           <OrderServiceDetails service={service} price={price} />
 
-          {((user?.location?.location_name ||
-            user?.location?.real_location_name ||
-            user?.location?.address ||
-            user?.phone_number) ??
+          {(user?.location?.location_name ??
+          user?.location?.real_location_name ??
+          user?.location?.address ??
+          user?.phone_number ??
           null) ? (
             <View className="bg-primary-100 p-4 rounded-lg">
               <View className="flex-row justify-between items-center mb-3">
@@ -170,13 +170,13 @@ const OrderService = () => {
                   <Text className="font-pmedium text-white">Áp dụng</Text>
                 </TouchableOpacity>
               </View>
-              {(user?.location?.location_name ||
-                user?.location?.real_location_name ||
+              {(user?.location?.location_name ??
+                user?.location?.real_location_name ??
                 user?.location?.address) && (
                 <Text className="text-gray-600 mb-1">
                   Địa chỉ:{" "}
-                  {user.location?.location_name ||
-                    user?.location?.real_location_name ||
+                  {user.location?.location_name ??
+                    user?.location?.real_location_name ??
                     user?.location?.address}
                 </Text>
               )}
