@@ -418,12 +418,6 @@ export default function ProviderServices() {
         }));
 
         loadMoreServices();
-      } else {
-        console.log(
-          `Skipping end reached - onEndReachedCalledDuringMomentum: ${onEndReachedCalledDuringMomentum.current}, ` +
-            `hasMore: ${paginationData.hasMore}, isLoadingMore: ${paginationData.isLoadingMore}, ` +
-            `isFilterChanging: ${paginationData.isFilterChanging}`
-        );
       }
     },
     [
@@ -801,7 +795,7 @@ export default function ProviderServices() {
           <View className="mx-4 mb-4">
             <View className="flex-row items-center mb-2">
               <Text className="text-primary-500 font-pbold mr-2">
-                #{index + 1}
+                {index + 1}
               </Text>
               <View className="flex-1">
                 <ServiceCard

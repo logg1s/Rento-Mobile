@@ -330,7 +330,6 @@ const useRentoData = create<DataState>((set, get) => ({
       return true;
     } catch (error: any) {
       console.error("Lỗi khi xóa hình ảnh:", error?.response?.data || error);
-      console.log("Đường dẫn hình ảnh:", imagePath);
       return false;
     }
   },

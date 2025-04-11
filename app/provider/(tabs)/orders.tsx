@@ -217,6 +217,12 @@ export default function ProviderOrders() {
     handleRefresh();
   }, [statusFilter, sortBy, dateRange.startDate, dateRange.endDate]);
 
+  useFocusEffect(
+    useCallback(() => {
+      handleRefresh();
+    }, [statusFilter, sortBy, dateRange.startDate, dateRange.endDate])
+  );
+
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
   };
@@ -262,7 +268,7 @@ export default function ProviderOrders() {
     index: number;
   }) => (
     <View key={`order-${item.id}`} className="mb-10">
-      <Text className="text-gray-500 font-pmedium mb-2">#{index + 1}</Text>
+      <Text className="text-gray-500 font-pmedium mb-2">{index + 1}</Text>
       <OrderCard
         order={item}
         isProvider={true}

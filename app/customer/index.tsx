@@ -9,8 +9,8 @@ import {
   Linking,
   Platform,
   ActivityIndicator,
-  Dimensions,
-  TouchableWithoutFeedback,
+  RefreshControl,
+  Modal,
 } from "react-native";
 import { useFonts } from "expo-font";
 import {
@@ -40,6 +40,8 @@ import {
   UserType,
 } from "@/types/type";
 import MapboxGL from "@rnmapbox/maps";
+import useProviderStore from "@/stores/providerStore";
+import CustomModal from "../components/CustomModal";
 
 // Set Mapbox access token
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || "");
@@ -56,6 +58,49 @@ export default function CustomerDetails() {
   const [showCallout, setShowCallout] = useState(true);
   const mapViewRef = useRef<MapboxGL.MapView>(null);
   const cameraRef = useRef<MapboxGL.Camera>(null);
+  const userUpdateOrderStatus = useRentoData(
+    (state) => state.updateStatusOrder
+  );
+  const [showModal, setShowModal] = useState(false);
+  const providerUpdateOrderStatus = useProviderStore(
+    (state) => state.updateOrderStatus
+  );
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleUpdateStatusOrder = async (
+    orderId: number,
+    status: OrderStatus
+  ) => {
+    if (!orderId) return;
+    setShowModal(true);
+    if (isProvider) {
+      let statusText = "pending";
+      switch (status) {
+        case OrderStatus.IN_PROGRESS:
+          statusText = "processing";
+          break;
+        case OrderStatus.COMPLETED:
+          statusText = "completed";
+          break;
+        case OrderStatus.CANCELLED:
+          statusText = "cancelled";
+          break;
+      }
+      await providerUpdateOrderStatus(orderId, statusText);
+    } else {
+      await userUpdateOrderStatus(orderId, status);
+    }
+    setShowModal(false);
+    handleRefresh();
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setOrder(null);
+    setUserInfo(null);
+    await fetchOrderDetails();
+    setIsRefreshing(false);
+  };
 
   const [loaded, error] = useFonts({
     Poppins_100Thin,
@@ -172,6 +217,200 @@ export default function CustomerDetails() {
     );
   }
 
+  const renderProviderActions = () => {
+    if (!order) return null;
+    switch (order?.status) {
+      case OrderStatus.PENDING:
+        return (
+          <View className="flex-row space-x-3 mt-5 gap-6">
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center space-x-2 bg-red-100 py-3 rounded-xl border border-red-300 shadow-sm"
+              onPress={() => {
+                Alert.alert(
+                  "Huỷ đơn",
+                  "Bạn có chắc chắn muốn huỷ đơn này không?",
+                  [
+                    {
+                      text: "Huỷ",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Đồng ý",
+                      onPress: () =>
+                        handleUpdateStatusOrder(
+                          order.id,
+                          OrderStatus.CANCELLED
+                        ),
+                    },
+                  ]
+                );
+              }}
+              style={{
+                elevation: 2,
+                shadowColor: "#ef4444",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+              }}
+            >
+              <Ionicons name="close-circle-outline" size={20} color="#dc2626" />
+              <Text className="text-red-600 font-bold">Huỷ đơn</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center space-x-2 bg-blue-100 py-3 rounded-xl border border-blue-300 shadow-sm"
+              onPress={() =>
+                handleUpdateStatusOrder(order.id, OrderStatus.IN_PROGRESS)
+              }
+              style={{
+                elevation: 2,
+                shadowColor: "#3b82f6",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+              }}
+            >
+              <Ionicons name="play-circle-outline" size={20} color="#2563eb" />
+              <Text className="text-blue-600 font-bold">Nhận đơn</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case OrderStatus.IN_PROGRESS:
+        return (
+          <View className="flex-row space-x-3 mt-5 gap-6">
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center space-x-2 bg-green-100 py-3 rounded-xl border border-green-300 shadow-sm"
+              onPress={() => {
+                Alert.alert(
+                  "Hoàn thành đơn",
+                  "Bạn có chắc chắn muốn hoàn thành đơn này không?",
+                  [
+                    {
+                      text: "Huỷ",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Đồng ý",
+                      onPress: () =>
+                        handleUpdateStatusOrder(
+                          order.id,
+                          OrderStatus.COMPLETED
+                        ),
+                    },
+                  ]
+                );
+              }}
+              style={{
+                elevation: 2,
+                shadowColor: "#10b981",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+              }}
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={20}
+                color="#16a34a"
+              />
+              <Text className="text-green-600 font-bold">Hoàn thành</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const handleContact = () => {
+    if (!order?.service?.user_id) return;
+
+    router.push({
+      pathname: "/job/[id]",
+      params: {
+        id: order.service.user_id,
+      },
+    });
+  };
+
+  const renderUserActions = () => {
+    if (!order) return null;
+    switch (order?.status) {
+      case OrderStatus.PENDING:
+        return (
+          <View className="flex-row space-x-3 mt-5 gap-6">
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center space-x-2 bg-red-100 py-3 rounded-xl border border-red-300 shadow-sm"
+              onPress={() => {
+                Alert.alert(
+                  "Huỷ đơn",
+                  "Bạn có chắc chắn muốn huỷ đơn này không?",
+                  [
+                    {
+                      text: "Huỷ",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Đồng ý",
+                      onPress: () =>
+                        handleUpdateStatusOrder(
+                          order.id,
+                          OrderStatus.CANCELLED
+                        ),
+                    },
+                  ]
+                );
+              }}
+              style={{
+                elevation: 2,
+                shadowColor: "#ef4444",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+              }}
+            >
+              <Ionicons name="close-circle-outline" size={20} color="#dc2626" />
+              <Text className="text-red-600 font-bold">Huỷ đơn</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center space-x-2 bg-blue-100 py-3 rounded-xl border border-blue-300 shadow-sm"
+              onPress={handleContact}
+              style={{
+                elevation: 2,
+                shadowColor: "#3b82f6",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+              }}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#2563eb" />
+              <Text className="text-blue-600 font-bold">Liên hệ</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case OrderStatus.IN_PROGRESS:
+        return (
+          <View className="flex-row space-x-3 mt-5 gap-6">
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center space-x-2 bg-blue-100 py-3 rounded-xl border border-blue-300 shadow-sm"
+              onPress={handleContact}
+              style={{
+                elevation: 2,
+                shadowColor: "#3b82f6",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 1,
+              }}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#2563eb" />
+              <Text className="text-blue-600 font-bold">Liên hệ</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderOrderStatusHeader = () => {
     if (!order) return null;
 
@@ -206,7 +445,19 @@ export default function CustomerDetails() {
   }
 
   return (
-    <ScrollView>
+    <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+      }
+    >
+      <Modal visible={showModal} transparent={true} animationType="fade">
+        <View className="flex-1 justify-center items-center  bg-opacity-30">
+          <View className="bg-white p-5 rounded-lg shadow-lg flex-row items-center justify-center gap-3">
+            <ActivityIndicator size="small" color="black" />
+            <Text className="font-pmedium">Đang xử lý...</Text>
+          </View>
+        </View>
+      </Modal>
       <TouchableOpacity
         style={styles.profileHeader}
         disabled={isProvider}
@@ -242,7 +493,7 @@ export default function CustomerDetails() {
           <Text style={styles.actionText}>Gọi điện</Text>
         </TouchableOpacity>
 
-        {userInfo.location?.lat && userInfo.location?.lng && (
+        {userInfo?.location?.lat && userInfo?.location?.lng && (
           <TouchableOpacity style={styles.actionButton} onPress={handleOpenMap}>
             <Ionicons name="location-outline" size={24} color="#dc2626" />
             <Text style={styles.actionText}>Bản đồ</Text>
@@ -251,7 +502,7 @@ export default function CustomerDetails() {
       </View>
 
       {/* Map Component - now positioned directly below action buttons */}
-      {userInfo.location?.lat && userInfo.location?.lng && (
+      {userInfo?.location?.lat && userInfo?.location?.lng && (
         <View
           style={styles.mapSection}
           onStartShouldSetResponder={() => true}
@@ -338,6 +589,8 @@ export default function CustomerDetails() {
         <Text style={styles.sectionTitle}>Thông tin đơn dịch vụ</Text>
 
         {renderOrderStatusHeader()}
+
+        {isProvider ? renderProviderActions() : renderUserActions()}
 
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Mã đơn dịch vụ</Text>
