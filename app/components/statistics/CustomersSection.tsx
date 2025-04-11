@@ -173,7 +173,7 @@ export const CustomersSection: React.FC<CustomersSectionProps> = ({
       {/* Order Value Distribution */}
       <View className="bg-white mt-4 p-4 rounded-lg shadow-sm">
         <Text className="text-xl font-pbold text-gray-800 mb-3">
-          Phân bố giá trị đơn hàng
+          Phân bố giá trị đơn dịch vụ
         </Text>
 
         {(stats.customer_insights?.order_value_distribution?.length || 0) >
@@ -205,7 +205,7 @@ export const CustomersSection: React.FC<CustomersSectionProps> = ({
         ) : (
           <View className="h-[220] justify-center items-center">
             <Text className="text-gray-500 font-pmedium">
-              Không có dữ liệu đơn hàng
+              Không có dữ liệu đơn dịch vụ
             </Text>
           </View>
         )}

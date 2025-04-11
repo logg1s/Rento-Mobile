@@ -143,7 +143,7 @@ export const RevenueSection: React.FC<RevenueSectionProps> = ({
           <View className="w-1/2 pl-2 mb-3">
             <View className="bg-green-50 rounded-lg p-3">
               <Text className="text-gray-500 font-pmedium text-xs mb-1">
-                Đơn hàng có doanh thu
+                Đơn dịch vụ có doanh thu
               </Text>
               <Text className="text-base font-pbold text-gray-800">
                 {stats.orders.completed || 0} đơn

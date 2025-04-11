@@ -150,7 +150,7 @@ export const ServiceSpecificStats: React.FC<ServiceSpecificStatsProps> = ({
             <View className="w-1/2 pr-2 mb-3">
               <View className="bg-yellow-50 rounded-lg p-3">
                 <Text className="text-gray-500 font-pmedium text-xs mb-1">
-                  TB/đơn hàng
+                  TB/đơn dịch vụ
                 </Text>
                 <Text className="text-base font-pbold text-gray-800">
                   {formatCurrency(service.revenue_per_order || 0)}
@@ -197,7 +197,7 @@ export const ServiceSpecificStats: React.FC<ServiceSpecificStatsProps> = ({
       <View className="mt-3">
         <View className="bg-white p-4 rounded-lg shadow-sm">
           <Text className="text-lg font-pbold text-gray-800 mb-3">
-            Đơn hàng từ {service.name}
+            Đơn dịch vụ từ {service.name}
           </Text>
 
           {ordersData.data.some((val) => val > 0) ? (
@@ -238,7 +238,7 @@ export const ServiceSpecificStats: React.FC<ServiceSpecificStatsProps> = ({
             <View className="w-1/2 pr-2 mb-3">
               <View className="bg-blue-50 rounded-lg p-3">
                 <Text className="text-gray-500 font-pmedium text-xs mb-1">
-                  Tổng đơn hàng
+                  Tổng đơn dịch vụ
                 </Text>
                 <Text className="text-base font-pbold text-gray-800">
                   {service.order_count || 0}
@@ -249,7 +249,7 @@ export const ServiceSpecificStats: React.FC<ServiceSpecificStatsProps> = ({
             <View className="w-1/2 pl-2 mb-3">
               <View className="bg-green-50 rounded-lg p-3">
                 <Text className="text-gray-500 font-pmedium text-xs mb-1">
-                  % Tổng đơn hàng
+                  % Tổng đơn dịch vụ
                 </Text>
                 <Text className="text-base font-pbold text-gray-800">
                   {stats.orders.total

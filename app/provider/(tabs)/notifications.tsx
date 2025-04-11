@@ -71,6 +71,7 @@ const NotificationScreen = () => {
   useFocusEffect(
     useCallback(() => {
       retryCount.current = 0;
+      setNotifications([]);
       fetchNotificationsWithRetry();
       fetchUnReadNotifications();
     }, [])
@@ -96,6 +97,7 @@ const NotificationScreen = () => {
   };
 
   const handleDataNotification = (data: { type: string; id?: string }) => {
+    console.log("data", data);
     switch (data.type) {
       case "message":
         if (data?.id) {
@@ -108,9 +110,14 @@ const NotificationScreen = () => {
         }
         break;
       case "order":
-        router.push({
-          pathname: "/profile/order-history",
-        });
+        if (data?.id) {
+          router.push({
+            pathname: "/customer",
+            params: {
+              orderId: data.id,
+            },
+          });
+        }
         break;
       default:
         Alert.alert(
@@ -136,7 +143,9 @@ const NotificationScreen = () => {
       fetchUnReadNotifications();
     }
     const data = JSON.parse(item.data);
-    handleDataNotification(data);
+    if (data?.type && data?.id) {
+      handleDataNotification(data);
+    }
   };
 
   const renderRightActions = (id: number) => {

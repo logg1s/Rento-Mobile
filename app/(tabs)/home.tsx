@@ -3,7 +3,7 @@ import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import { getImageSource } from "@/utils/utils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Notifications from "expo-notifications";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -101,12 +101,6 @@ const TabHome = () => {
     fetchServiceWithRetry();
     setIsLoading(false);
   }, []);
-
-  const onPressFavorite = (serviceId: number, action: string) => {
-    if (serviceId) {
-      updateFavorite(serviceId, action === "true");
-    }
-  };
 
   const handleSearchPress = () => {
     if (searchText.trim()) {

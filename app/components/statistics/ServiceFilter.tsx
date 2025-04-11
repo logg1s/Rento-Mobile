@@ -135,7 +135,7 @@ export const ServiceFilter: React.FC<ServiceFilterProps> = ({
             <View className="w-1/2 pl-2 mb-3">
               <View className="bg-green-50 rounded-lg p-3">
                 <Text className="text-gray-500 font-pmedium text-xs mb-1">
-                  TB/đơn hàng
+                  TB/đơn dịch vụ
                 </Text>
                 <Text className="text-base font-pbold text-gray-800">
                   {formatCurrency(selectedService.revenue_per_order || 0)}

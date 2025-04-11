@@ -9,6 +9,8 @@ import {
   Linking,
   Platform,
   ActivityIndicator,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useFonts } from "expo-font";
 import {
@@ -37,6 +39,10 @@ import {
   OrderType,
   UserType,
 } from "@/types/type";
+import MapboxGL from "@rnmapbox/maps";
+
+// Set Mapbox access token
+MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN || "");
 
 export default function CustomerDetails() {
   const { orderId } = useLocalSearchParams<{
@@ -162,10 +168,10 @@ export default function CustomerDetails() {
           },
         ]}
       >
-        <Text style={[styles.detailLabel, { color: "white" }]}>
-          Trạng thái đơn hàng
+        <Text style={[styles.detailLabel, { color: "white" }]} selectable>
+          Trạng thái dịch vụ
         </Text>
-        <Text style={[styles.detailValue, { color: "white" }]}>
+        <Text style={[styles.detailValue, { color: "white" }]} selectable>
           {statusConfig.text}
         </Text>
       </View>
@@ -225,13 +231,78 @@ export default function CustomerDetails() {
         )}
       </View>
 
+      {/* Map Component - now positioned directly below action buttons */}
+      {userInfo.location?.lat && userInfo.location?.lng && (
+        <View
+          style={styles.mapSection}
+          onStartShouldSetResponder={() => true}
+          onResponderTerminationRequest={() => false}
+        >
+          <View style={styles.mapContainer}>
+            <MapboxGL.MapView
+              style={styles.map}
+              logoEnabled={false}
+              attributionEnabled={false}
+              compassEnabled={true}
+              styleURL={MapboxGL.StyleURL.Street}
+              scrollEnabled={true}
+              pitchEnabled={true}
+              rotateEnabled={true}
+              zoomEnabled={true}
+              onStartShouldSetResponder={() => true}
+              onResponderTerminationRequest={() => false}
+              onTouchStart={(e) => {
+                // Prevent parent ScrollView from getting this touch event
+                e.stopPropagation();
+                return true;
+              }}
+            >
+              <MapboxGL.Camera
+                zoomLevel={15}
+                centerCoordinate={[
+                  userInfo.location.lng,
+                  userInfo.location.lat,
+                ]}
+                animationMode="flyTo"
+                animationDuration={1000}
+              />
+
+              <MapboxGL.PointAnnotation
+                id="userLocation"
+                coordinate={[userInfo.location.lng, userInfo.location.lat]}
+                title={userInfo.name || "Vị trí khách hàng"}
+              >
+                <View style={styles.markerContainer}>
+                  <View style={styles.marker}>
+                    <Ionicons name="location" size={24} color="#dc2626" />
+                  </View>
+                </View>
+              </MapboxGL.PointAnnotation>
+            </MapboxGL.MapView>
+
+            <TouchableOpacity
+              style={styles.openMapButton}
+              onPress={handleOpenMap}
+            >
+              <Text style={styles.openMapText}>Mở bản đồ đầy đủ</Text>
+              <Ionicons
+                name="open-outline"
+                size={16}
+                color="#0286FF"
+                style={{ marginLeft: 5 }}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <View style={styles.detailSection}>
         <Text style={styles.sectionTitle}>Thông tin đơn dịch vụ</Text>
 
         {renderOrderStatusHeader()}
 
         <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Mã đơn hàng</Text>
+          <Text style={styles.detailLabel}>Mã đơn dịch vụ</Text>
           <Text style={styles.detailValue} selectable>
             {orderId ?? ""}
           </Text>
@@ -449,5 +520,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     maxWidth: "60%",
     textAlign: "right",
+  },
+  mapSection: {
+    backgroundColor: "white",
+    marginBottom: 10,
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: 8,
+    overflow: "hidden",
+    position: "relative",
+  },
+  map: {
+    flex: 1,
+  },
+  markerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  marker: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 5,
+  },
+  openMapButton: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  openMapText: {
+    color: "#0286FF",
+    fontFamily: "Poppins_500Medium",
   },
 });

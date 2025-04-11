@@ -206,7 +206,7 @@ const StatsScreen = () => {
 
   const sections = [
     { id: "revenue", label: "Doanh thu", icon: "cash" },
-    { id: "orders", label: "Đơn hàng", icon: "cart" },
+    { id: "orders", label: "Đơn dịch vụ", icon: "cart" },
     { id: "services", label: "Dịch vụ", icon: "briefcase" },
     { id: "customers", label: "Khách hàng", icon: "people" },
   ];
@@ -366,7 +366,7 @@ const StatsScreen = () => {
                   : "text-gray-700 font-pregular"
               }`}
             >
-              Đơn hàng
+              Đơn dịch vụ
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

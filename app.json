@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/rento-logo-blue.jpg",
-    "scheme": "myapp",
+    "scheme": "rento",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {

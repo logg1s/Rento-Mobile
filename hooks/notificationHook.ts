@@ -89,7 +89,7 @@ function handleNotification(
       router.push({
         pathname: "/customer",
         params: {
-          id: data.id,
+          orderId: data.id,
         },
       });
       break;

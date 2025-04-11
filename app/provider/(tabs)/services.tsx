@@ -32,7 +32,7 @@ import {
   formatDateToVietnamese,
   getImageSource,
 } from "@/utils/utils";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import useRentoData, { axiosFetch } from "@/stores/dataStore";
 import CommentCard from "@/components/CommentCard";
 import LocationInputField from "@/components/LocationInputField";
@@ -103,7 +103,7 @@ export default function ProviderServices() {
   const [showAddModal, setShowAddModal] = useState(false);
   const categories = useRentoStore((state) => state.categories);
   const router = useRouter();
-  const [isSubmitting, setIsSubmiting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [servicesList, setServicesList] = useState<ProviderService[]>([]);
   const [paginationData, setPaginationData] = useState<{
     nextCursor: string | null;
@@ -538,7 +538,7 @@ export default function ProviderServices() {
     }
 
     try {
-      setIsSubmiting(true);
+      setIsSubmitting(true);
       const formDataToSend = new FormData();
       formDataToSend.append("service_name", formData.service_name);
       formDataToSend.append(
@@ -594,7 +594,7 @@ export default function ProviderServices() {
         "Có lỗi xảy ra khi thêm dịch vụ. Vui lòng thử lại sau."
       );
     } finally {
-      setIsSubmiting(false);
+      setIsSubmitting(false);
     }
   };
 

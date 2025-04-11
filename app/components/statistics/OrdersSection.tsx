@@ -196,7 +196,7 @@ export const OrdersSection: React.FC<OrdersSectionProps> = ({
           <View className="w-1/2 pr-2 mb-3">
             <View className="bg-blue-50 rounded-lg p-3">
               <Text className="text-gray-500 font-pmedium text-xs mb-1">
-                Đơn hàng TB/ngày
+                Đơn dịch vụ TB/ngày
               </Text>
               <Text className="text-base font-pbold text-gray-800">
                 {(stats.orders.daily_average || 0).toFixed(1)} đơn

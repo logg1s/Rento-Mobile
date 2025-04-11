@@ -23,6 +23,7 @@ import { NotificationType } from "@/types/type";
 import { axiosFetch } from "@/stores/dataStore";
 import { PaginationType } from "@/types/pagination";
 import { router, useFocusEffect } from "expo-router";
+import { set } from "lodash";
 
 const NotificationScreen = () => {
   const markNotificationAsRead = useRentoData(
@@ -71,6 +72,7 @@ const NotificationScreen = () => {
   useFocusEffect(
     useCallback(() => {
       retryCount.current = 0;
+      setNotifications([]);
       fetchNotificationsWithRetry();
       fetchUnReadNotifications();
     }, [])
@@ -109,7 +111,10 @@ const NotificationScreen = () => {
         break;
       case "order":
         router.push({
-          pathname: "/profile/order-history",
+          pathname: "/customer",
+          params: {
+            orderId: data.id,
+          },
         });
         break;
       default:
@@ -136,7 +141,9 @@ const NotificationScreen = () => {
       fetchUnReadNotifications();
     }
     const data = JSON.parse(item.data);
-    handleDataNotification(data);
+    if (data?.type && data?.id) {
+      handleDataNotification(data);
+    }
   };
 
   const renderRightActions = (id: number) => {

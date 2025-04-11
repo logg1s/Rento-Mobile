@@ -47,7 +47,7 @@ export const OrderCard = ({
   const handleCancelOrder = async () => {
     Alert.alert(
       "Xác nhận huỷ đơn",
-      "Bạn có chắc chắn muốn huỷ đơn hàng này không?",
+      "Bạn có chắc chắn muốn huỷ đơn dịch vụ này không?",
       [
         {
           text: "Không",
@@ -66,16 +66,16 @@ export const OrderCard = ({
                   OrderStatus.CANCELLED
                 );
                 if (success) {
-                  Alert.alert("Thành công", "Đã huỷ đơn hàng thành công");
+                  Alert.alert("Thành công", "Đã huỷ đơn dịch vụ thành công");
                   onOrderUpdate?.();
                 } else {
-                  throw new Error("Không thể huỷ đơn hàng");
+                  throw new Error("Không thể huỷ đơn dịch vụ");
                 }
               }
             } catch (error) {
               Alert.alert(
                 "Lỗi",
-                "Không thể huỷ đơn hàng. Vui lòng thử lại sau"
+                "Không thể huỷ đơn dịch vụ. Vui lòng thử lại sau"
               );
             }
           },
@@ -102,8 +102,8 @@ export const OrderCard = ({
     }[newStatus];
 
     Alert.alert(
-      `Xác nhận ${statusText} đơn hàng`,
-      `Bạn có chắc chắn muốn cập nhật trạng thái đơn hàng thành ${statusText}?`,
+      `Xác nhận ${statusText} đơn dịch vụ`,
+      `Bạn có chắc chắn muốn cập nhật trạng thái đơn dịch vụ thành ${statusText}?`,
       [
         {
           text: "Hủy",
@@ -291,7 +291,7 @@ export const OrderCard = ({
 
       <View className="bg-gray-50 rounded-xl p-4 space-y-3">
         <View className="flex-row justify-between items-center pb-3 border-b border-gray-100">
-          <Text className="text-gray-500">Mã đơn hàng</Text>
+          <Text className="text-gray-500">Mã đơn dịch vụ</Text>
           <Text className="font-medium">#{order.id}</Text>
         </View>
 
