@@ -135,17 +135,6 @@ const TabHome = () => {
               <Text className="font-psemibold text-lg">{user?.name}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPressIn={openChatbotAI}
-            className="flex-row bg-primary-100 items-center gap-2 border border-gray-400 shadow rounded-2xl px-4 py-2"
-          >
-            <Image
-              source={require("@/assets/icons/robot.png")}
-              className="w-6 h-6"
-              resizeMode="contain"
-            />
-            <Text className="font-pmedium text-sm">Chat với AI</Text>
-          </TouchableOpacity>
         </View>
 
         <View className="flex-row items-center bg-white rounded-2xl px-4 py-5 mt-5 border-2 border-gray-400 -mb-5">
@@ -169,6 +158,17 @@ const TabHome = () => {
           )}
         </View>
       </View>
+      <TouchableOpacity
+        onPressIn={openChatbotAI}
+        className="flex-row bg-primary-100 items-center gap-2 border border-gray-400 shadow rounded-2xl px-5 py-3 absolute bottom-10 z-50 right-5 shadow"
+      >
+        <Image
+          source={require("@/assets/icons/robot.png")}
+          className="w-6 h-6"
+          resizeMode="contain"
+        />
+        <Text className="font-pmedium text-sm">Chat với AI</Text>
+      </TouchableOpacity>
       <FlatList
         data={data}
         contentContainerClassName="px-5 gap-5 pb-5"

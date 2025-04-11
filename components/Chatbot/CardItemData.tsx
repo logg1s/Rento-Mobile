@@ -23,7 +23,13 @@ const CardItemData = ({
       {dataType === "order" && (
         <View className="p-4 bg-gray-100 rounded-lg gap-2">
           {data.map((item) => (
-            <View
+            <TouchableOpacity
+              onPress={() => {
+                router.push({
+                  pathname: "/customer",
+                  params: { orderId: item.id },
+                });
+              }}
               key={item.id}
               className="mb-2 p-3 border border-gray-300 rounded-md bg-white shadow-sm"
             >
@@ -55,11 +61,11 @@ const CardItemData = ({
                   Giá: {formatToVND(item?.price_final_value)}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
 
           <CustomButton
-            title="Xem chi tiết"
+            title="Xem tất cả"
             textStyles="font-regular"
             onPress={() => {
               router.push("/profile/order-history");
@@ -102,7 +108,7 @@ const CardItemData = ({
           <View className=" gap-2 rounded-xl  bg-white  p-2 flex-row flex-wrap">
             {data.map((item, index) => (
               <View
-                key={index}
+                key={index.toString()}
                 className="rounded-xl border border-gray-300 bg-white  p-2"
               >
                 <Text>{item.category_name}</Text>
@@ -111,7 +117,7 @@ const CardItemData = ({
           </View>
 
           <CustomButton
-            title="Xem chi tiết"
+            title="Xem tất cả"
             textStyles="font-regular"
             onPress={() => {
               router.push("/(tabs)/search");

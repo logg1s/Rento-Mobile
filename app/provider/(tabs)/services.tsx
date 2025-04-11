@@ -788,6 +788,17 @@ export default function ProviderServices() {
 
   return (
     <SafeAreaView className="flex-1 bg-general-500">
+      <TouchableOpacity
+        onPressIn={() => router.push("/chatbot/chatbot")}
+        className="flex-row bg-primary-100 items-center gap-2 border border-gray-400 shadow rounded-2xl px-5 py-3 absolute bottom-10 z-50 right-5 shadow"
+      >
+        <Image
+          source={require("@/assets/icons/robot.png")}
+          className="w-6 h-6"
+          resizeMode="contain"
+        />
+        <Text className="font-pmedium text-sm">Chat với AI</Text>
+      </TouchableOpacity>
       <FlatList
         ref={flatListRef}
         data={filteredServices}

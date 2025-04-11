@@ -110,6 +110,7 @@ export default function App() {
   );
   const flatListRef = useRef<FlatList>(null);
   const user = useRentoData((state) => state.user);
+  const isProvider = user?.role.some((role) => role.id === "provider") || false;
   const navigation = useNavigation();
 
   /* #FUNCTION */
@@ -118,9 +119,9 @@ export default function App() {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       generationConfig,
-      systemInstruction: chatInstruction(user?.id || ""),
+      systemInstruction: chatInstruction(user?.id ?? "", isProvider),
     });
-    const chat = await model.startChat({
+    const chat = model.startChat({
       history: [...chatHistory, ...buildChatHistory(listData)],
     });
     const result = await chat.sendMessage(prompt);
@@ -245,7 +246,7 @@ export default function App() {
     <View className="flex-1 gap-1">
       <FlatList
         ref={flatListRef}
-        contentContainerClassName="p-2 gap-5"
+        contentContainerClassName="p-2 gap-5 flex-grow"
         data={listData as ChatHistoryType[]}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
@@ -269,8 +270,8 @@ export default function App() {
           </View>
         )}
         ListEmptyComponent={() => (
-          <View className="justify-center items-center">
-            <Text className="text-lg ">
+          <View className="justify-center items-center flex-grow">
+            <Text className="text-lg " selectable>
               Tin nhắn đang trống. Bắt đầu trò truyện với AI để hiển thị
             </Text>
           </View>
