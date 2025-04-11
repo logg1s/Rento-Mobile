@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -53,6 +53,9 @@ export default function CustomerDetails() {
   const [userInfo, setUserInfo] = useState<UserType | null>(null);
   const [order, setOrder] = useState<OrderType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showCallout, setShowCallout] = useState(true);
+  const mapViewRef = useRef<MapboxGL.MapView>(null);
+  const cameraRef = useRef<MapboxGL.Camera>(null);
 
   const [loaded, error] = useFonts({
     Poppins_100Thin,
@@ -140,6 +143,22 @@ export default function CustomerDetails() {
     }
 
     Linking.openURL(`tel:${userInfo.phone_number}`);
+  };
+
+  const centerMapOnMarker = () => {
+    if (
+      userInfo?.location?.lat &&
+      userInfo?.location?.lng &&
+      cameraRef.current
+    ) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [userInfo.location.lng, userInfo.location.lat],
+        zoomLevel: 15,
+        animationMode: "flyTo",
+        animationDuration: 1000,
+      });
+      setShowCallout(true);
+    }
   };
 
   if (loading) {
@@ -258,6 +277,7 @@ export default function CustomerDetails() {
               }}
             >
               <MapboxGL.Camera
+                ref={cameraRef}
                 zoomLevel={15}
                 centerCoordinate={[
                   userInfo.location.lng,
@@ -277,6 +297,17 @@ export default function CustomerDetails() {
                     <Ionicons name="location" size={24} color="#dc2626" />
                   </View>
                 </View>
+                {showCallout && (
+                  <MapboxGL.Callout
+                    title={userInfo.name || "Vị trí khách hàng"}
+                  >
+                    <View style={styles.calloutContainer}>
+                      <Text style={styles.calloutText}>
+                        {userInfo.location.location_name}
+                      </Text>
+                    </View>
+                  </MapboxGL.Callout>
+                )}
               </MapboxGL.PointAnnotation>
             </MapboxGL.MapView>
 
@@ -291,6 +322,13 @@ export default function CustomerDetails() {
                 color="#0286FF"
                 style={{ marginLeft: 5 }}
               />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.centerMapButton}
+              onPress={centerMapOnMarker}
+            >
+              <Ionicons name="locate" size={24} color="#0286FF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -567,5 +605,39 @@ const styles = StyleSheet.create({
   openMapText: {
     color: "#0286FF",
     fontFamily: "Poppins_500Medium",
+  },
+  calloutContainer: {
+    backgroundColor: "white",
+    padding: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    minWidth: 200,
+    maxWidth: 280,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.1)",
+  },
+  calloutText: {
+    color: "#111827",
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  centerMapButton: {
+    position: "absolute",
+    bottom: 50,
+    right: 10,
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 50,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
