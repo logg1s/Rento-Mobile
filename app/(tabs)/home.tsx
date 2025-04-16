@@ -27,11 +27,9 @@ const TabHome = () => {
   const [searchText, setSearchText] = useState("");
   const [data, setData] = useState<ServiceType[]>([]);
   const user = useRentoData((state) => state.user);
-  const updateFavorite = useRentoData((state) => state.updateFavorite);
   const retryCount = useRef(0);
   const nextCursor = useRef<string | null>(null);
   const fetchFav = useRentoData((state) => state.fetchFavIds);
-  const favIds = useRentoData((state) => state.favIds);
 
   const fetchServiceWithRetry = async () => {
     try {
