@@ -1,0 +1,14 @@
+// json table
+const dbTable = {};
+
+// history chat for better support
+export const chatHistory = [
+  {
+    role: "",
+    parts: [
+      {
+        text: "",
+      },
+    ],
+  },
+];
