@@ -1,12 +1,18 @@
 # Rento Mobile App
 
-The Rento Mobile app is built with React Native and Expo, featuring:
+## About Rento
 
-- Authentication flows
-- Service provider and customer interfaces
-- Chatbot functionality
-- Service browsing and ordering
-- User profiles and reviews
+Rento is a comprehensive mobile application built with React Native and Expo, designed to connect service providers with customers. The platform offers:
+
+- **Dual Interfaces**: Separate experiences for service providers and customers
+- **Secure Authentication**: Complete login, registration, and account management
+- **Service Management**: Browse, search, and order services with ease
+- **Real-time Communication**: Built-in chat functionality between users
+- **AI-powered Assistance**: Integrated chatbot for instant support
+- **Review System**: Transparent ratings and feedback mechanism
+- **Profile Management**: Customizable user profiles and preferences
+
+The application provides an intuitive and seamless experience for both service providers looking to expand their business and customers seeking quality services.
 
 # Images
 
@@ -49,18 +55,17 @@ The Rento Mobile app is built with React Native and Expo, featuring:
     <img src="./assets/images/repo/Picture17.jpg" width="30%" alt="Image 17" />
     <img src="./assets/images/repo/Picture18.png" width="30%" alt="Image 18" />
 </div>
-
 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
     <img src="./assets/images/repo/Picture19.png" width="30%" alt="Image 19" />
-    <img src="./assets/images/repo/Picture20.png" width="30%" alt="Image 20" />
-    <img src="./assets/images/repo/Picture21.png" width="30%" alt="Image 21" />
-</div>
-
-<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-    <img src="./assets/images/repo/Picture22.png" width="30%" alt="Image 22" />
 </div>
 
 ## Provider UI
+
+<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+    <img src="./assets/images/repo/Picture20.png" width="30%" alt="Image 20" />
+    <img src="./assets/images/repo/Picture21.png" width="30%" alt="Image 21" />
+    <img src="./assets/images/repo/Picture22.png" width="30%" alt="Image 22" />
+</div>
 
 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
     <img src="./assets/images/repo/Picture23.png" width="30%" alt="Image 23" />
